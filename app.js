@@ -4,7 +4,7 @@
 const STORAGE_KEY='egowheel.save.v7';
 const AUDIO_KEY='egowheel.audio.v1';
 const VERSION=7;
-const BUILD_ID='v19';
+const BUILD_ID='v20';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -517,6 +517,13 @@ secondaryV12.options.push(
  option('Tempo Pause','You can delay an action just long enough for the defensive picture to change.','epic',{control:6,vision:6,technique:4},'PAUSE',{bonusText:'+ creative stability',match:{keyPasses:.3,performance:.05},training:{film:.18,passing:.14}})
 );
 
+
+if(!egoStageV12.options.some(o=>o.name==='Masochist')){
+ egoStageV12.options.push(
+  option('Masochist','Physical strain and self-imposed suffering sharpen your ego instead of merely wearing you down.','uncommon',{stamina:3,physical:3,ego:3},'MASOCHIST',{statBias:{stamina:.02,physical:.02,ego:.025},interaction:'masochist'})
+ );
+}
+
 const NEL_STAGE={key:'nelClub',chapter:'NEO EGOIST LEAGUE',name:'Choose Your NEL Club',prompt:'Which European philosophy will reshape your final stage?',mode:'equal',options:Object.keys(NEL_DATA).map(n=>option(n,NEL_DATA[n].master+' leads a squad built around a distinct football philosophy.','common',{},n.replace('Bastard München','Bastard').replace('Manshine City','Manshine').replace('FC Barcha','Barcha').replace('Paris X Gen','PXG')))};
 
 const TRAINING_ACTIONS=[
@@ -617,7 +624,7 @@ function randomName(){
 }
 function baseStats(){const s={};ATTR_KEYS.forEach(k=>s[k]=50);return s;}
 function blankDevelopment(){const d={};ATTR_KEYS.forEach(k=>d[k]=0);return d;}
-function defaultRun(){return{id:uid(),name:randomName(),mode:'build',buildIndex:0,statIndex:0,selections:{},baseStats:baseStats(),development:blankDevelopment(),energy:100,confidence:52,form:0,fitness:100,injury:null,lastChanges:{},pendingTraining:null,pendingMatch:null,career:null,createdAt:Date.now()};}
+function defaultRun(){return{id:uid(),name:randomName(),mode:'build',buildIndex:0,statIndex:0,selections:{},baseStats:baseStats(),development:blankDevelopment(),potentialBonus:0,learnedWeapons:[],energy:100,confidence:52,form:0,fitness:100,injury:null,lastChanges:{},pendingTraining:null,pendingMatch:null,career:null,createdAt:Date.now()};}
 function defaultState(){return{version:VERSION,run:defaultRun(),archive:[],ui:{view:'runView'}};}
 function load(){
  try{
@@ -654,10 +661,12 @@ const START_STAT_TABLE=[
  {value:75,weight:5},{value:80,weight:2.5},{value:85,weight:1.2},{value:90,weight:.5},{value:95,weight:.12}
 ];
 
+function learnedWeapons(){state.run.learnedWeapons=state.run.learnedWeapons||[];return state.run.learnedWeapons;}
 function gameplayBonuses(){
  const match={},training={};
- for(const key of ['archetype','primaryWeapon','secondaryWeapon']){
-  const meta=state.run.selections[key]?.meta||{};
+ const sources=['archetype','primaryWeapon','secondaryWeapon'].map(key=>state.run.selections[key]).filter(Boolean).concat(learnedWeapons());
+ for(const source of sources){
+  const meta=source?.meta||{};
   Object.entries(meta.match||{}).forEach(([k,v])=>match[k]=(match[k]||0)+v);
   Object.entries(meta.training||{}).forEach(([k,v])=>training[k]=(training[k]||0)+v);
  }
@@ -710,7 +719,7 @@ function trainingOutcomeStage(){
    weighted('Mental Breakthrough','Rest creates clarity as well as recovery.',3+affinity*3,{},'BREAKTHROUGH',{mult:1.9,confidence:8,extraStat:'ego'})
   ]};
  }
- const risk=Math.max(0,action.risk||0),fatigue=Math.max(0,50-state.run.energy)/10;
+ const stamina=currentStats().stamina||60,risk=Math.max(0,action.risk||0),fatigue=Math.max(0,65-state.run.fitness)/10*clamp(1.25-stamina/180,.65,1.05);
  return{key:'trainingOutcome',chapter:'TRAINING RESULT',name:action.name+' Result',prompt:'You chose the session. The wheel decides how well it actually goes.',mode:'weights',options:[
   weighted('Serious Training Injury','A bad movement ends the session and puts your place in immediate danger.',.8+risk*10+fatigue*.25,{},'SERIOUS INJURY',{mult:0,injury:true,serious:true,confidence:-12}),
   weighted('Training Injury','The session ends with a physical setback.',2+risk*28+fatigue*.4,{},'INJURY',{mult:0,injury:true,confidence:-5}),
@@ -884,7 +893,8 @@ function emptyMatchContribution(){
 }
 function contributionStage(){
  const fixture=currentFixture(),p=state.run.pendingMatch||{},idx=p.spinIndex||0,s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{};
- const formBoost=state.run.form*1.8+(state.run.confidence-50)*.05+(state.run.energy-60)*.025;
+ const fit=(state.run.fitness??100),stam=s.stamina||60,fitnessBoost=(fit-75)*.035+(stam-60)*.012;
+ const formBoost=state.run.form*1.8+(state.run.confidence-50)*.05+fitnessBoost;
  const attack=(s.finishing+s.offBall+s.reactions+s.shotPower)/4;
  const create=(s.passing+s.vision+s.control)/3;
  const carry=(s.dribbling+s.control+s.acceleration)/3;
@@ -1121,11 +1131,16 @@ function setupDerived(){
  return effects;
 }
 function potentialMeta(){return state.run.selections.potential?.meta||{growth:1,ceiling:87};}
+function potentialCeiling(){return clamp((potentialMeta().ceiling||87)+(state.run.potentialBonus||0),80,105);}
+function raisePotential(amount=1){
+ state.run.potentialBonus=clamp((state.run.potentialBonus||0)+amount,0,18);
+ return potentialCeiling();
+}
 function currentStats(){
- const setup=setupDerived(),stats={};const ceil=potentialMeta().ceiling||87;
+ const setup=setupDerived(),stats={},ceil=potentialCeiling();
  ATTR_KEYS.forEach(k=>{
   const starting=(state.run.baseStats[k]||50)+(setup[k]||0);
-  const cap=Math.max(starting,ceil,k==='ego'?99:ceil);
+  const cap=Math.max(starting,ceil,k==='ego'?Math.max(99,ceil):ceil);
   stats[k]=clamp(Math.round(starting+(state.run.development[k]||0)),20,cap);
  });
  return stats;
@@ -1136,7 +1151,7 @@ function overall(stats=currentStats()){
 }
 function addChange(key,n){state.run.lastChanges[key]=(state.run.lastChanges[key]||0)+n;}
 function changeStat(key,amount){
- const p=potentialMeta(),stats=currentStats(),ceil=p.ceiling||87;if(!ATTR_KEYS.includes(key))return 0;
+ const p=potentialMeta(),stats=currentStats(),ceil=potentialCeiling();if(!ATTR_KEYS.includes(key))return 0;
  let n=amount;
  if(n>0){n=Math.max(1,Math.round(n*(p.growth||1)));n=Math.min(n,Math.max(0,ceil-stats[key]));}
  else n=Math.max(n,20-stats[key]);
@@ -1172,7 +1187,7 @@ function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
  state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,prepPhase:'event',trainingKey:null,trainingResult:null,planKey:'balanced',history:[],recentRatings:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
- state.run.energy=100;state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
+ state.run.energy=100;state.run.potentialBonus=state.run.potentialBonus||0;state.run.learnedWeapons=state.run.learnedWeapons||[];state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
  save();renderAll();toast('Blue Lock career started.');
 }
 function currentFixture(){return state.run.career?.fixtures[state.run.career.fixtureIndex]||null;}
@@ -1261,7 +1276,6 @@ function startBetweenEvent(){
 function applyDirectBetween(meta={}){
  state.run.lastChanges={};
  Object.entries(meta.stats||{}).forEach(([k,v])=>changeStat(k,v));
- if(meta.energy)state.run.energy=clamp(state.run.energy+meta.energy,0,100);
  if(meta.fitness)state.run.fitness=clamp(state.run.fitness+meta.fitness,20,100);
  if(meta.confidence)state.run.confidence=clamp(state.run.confidence+meta.confidence,0,100);
  if(meta.form)state.run.form=clamp(state.run.form+meta.form,-3,3);
@@ -1272,7 +1286,16 @@ function resolveBetweenGameOutcome(outcome){
  c.prepResolution={event:outcome.name,outcome:null,detail:outcome.desc||''};
  const meta=outcome.meta||{};
  if(meta.kind==='direct'){
-  applyDirectBetween(meta);setPrepResolution(c,outcome.name,'Resolved',outcome.desc||'');completePrepEvent(c);careerLog('Between games: '+outcome.name+'.');
+  if(outcome.name==='Overtraining'&&state.run.selections.egoStyle?.name==='Masochist'){
+   state.run.lastChanges={};
+   changeStat('stamina',3);changeStat('physical',3);changeStat('ego',2);
+   state.run.fitness=clamp(state.run.fitness-4,20,100);
+   state.run.confidence=clamp(state.run.confidence+5,0,100);
+   setPrepResolution(c,outcome.name,'Pain Becomes Fuel','Your Masochist ego converts excessive training load into permanent growth.');
+   completePrepEvent(c);careerLog('Masochist interaction: overtraining becomes a development spike.');
+  }else{
+   applyDirectBetween(meta);setPrepResolution(c,outcome.name,'Resolved',outcome.desc||'');completePrepEvent(c);careerLog('Between games: '+outcome.name+'.');
+  }
  }else if(meta.kind==='training'){
   setPrepPhase(c,PREP_PHASE.TRAINING);careerLog('Between games: a focused training block opens.');
  }else{
@@ -1406,28 +1429,34 @@ function resolveTrainingOutcome(outcome){
  const c=state.run.career,action=TRAINING_ACTIONS.find(x=>x.key===state.run.pendingTraining);
  if(!c||!action||!outcome)return;
  state.run.lastChanges={};
- const meta=outcome.meta||{},affinity=trainingAffinity(action.key),mult=(meta.mult??1)*(1+affinity);
+ const meta=outcome.meta||{},affinity=trainingAffinity(action.key),egoName=state.run.selections.egoStyle?.name||'',qualityBoost=egoName==='Perfectionist'&&['Excellent Session','Breakthrough','Ego Awakening'].includes(outcome.name)?1.22:1;
+ const mult=(meta.mult??1)*(1+affinity)*qualityBoost;
+ const stamina=currentStats().stamina||60;
  if(action.key==='rest'){
-  const energyGain=Math.round(24*mult),fitnessGain=Math.round(16*mult);
-  state.run.energy=clamp(state.run.energy+energyGain,0,100);
+  const fitnessGain=Math.round((22+stamina*.10)*mult);
   state.run.fitness=clamp(state.run.fitness+fitnessGain,20,100);
   state.run.confidence=clamp(state.run.confidence+(meta.confidence||0),0,100);
-  if(meta.extraStat)changeStat(meta.extraStat,1);
-  careerLog(action.name+': '+outcome.name+' (+'+energyGain+' energy, +'+fitnessGain+' fitness).');
+  if(meta.extraStat)changeStat(meta.extraStat,2);
+  careerLog(action.name+': '+outcome.name+' (+'+fitnessGain+' fitness).');
  }else{
-  state.run.energy=clamp(state.run.energy-action.cost,0,100);
+  const fitnessLoad=Math.max(1,Math.round(action.cost*.38-stamina*.022));
+  state.run.fitness=clamp(state.run.fitness-fitnessLoad,20,100);
   if(meta.injury){
-   state.run.fitness=clamp(state.run.fitness-12,20,100);
+   state.run.fitness=clamp(state.run.fitness-10,20,100);
    state.run.injury=meta.serious?{name:'Serious muscle injury',matches:3,penalty:14}:{name:Math.random()<.3?'Muscle strain':'Training knock',matches:Math.random()<.3?2:1,penalty:Math.random()<.3?10:6};
   }else{
+   const developmentScale=1.75;
    Object.entries(action.effects).forEach(([k,v])=>{
-    const amount=mult<0?-Math.max(1,Math.round(Math.abs(v*mult))):Math.round(v*mult);
+    const raw=v*mult*developmentScale;
+    const amount=mult<0?-Math.max(1,Math.round(Math.abs(raw))):Math.max(1,Math.round(raw));
     if(amount)changeStat(k,amount);
    });
    if(meta.extra){
     const pool=Object.keys(action.effects).filter(k=>ATTR_KEYS.includes(k));
-    if(pool.length)changeStat(pick(pool),meta.awakening?3:2);
+    if(pool.length)changeStat(pick(pool),meta.awakening?5:3);
    }
+   if(outcome.name==='Breakthrough'){raisePotential(1);}
+   if(outcome.name==='Ego Awakening'){raisePotential(2);}
   }
   state.run.confidence=clamp(state.run.confidence+(meta.confidence||0),0,100);
   if(meta.form)state.run.form=clamp(state.run.form+meta.form,-3,3);
@@ -1451,7 +1480,12 @@ function choosePlan(key){const c=state.run.career;if(!c||c.report)return;repairP
 function binomial(n,p){let x=0;for(let i=0;i<n;i++)if(Math.random()<p)x++;return x;}
 function poisson(lambda){let L=Math.exp(-lambda),k=0,p=1;do{k++;p*=Math.random();}while(p>L&&k<12);return k-1;}
 function effectiveStats(){
- const s=currentStats(),factor=clamp(.78+state.run.energy/500+state.run.fitness/600+(state.run.confidence-50)/650+state.run.form*.025,.65,1.12),inj=state.run.injury?.penalty||0,plan=MATCH_PLANS.find(x=>x.key===state.run.career.planKey)||MATCH_PLANS[0],out={};
+ const s=currentStats(),fitness=clamp(state.run.fitness??100,20,100),stamina=s.stamina||60;
+ const lowFitness=Math.max(0,90-fitness),staminaBuffer=clamp((stamina-45)/130,0,.38);
+ const fitnessPenalty=lowFitness*.0024*(1-staminaBuffer),freshBonus=Math.max(0,fitness-92)*.0012;
+ let factor=clamp(.99-fitnessPenalty+freshBonus+(state.run.confidence-50)/950+state.run.form*.02,.78,1.10);
+ if(state.run.selections.egoStyle?.name==='Survivor'&&fitness<60)factor+=.025;
+ const inj=state.run.injury?.penalty||0,plan=MATCH_PLANS.find(x=>x.key===state.run.career.planKey)||MATCH_PLANS[0],out={};
  ATTR_KEYS.forEach(k=>out[k]=clamp(s[k]*factor+(plan.mods[k]||0)-inj,15,110));
  return out;
 }
@@ -1543,8 +1577,12 @@ function applyPostMatch(rep,fixture){
   if(fixture.stage==='Third Selection'){c.thirdSelection=c.thirdSelection||{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0};c.thirdSelection.apps++;c.thirdSelection.ratingTotal+=rep.rating;c.thirdSelection.goals+=rep.goals;c.thirdSelection.assists+=rep.assists;c.thirdSelection.defActions+=defActions;}
   if(fixture.stage==='First Selection'){if(rep.result==='WIN')c.firstSelectionPoints+=3;else if(rep.result==='DRAW')c.firstSelectionPoints+=1;}
  }
- const drain=rep.type==='match'?int(17,25)+(MATCH_PLANS.find(x=>x.key===c.planKey)?.extraEnergy||0):14;
- state.run.energy=clamp(state.run.energy-drain,0,100);state.run.fitness=clamp(state.run.fitness-int(1,5),20,100);
+ if(rep.type==='match'){
+  const stamina=currentStats().stamina||60,planLoad=(MATCH_PLANS.find(x=>x.key===c.planKey)?.extraEnergy||0)*.35,importance=fixture.importance||1;
+  const rawLoad=7+importance*2+planLoad;
+  const fitnessLoss=Math.max(2,Math.round(rawLoad*clamp(1.18-stamina/190,.62,1.02)));
+  state.run.fitness=clamp(state.run.fitness-fitnessLoss,20,100);
+ }
  if(rep.type==='match'){
   const confDelta=rep.rating>=8.5?7:rep.rating>=7.5?4:rep.rating>=6.8?2:rep.rating>=6.2?0:rep.rating>=5.5?-3:-6;
   state.run.confidence=clamp(state.run.confidence+confDelta,0,100);
@@ -1555,10 +1593,14 @@ function applyPostMatch(rep,fixture){
  state.run.lastChanges={};
  const totalDef=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
  const growthPool=rep.goals?['finishing','offBall','reactions','shotPower']:rep.assists?['passing','vision','control','offBall']:totalDef>=4?['defense','reactions','stamina','physical','vision']:['ego','stamina','technique','vision'];
- const growthCount=rep.rating<5?-1:rep.rating<6?0:rep.rating<7?1:rep.rating<8?2:rep.rating<9?3:4;
- if(growthCount<0){changeStat(pick(growthPool),-1);}
- else for(let i=0;i<growthCount;i++)changeStat(pick(growthPool),1);
- const injuryRisk=clamp((45-state.run.energy)/180+(45-state.run.fitness)/160,.02,.25);
+ const importance=fixture.importance||1;
+ const growthBudget=rep.rating<5?-1:rep.rating<6?0:rep.rating<6.7?2:rep.rating<7.4?4:rep.rating<8.2?6:rep.rating<9?8:10;
+ if(growthBudget<0){changeStat(pick(growthPool),-1);}
+ else{
+  const points=Math.max(0,Math.round(growthBudget*(.82+importance*.16)));
+  for(let i=0;i<points;i++)changeStat(pick(growthPool),1);
+ }
+ const staminaNow=currentStats().stamina||60,injuryRisk=clamp((55-state.run.fitness)/180+(65-staminaNow)/650,.012,.18);
  if(Math.random()<injuryRisk){state.run.injury={name:Math.random()<.25?'Muscle strain':'Minor knock',matches:Math.random()<.25?2:1,penalty:Math.random()<.25?10:6};careerLog('Injury: '+state.run.injury.name+' will affect upcoming football.');}
  if(fixture.stars?.length&&Math.random()<.48){c.rival=pick(fixture.stars);careerLog(c.rival+' is emerging as a defining rival.');}
  if(fixture.stage==='Neo Egoist League')updateBid(rep);
@@ -1651,7 +1693,7 @@ function advanceFixture(){
  }
 
  if(state.run.injury){state.run.injury.matches--;if(state.run.injury.matches<=0){careerLog('You are fully fit again.');state.run.injury=null;}}
- state.run.energy=clamp(state.run.energy+9,0,100);state.run.fitness=clamp(state.run.fitness+5,0,100);
+ const recoveryStamina=currentStats().stamina||60;state.run.fitness=clamp(state.run.fitness+Math.round(5+recoveryStamina/24),20,100);
  c.fixtureIndex++;resetMatchPreparation(c);
  if(c.fixtureIndex>=c.fixtures.length){
   if(!state.run.selections.nelClub){state.run.mode='nelSpin';wheelRotation=0;save();renderAll();toast('Choose your Neo Egoist League club.');return;}
@@ -1681,16 +1723,13 @@ function completeCareer(){
 }
 
 function renderCondition(){
- const energy=clamp(Math.round(state.run.energy??100),0,100);
  const confidence=clamp(Math.round(state.run.confidence??50),0,100);
  const form=clamp(Number(state.run.form??0),-3,3);
  const fitness=clamp(Math.round(state.run.fitness??100),0,100);
  const formPct=Math.round(((form+3)/6)*100);
- $('#energyValue').textContent=energy;
  $('#confidenceValue').textContent=confidence;
  $('#formValue').textContent=(form>0?'+':'')+form;
  $('#fitnessValue').textContent=fitness;
- $('#energyBar').style.width=energy+'%';
  $('#confidenceBar').style.width=confidence+'%';
  $('#formBar').style.width=formPct+'%';
  $('#fitnessBar').style.width=fitness+'%';
@@ -1772,7 +1811,7 @@ function renderTraining(){
   $('#prepHeading').textContent='Ready for the fixture';
   $('#prepStatus').textContent=c.trainingResult||c.betweenEvent||'Prepared';
  }
- $('#trainingActions').innerHTML=TRAINING_ACTIONS.map(a=>'<button type="button" class="training-action '+(c.trainingKey===a.key?'selected':'')+'" data-train="'+a.key+'" '+(phase!==PREP_PHASE.TRAINING?'disabled':'')+'><strong>'+esc(a.name)+'</strong><span>'+esc(a.desc)+'</span><em>'+(a.cost<0?'Recovery focus':'Costs '+a.cost+' energy · quality is spun')+'</em></button>').join('');
+ $('#trainingActions').innerHTML=TRAINING_ACTIONS.map(a=>'<button type="button" class="training-action '+(c.trainingKey===a.key?'selected':'')+'" data-train="'+a.key+'" '+(phase!==PREP_PHASE.TRAINING?'disabled':'')+'><strong>'+esc(a.name)+'</strong><span>'+esc(a.desc)+'</span><em>'+(a.cost<0?'Recovery focus':'Physical load '+Math.max(1,Math.round(a.cost*.38))+' · quality is spun')+'</em></button>').join('');
 }
 function renderPlans(){
  const c=state.run.career;
@@ -1780,7 +1819,7 @@ function renderPlans(){
 }
 function renderMatchReport(r,f){
  if(r.type==='challenge'){
-  $('#matchReport').innerHTML='<span class="result-eyebrow '+(r.passed?'win':'loss')+'">'+esc(r.result)+'</span><div class="scoreline"><strong>'+r.challengeScore+'/100</strong></div><p>'+esc(r.moments.join(' '))+'</p><div class="performance-line"><span>RATING <b>'+r.rating.toFixed(1)+'</b></span><span>ENERGY <b>'+Math.round(state.run.energy)+'</b></span></div>';return;
+  $('#matchReport').innerHTML='<span class="result-eyebrow '+(r.passed?'win':'loss')+'">'+esc(r.result)+'</span><div class="scoreline"><strong>'+r.challengeScore+'/100</strong></div><p>'+esc(r.moments.join(' '))+'</p><div class="performance-line"><span>RATING <b>'+r.rating.toFixed(1)+'</b></span><span>FITNESS <b>'+Math.round(state.run.fitness)+'</b></span></div>';return;
  }
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
  const defTotal=(r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0);
