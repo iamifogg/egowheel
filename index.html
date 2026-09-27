@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#05070b">
+  <meta name="description" content="EgoWheel — an unofficial Blue Lock career wheel and player generator.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon.svg">
+  <link rel="apple-touch-icon" href="./icons/icon.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <title>EgoWheel</title>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark">E</div>
+        <div>
+          <div class="brand">EGOWHEEL</div>
+          <div class="subtitle">BLUE LOCK CAREER GENERATOR</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="soundBtn" class="icon-button" type="button" aria-label="Toggle sound">🔊</button>
+        <span class="save-state"><i id="saveDot"></i><span id="saveText">Saved</span></span>
+      </div>
+    </header>
+
+    <main>
+      <section id="runView" class="view active">
+        <div class="hero-strip">
+          <div>
+            <span class="kicker">PROJECT: BLUE LOCK</span>
+            <h1>Build an Egoist</h1>
+            <p>Spin a player through the full programme. Weapons, rivals, selections, NEL club, evolution and final bid all persist into one career dossier.</p>
+          </div>
+          <button id="quickRunBtn" class="button secondary" type="button">Quick Run</button>
+        </div>
+
+        <div class="run-grid">
+          <article class="wheel-card panel">
+            <div class="stage-head">
+              <div>
+                <span id="stageChapter" class="stage-chapter">ENTRY</span>
+                <h2 id="stageName">Starting Position</h2>
+                <p id="stagePrompt">Where do you begin on the pitch?</p>
+              </div>
+              <div class="stage-progress"><strong id="stageCount">1 / 18</strong><span id="stageMode">Route spin</span></div>
+            </div>
+
+            <div class="wheel-shell" id="wheelShell">
+              <div class="wheel-pointer"><span></span></div>
+              <svg id="wheelSvg" viewBox="0 0 520 520" role="img" aria-label="EgoWheel random career wheel">
+                <defs>
+                  <radialGradient id="hubBg" cx="38%" cy="32%" r="78%"><stop offset="0%" stop-color="#18345f"/><stop offset="55%" stop-color="#0b1c35"/><stop offset="100%" stop-color="#050a13"/></radialGradient>
+                  <linearGradient id="rimGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#7ed7ff"/><stop offset="35%" stop-color="#258dff"/><stop offset="70%" stop-color="#0a4ca6"/><stop offset="100%" stop-color="#041b40"/></linearGradient>
+                  <filter id="wheelShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="11" flood-color="#000" flood-opacity=".55"/></filter>
+                  <filter id="neonGlow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#25a7ff" flood-opacity=".35"/></filter>
+                </defs>
+                <circle cx="260" cy="265" r="236" fill="#020306" opacity=".62"/>
+                <circle cx="260" cy="260" r="234" fill="#060a12" stroke="#0b1c34" stroke-width="8" filter="url(#wheelShadow)"/>
+                <circle cx="260" cy="260" r="224" fill="none" stroke="url(#rimGrad)" stroke-width="13"/>
+                <circle cx="260" cy="260" r="211" fill="none" stroke="#0d213c" stroke-width="3"/>
+                <g id="wheelGroup"></g>
+                <circle cx="260" cy="260" r="70" fill="#04070c" stroke="#0c203b" stroke-width="7"/>
+                <circle cx="260" cy="260" r="60" fill="url(#hubBg)" stroke="#269cff" stroke-width="2" filter="url(#neonGlow)"/>
+                <text x="260" y="250" text-anchor="middle" class="hub-ego">EGO</text>
+                <text x="260" y="273" text-anchor="middle" class="hub-wheel">WHEEL</text>
+                <text x="260" y="293" text-anchor="middle" class="hub-sub">SPIN TO EVOLVE</text>
+              </svg>
+            </div>
+
+            <div class="wheel-actions">
+              <button id="spinBtn" class="button primary big" type="button">SPIN</button>
+              <button id="nextBtn" class="button secondary" type="button" disabled>Next Stage</button>
+            </div>
+
+            <div id="spinResult" class="result-card" aria-live="polite">
+              <span class="result-eyebrow">WAITING FOR INPUT</span>
+              <strong>Your career has not started.</strong>
+              <p>Spin the first wheel.</p>
+            </div>
+
+            <div id="stageStrip" class="stage-strip" aria-label="Career stages"></div>
+          </article>
+
+          <aside class="player-card panel">
+            <div class="player-card-head">
+              <div>
+                <span class="kicker">PLAYER DOSSIER</span>
+                <h2 id="playerTitle">Unnamed Egoist</h2>
+              </div>
+              <span id="overallBadge" class="overall-badge">OVR 50</span>
+            </div>
+
+            <label class="field-label" for="playerName">Player name</label>
+            <div class="name-row">
+              <input id="playerName" maxlength="36" autocomplete="off" placeholder="Name your player">
+              <button id="randomNameBtn" class="button compact secondary" type="button">Random</button>
+            </div>
+
+            <div class="identity-grid">
+              <div><span>POSITION</span><strong id="identityPosition">—</strong></div>
+              <div><span>FIRST TEAM</span><strong id="identityFirstTeam">—</strong></div>
+              <div><span>NEL CLUB</span><strong id="identityNel">—</strong></div>
+              <div><span>BID</span><strong id="identityBid">—</strong></div>
+            </div>
+
+            <div class="stats-grid" id="statsGrid">
+              <div class="stat"><span>SHOOT</span><strong id="statShoot">50</strong><i><b id="barShoot"></b></i></div>
+              <div class="stat"><span>DRIBBLE</span><strong id="statDribble">50</strong><i><b id="barDribble"></b></i></div>
+              <div class="stat"><span>SPEED</span><strong id="statSpeed">50</strong><i><b id="barSpeed"></b></i></div>
+              <div class="stat"><span>VISION</span><strong id="statVision">50</strong><i><b id="barVision"></b></i></div>
+              <div class="stat"><span>PASS</span><strong id="statPass">50</strong><i><b id="barPass"></b></i></div>
+              <div class="stat"><span>PHYSICAL</span><strong id="statPhysical">50</strong><i><b id="barPhysical"></b></i></div>
+              <div class="stat"><span>DEFENCE</span><strong id="statDefense">50</strong><i><b id="barDefense"></b></i></div>
+              <div class="stat"><span>EGO</span><strong id="statEgo">50</strong><i><b id="barEgo"></b></i></div>
+            </div>
+
+            <div class="rarity-key" aria-label="Rarity key">
+              <span class="r-common">Common</span><span class="r-uncommon">Uncommon</span><span class="r-rare">Rare</span><span class="r-epic">Epic</span><span class="r-legendary">Legendary</span><span class="r-mythic">Mythic</span>
+            </div>
+
+            <div id="dossierList" class="dossier-list"></div>
+            <button id="archiveBtn" class="button primary full" type="button" disabled>Archive Completed Player</button>
+            <button id="newRunBtn" class="button ghost full" type="button">Start New Player</button>
+          </aside>
+        </div>
+      </section>
+
+      <section id="profileView" class="view">
+        <div class="section-head"><div><span class="kicker">CURRENT RUN</span><h1>Career Profile</h1></div></div>
+        <div id="profileContent" class="profile-content"></div>
+      </section>
+
+      <section id="archiveView" class="view">
+        <div class="section-head">
+          <div><span class="kicker">SAVED PLAYERS</span><h1>Egoist Archive</h1><p>Completed careers are stored on this device.</p></div>
+          <button id="clearArchiveBtn" class="button ghost" type="button">Clear Archive</button>
+        </div>
+        <div id="archiveGrid" class="archive-grid"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Primary navigation">
+      <button class="nav-button active" data-view="runView"><span>◉</span>RUN</button>
+      <button class="nav-button" data-view="profileView"><span>▤</span>PROFILE</button>
+      <button class="nav-button" data-view="archiveView"><span>▦</span>ARCHIVE</button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <footer class="legal">Unofficial fan-made randomizer. Blue Lock and related names belong to their respective rights holders. No official artwork is used.</footer>
+  <script src="./app.js" defer></script>
+</body>
+</html>
