@@ -1118,8 +1118,7 @@ function applyPostMatch(rep,fixture){
  state.run.lastChanges={};
  const totalDef=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
  const growthPool=rep.goals?['finishing','offBall','reactions','shotPower']:rep.assists?['passing','vision','control','offBall']:totalDef>=4?['defense','reactions','stamina','physical','vision']:['ego','stamina','technique','vision'];
- const tierGrowth={'Sent Off':-1,'Injury Collapse':0,'Nightmare':-1,'Poor':0,'Quiet':1,'Solid':1,'Strong':2,'Star Performance':3,'Masterclass':4,'Flow State':5};
- const growthCount=tierGrowth[rep.performanceTier]??(rep.rating>=8?2:1);
+ const growthCount=rep.rating<5?-1:rep.rating<6?0:rep.rating<7?1:rep.rating<8?2:rep.rating<9?3:4;
  if(growthCount<0){changeStat(pick(growthPool),-1);}
  else for(let i=0;i<growthCount;i++)changeStat(pick(growthPool),1);
  const injuryRisk=clamp((45-state.run.energy)/180+(45-state.run.fitness)/160,.02,.25);
@@ -1197,7 +1196,7 @@ function advanceFixture(){
    careerLog('Third Selection: you are not chosen for the Blue Lock XI. You miss the Japan U-20 match.');
    state.run.confidence=clamp(state.run.confidence-8,0,100);
    state.run.form=clamp(state.run.form-1,-3,3);
-   c.fixtureIndex+=2;c.prepared=false;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;
+   c.fixtureIndex+=2;resetMatchPreparation(c);
    if(c.fixtureIndex>=c.fixtures.length){state.run.mode='nelSpin';wheelRotation=0;renderAll();save();return;}
    renderAll();save();return;
   }
@@ -1211,7 +1210,7 @@ function advanceFixture(){
 
  if(state.run.injury){state.run.injury.matches--;if(state.run.injury.matches<=0){careerLog('You are fully fit again.');state.run.injury=null;}}
  state.run.energy=clamp(state.run.energy+9,0,100);state.run.fitness=clamp(state.run.fitness+5,0,100);
- c.fixtureIndex++;c.prepared=false;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;
+ c.fixtureIndex++;resetMatchPreparation(c);
  if(c.fixtureIndex>=c.fixtures.length){
   if(!state.run.selections.nelClub){state.run.mode='nelSpin';wheelRotation=0;renderAll();save();toast('Choose your Neo Egoist League club.');return;}
   completeCareer();return;
@@ -1220,7 +1219,7 @@ function advanceFixture(){
 }
 function enterNEL(){
  const club=state.run.selections.nelClub?.name;if(!club)return;
- const c=state.run.career;c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';c.prepared=false;c.trainingKey=null;c.planKey='balanced';c.report=null;careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');renderAll();save();toast('Neo Egoist League begins.');
+ const c=state.run.career;c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');renderAll();save();toast('Neo Egoist League begins.');
 }
 function completeCareer(){
  const c=state.run.career,s=currentStats(),ov=overall(s),bid=c.bid||Math.max(5,Math.round((ov-50)*2+c.totals.goals*8+c.totals.assists*5));
@@ -1293,17 +1292,20 @@ function renderPlans(){
  $('#matchPlans').innerHTML=MATCH_PLANS.map(p=>'<button type="button" class="plan-button '+(c.planKey===p.key?'selected':'')+'" data-plan="'+p.key+'" '+(!c.prepared||c.report?'disabled':'')+'><strong>'+esc(p.name)+'</strong><span>'+esc(p.desc)+'</span></button>').join('');
 }
 function renderMatchReport(r,f){
- if(r.type==='challenge'){$('#matchReport').innerHTML='<span class="result-eyebrow">'+esc(r.result)+'</span><div class="scoreline"><strong>'+r.challengeScore+'/100</strong></div><p>'+esc(r.moments.join(' '))+'</p><div class="performance-line"><span>RATING <b>'+r.rating.toFixed(1)+'</b></span><span>ENERGY <b>'+Math.round(state.run.energy)+'</b></span></div>';return;}
+ if(r.type==='challenge'){
+  $('#matchReport').innerHTML='<span class="result-eyebrow '+(r.passed?'win':'loss')+'">'+esc(r.result)+'</span><div class="scoreline"><strong>'+r.challengeScore+'/100</strong></div><p>'+esc(r.moments.join(' '))+'</p><div class="performance-line"><span>RATING <b>'+r.rating.toFixed(1)+'</b></span><span>ENERGY <b>'+Math.round(state.run.energy)+'</b></span></div>';return;
+ }
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
  const defTotal=(r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0);
- $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="performance-line"><span>PERFORMANCE <b>'+esc(r.performanceTier||'—')+'</b></span><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
+ const spins=(r.contributionLabels||[]).map(x=>'<span class="contribution-chip">'+esc(x)+'</span>').join('');
+ $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
 }
 function renderCareerLog(){const c=state.run.career;$('#careerLog').innerHTML=(c?.log||[]).slice(0,8).map(x=>'<div>'+esc(x)+'</div>').join('')||'<div>No career events yet.</div>';}
 
 function renderPlayer(){
  const stats=currentStats(),ov=overall(stats),c=state.run.career,tot=c?.totals||{apps:0,goals:0,assists:0,ratingTotal:0};
  $('#playerTitle').textContent=state.run.name||'Unnamed Egoist';$('#playerName').value=state.run.name||'';$('#overallBadge').textContent='OVR '+ov;
- $('#identityPosition').textContent=state.run.selections.position?.short||state.run.selections.position?.name||'—';$('#identityFirstTeam').textContent=state.run.selections.firstTeam?.name||'—';$('#identityNel').textContent=state.run.selections.nelClub?.name||'—';$('#identityBid').textContent=c?.bid?'¥'+c.bid+'m':'—';
+ $('#identityPosition').textContent=state.run.selections.position?.short||state.run.selections.position?.name||'—';$('#identityHeight').textContent=state.run.selections.height?(playerHeight()+' cm'):'—';$('#identityFirstTeam').textContent=state.run.selections.firstTeam?.name||'—';$('#identityNel').textContent=state.run.selections.nelClub?.name||'—';$('#identityBid').textContent=c?.bid?'¥'+c.bid+'m':'—';
  $('#totalApps').textContent=tot.apps||0;$('#totalGoals').textContent=tot.goals||0;$('#totalAssists').textContent=tot.assists||0;const totalDef=(tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0);$('#totalDefActions').textContent=totalDef;$('#avgRating').textContent=tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—';
  const archSel=state.run.selections.archetype;
  const primarySel=state.run.selections.primaryWeapon;
@@ -1435,6 +1437,7 @@ function bind(){
  $('#spinBtn').addEventListener('click',spinCurrent);$('#nextBtn').addEventListener('click',nextBuild);$('#quickBuildBtn').addEventListener('click',quickBuild);
  $('#playerName').addEventListener('input',e=>{state.run.name=e.target.value.slice(0,36);renderPlayer();save();});
  $('#randomNameBtn').addEventListener('click',()=>{state.run.name=randomName();renderPlayer();save();clickSound();});
+ $('#betweenGameBtn').addEventListener('click',startBetweenEvent);
  $('#trainingActions').addEventListener('click',e=>{const b=e.target.closest('[data-train]');if(b)applyTraining(b.dataset.train);});
  $('#matchPlans').addEventListener('click',e=>{const b=e.target.closest('[data-plan]');if(b)choosePlan(b.dataset.plan);});
  $('#playMatchBtn').addEventListener('click',playFixture);
