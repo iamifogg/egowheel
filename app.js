@@ -287,6 +287,10 @@ const TRAINING_ACTIONS=[
  {key:'press',name:'Pressing Drills',desc:'Defensive timing, stamina and transition pressure.',cost:13,effects:{defense:2,stamina:2,reactions:1},risk:.1},
  {key:'rest',name:'Rest & Recover',desc:'Restore the body and clear accumulated fatigue.',cost:-24,effects:{},risk:0},
  {key:'ego',name:'Ego Challenge',desc:'High-pressure self-imposed test. Can create a breakthrough or a collapse.',cost:14,effects:{ego:2},risk:.22}
+,
+ {key:'defduels',name:'Defensive Duels',desc:'Work on jockeying, tackle timing and surviving isolated 1v1s.',cost:13,effects:{defense:2,reactions:2,physical:1},risk:.09},
+ {key:'aerial',name:'Aerial Defence',desc:'Headers, body positioning, clearances and second-ball reactions.',cost:14,effects:{defense:2,physical:2,reactions:1},risk:.11},
+ {key:'shape',name:'Positioning Unit',desc:'Train line height, cover shadows, scanning and recovery positions.',cost:8,effects:{defense:2,vision:2,reactions:1},risk:.04}
 ];
 
 const MATCH_PLANS=[
@@ -295,6 +299,12 @@ const MATCH_PLANS=[
  {key:'creator',name:'Creator',desc:'Drop into pockets and prioritise chances for others.',mods:{vision:7,passing:7,offBall:2,finishing:-2}},
  {key:'dribbler',name:'Isolation',desc:'Seek 1v1s and destabilise the defensive line yourself.',mods:{dribbling:8,control:5,ego:2,stamina:-2}},
  {key:'pressing',name:'Predatory Press',desc:'Hunt turnovers and accept the energy cost.',mods:{defense:8,stamina:5,reactions:4},extraEnergy:7}
+,
+ {key:'lockdown',name:'Lockdown',desc:'Prioritise duels, marking and denying the opponent’s strongest attacker.',mods:{defense:10,physical:5,reactions:4,passing:-2},extraEnergy:5},
+ {key:'sweeper',name:'Sweep & Read',desc:'Protect space behind the line and hunt interceptions rather than diving into duels.',mods:{defense:7,vision:8,reactions:6,speed:2},extraEnergy:3},
+ {key:'progressor',name:'Play Through Pressure',desc:'Defend your zone, then take responsibility for progressing possession.',mods:{passing:8,vision:6,control:5,defense:3}},
+ {key:'overlap',name:'Aggressive Overlap',desc:'Attack the flank repeatedly and accept the recovery burden.',mods:{speed:6,stamina:7,passing:5,dribbling:3,defense:-2},extraEnergy:7},
+ {key:'anchor',name:'Anchor',desc:'Stay central, screen the defence and make the game pass around you.',mods:{defense:9,vision:6,stamina:5,physical:3,offBall:-2}}
 ];
 
 const POSITION_WEIGHTS={
@@ -458,7 +468,7 @@ function matchPerformanceStage(){
 }
 function secondSelectionSurvivalStage(){
  const p=state.run.pendingSurvival||{},r=p.report||{};
- const merit=(r.rating||5)*8+(r.goals||0)*18+(r.assists||0)*11+(r.dribbles||0)*2+((r.tackles||0)+(r.interceptions||0))*2;
+ const merit=(r.rating||5)*8+(r.goals||0)*18+(r.assists||0)*11+(r.dribbles||0)*2+((r.tackles||0)+(r.interceptions||0))*2.4+((r.blocks||0)+(r.clearances||0)+(r.recoveries||0))*1.7;
  const chosenBoost=clamp((merit-48)*.7,-16,32);
  return{key:'survivalOutcome',chapter:'SECOND SELECTION',name:'Will They Choose You?',prompt:'Your team lost. The winners may take one player. Your individual performance changes the odds — but rejection ends the run.',mode:'weights',options:[
   weighted('Rejected','The winners see no reason to take you. Your Blue Lock run ends here.',Math.max(8,42-chosenBoost),{},'REJECTED',{survive:false,confidence:-12}),
@@ -477,8 +487,12 @@ function endRun(status,reason){
 function firstSelectionQualified(){
  const c=state.run.career,t=c.totals,apps=Math.max(1,t.apps),avg=t.ratingTotal/apps;
  const teamPass=c.firstSelectionPoints>=5;
- const individualPass=t.goals>=4||(t.goals>=3&&avg>=7.2)||(t.goals>=2&&t.assists>=3&&avg>=7.5);
- return{pass:teamPass||individualPass,teamPass,individualPass,avg};
+ const defActions=(t.tackles||0)+(t.interceptions||0)+(t.blocks||0)+(t.clearances||0)+(t.recoveries||0);
+ let individualPass;
+ if(isDefensiveRole())individualPass=(avg>=7.25&&defActions/apps>=4.5)||avg>=8.15;
+ else if(isMidfieldRole())individualPass=(avg>=7.35&&((t.keyPasses||0)/apps>=2.4||t.assists>=3))||(t.goals+t.assists>=4);
+ else individualPass=t.goals>=4||(t.goals>=3&&avg>=7.2)||(t.goals>=2&&t.assists>=3&&avg>=7.5);
+ return{pass:teamPass||individualPass,teamPass,individualPass,avg,defActions};
 }
 function resolveSurvivalOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
@@ -797,15 +811,23 @@ function simulateMatch(fixture,tier){
 }
 function applyPostMatch(rep,fixture){
  const c=state.run.career,t=c.totals;
- if(rep.type==='match'){t.apps++;t.goals+=rep.goals;t.assists+=rep.assists;t.shots+=rep.shots;t.keyPasses+=rep.keyPasses;t.dribbles+=rep.dribbles;t.tackles+=rep.tackles;t.interceptions+=rep.interceptions;t.ratingTotal+=rep.rating;if(fixture.stage==='Neo Egoist League'){t.nelApps++;t.nelGoals+=rep.goals;t.nelAssists+=rep.assists;t.nelRatingTotal+=rep.rating;}if(fixture.stage==='Third Selection'){c.thirdSelection=c.thirdSelection||{apps:0,ratingTotal:0,goals:0,assists:0};c.thirdSelection.apps++;c.thirdSelection.ratingTotal+=rep.rating;c.thirdSelection.goals+=rep.goals;c.thirdSelection.assists+=rep.assists;}if(fixture.stage==='First Selection'){if(rep.result==='WIN')c.firstSelectionPoints+=3;else if(rep.result==='DRAW')c.firstSelectionPoints+=1;}}
+ if(rep.type==='match'){
+  const defActions=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
+  t.apps++;t.goals+=rep.goals;t.assists+=rep.assists;t.shots+=rep.shots;t.keyPasses+=rep.keyPasses;t.dribbles+=rep.dribbles;
+  t.tackles+=rep.tackles;t.interceptions+=rep.interceptions;t.blocks+=rep.blocks||0;t.clearances+=rep.clearances||0;t.recoveries+=rep.recoveries||0;t.ratingTotal+=rep.rating;
+  if(fixture.stage==='Neo Egoist League'){t.nelApps++;t.nelGoals+=rep.goals;t.nelAssists+=rep.assists;t.nelDefActions+=defActions;t.nelRatingTotal+=rep.rating;}
+  if(fixture.stage==='Third Selection'){c.thirdSelection=c.thirdSelection||{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0};c.thirdSelection.apps++;c.thirdSelection.ratingTotal+=rep.rating;c.thirdSelection.goals+=rep.goals;c.thirdSelection.assists+=rep.assists;c.thirdSelection.defActions+=defActions;}
+  if(fixture.stage==='First Selection'){if(rep.result==='WIN')c.firstSelectionPoints+=3;else if(rep.result==='DRAW')c.firstSelectionPoints+=1;}
+ }
  const drain=rep.type==='match'?int(17,25)+(MATCH_PLANS.find(x=>x.key===c.planKey)?.extraEnergy||0):14;
  state.run.energy=clamp(state.run.energy-drain,0,100);state.run.fitness=clamp(state.run.fitness-int(1,5),20,100);
  if(rep.rating>=8){state.run.confidence=clamp(state.run.confidence+int(5,9),0,100);state.run.form=clamp(state.run.form+1,-3,3);}
  else if(rep.rating<6){state.run.confidence=clamp(state.run.confidence-int(5,9),0,100);state.run.form=clamp(state.run.form-1,-3,3);}
  else state.run.confidence=clamp(state.run.confidence+int(-2,3),0,100);
  state.run.lastChanges={};
- const growthPool=rep.goals?['finishing','offBall','reactions','shotPower']:rep.assists?['passing','vision','control','offBall']:rep.tackles+rep.interceptions>=3?['defense','reactions','stamina','physical']:['ego','stamina','technique','vision'];
- const tierGrowth={'Nightmare':-1,'Poor':0,'Quiet':1,'Solid':1,'Strong':2,'Star Performance':3,'Masterclass':4,'Flow State':5};
+ const totalDef=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
+ const growthPool=rep.goals?['finishing','offBall','reactions','shotPower']:rep.assists?['passing','vision','control','offBall']:totalDef>=4?['defense','reactions','stamina','physical','vision']:['ego','stamina','technique','vision'];
+ const tierGrowth={'Sent Off':-1,'Injury Collapse':0,'Nightmare':-1,'Poor':0,'Quiet':1,'Solid':1,'Strong':2,'Star Performance':3,'Masterclass':4,'Flow State':5};
  const growthCount=tierGrowth[rep.performanceTier]??(rep.rating>=8?2:1);
  if(growthCount<0){changeStat(pick(growthPool),-1);}
  else for(let i=0;i<growthCount;i++)changeStat(pick(growthPool),1);
@@ -816,7 +838,10 @@ function applyPostMatch(rep,fixture){
  careerLog(fixture.stage+': '+(rep.type==='challenge'?rep.result:(fixture.team+' '+rep.teamGoals+'–'+rep.oppGoals+' '+fixture.opponent))+' · rating '+rep.rating.toFixed(1));
 }
 function updateBid(rep){
- const c=state.run.career,stats=currentStats(),nt=c.totals,avgNel=nt.nelApps?nt.nelRatingTotal/nt.nelApps:rep.rating,base=Math.max(0,(overall(stats)-55)*2.1+nt.nelGoals*16+nt.nelAssists*10+(avgNel-6)*12+rand(-7,11));
+ const c=state.run.career,stats=currentStats(),nt=c.totals,avgNel=nt.nelApps?nt.nelRatingTotal/nt.nelApps:rep.rating;
+ const defensiveValue=(nt.nelDefActions||0)*(isDefensiveRole()?1.55:.65);
+ const creationValue=(nt.keyPasses||0)*(isMidfieldRole()?0.65:.3);
+ const base=Math.max(0,(overall(stats)-55)*2.1+nt.nelGoals*16+nt.nelAssists*10+defensiveValue+creationValue+(avgNel-6)*12+rand(-7,11));
  const next=Math.max(3,Math.round(base));c.bid=next;c.bidHistory.push(next);
 }
 function resolveMatchOutcome(outcome){
@@ -847,7 +872,7 @@ function advanceFixture(){
 
  // Losing a small-sided Second Selection match puts your individual value on trial.
  if(['2v2','3v3','4v4'].includes(fixture.id)&&rep.result==='LOSS'){
-  state.run.pendingSurvival={fixtureId:fixture.id,report:{rating:rep.rating,goals:rep.goals,assists:rep.assists,dribbles:rep.dribbles,tackles:rep.tackles,interceptions:rep.interceptions}};
+  state.run.pendingSurvival={fixtureId:fixture.id,report:{rating:rep.rating,goals:rep.goals,assists:rep.assists,dribbles:rep.dribbles,tackles:rep.tackles,interceptions:rep.interceptions,blocks:rep.blocks||0,clearances:rep.clearances||0,recoveries:rep.recoveries||0}};
   state.run.pendingSurvivalResult=null;
   delete state.run.selections.survivalOutcome;
   state.run.mode='survivalSpin';wheelRotation=0;
@@ -860,7 +885,7 @@ function advanceFixture(){
  if(fixture.stage==='First Selection'&&(!nextFixture||nextFixture.stage!=='First Selection')){
   const q=firstSelectionQualified();
   if(!q.pass){
-   endRun('ELIMINATED — FIRST SELECTION','Your team failed to qualify and your individual output was not high enough for the top-scorer escape route.');
+   endRun('ELIMINATED — FIRST SELECTION','Your team failed to qualify and your individual output was not strong enough for the project’s individual survival route.');
    return;
   }
   careerLog(q.teamPass?'First Selection cleared through team results.':'First Selection survived through outstanding individual production.');
