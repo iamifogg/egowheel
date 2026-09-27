@@ -312,6 +312,131 @@ secondaryStage.options.push(
  option('Captaincy','Organisation and conviction improve the whole defensive unit around you.','epic',{ego:6,vision:5,defense:5},'CAPTAIN',{bonusText:'+ team defensive suppression',match:{oppDefense:.08,performance:.06},training:{ego:.22,film:.15}})
 );
 
+
+/* v12 creation variety expansion */
+const physiqueStageV12=BUILD_STAGES.find(s=>s.key==='physique');
+physiqueStageV12.options.push(
+ option('Wirey Endurance','Light frame, huge work rate, difficult to completely exhaust.','common',{stamina:6,speed:2,physical:-2},'WIREY'),
+ option('Low-Centre Dynamo','Compact legs and balance make changes of direction unusually sharp.','common',{acceleration:4,control:3,dribbling:2,physical:-1},'DYNAMO'),
+ option('Broad-Shouldered','Strong through contact without being a pure heavyweight.','common',{physical:5,control:2,speed:-1},'BROAD'),
+ option('Long-Limbed','Reach helps interceptions and awkward touches, though tight turns are harder.','common',{defense:3,reactions:2,control:-1,acceleration:-1},'LONG'),
+ option('Marathon Engine','Repeated movement is your physical identity.','common',{stamina:8,speed:1,shotPower:-1},'ENGINE'),
+ option('Heavy Core','Balance and resistance to contact are excellent; explosive starts are not.','common',{physical:7,control:2,acceleration:-2},'CORE'),
+ option('Elastic Hips','Rotation and body feints come naturally.','uncommon',{dribbling:5,technique:4,control:2},'ELASTIC'),
+ option('Fast-Twitch Frame','Short explosive actions are exceptional, but repeated output costs more.','uncommon',{acceleration:8,speed:4,stamina:-2},'FAST TWITCH'),
+ option('Endurance Sprinter','You can repeat high-speed runs far more often than most.','uncommon',{speed:6,stamina:6,physical:-1},'ENDURANCE'),
+ option('Contact Sprinter','You keep speed through shoulder contact.','uncommon',{speed:5,physical:5,acceleration:2},'CONTACT'),
+ option('Explosive Jumper','Vertical power creates an aerial advantage despite ordinary height.','uncommon',{physical:5,reactions:3,acceleration:2},'JUMPER'),
+ option('Natural Balance','You stay technically functional through bumps, turns and awkward landings.','uncommon',{control:5,physical:4,technique:2},'BALANCE'),
+ option('Giant Frame','Size changes the geometry of duels, but costs some agility.','rare',{physical:10,defense:4,acceleration:-4,speed:-2},'GIANT'),
+ option('Featherweight Technician','Very light movement and touch at the cost of contact strength.','rare',{control:7,dribbling:6,acceleration:4,physical:-5},'FEATHER'),
+ option('Predatory Reflexes','Your body reacts before conscious thought catches up.','rare',{reactions:8,acceleration:3,ego:1},'REFLEX'),
+ option('Durable Frame','You absorb workloads and contact with unusually little drop-off.','rare',{stamina:7,physical:7,fitness:0},'DURABLE'),
+ option('Hypermobile Athlete','Extreme mobility opens unusual technical actions and recovery movements.','rare',{technique:6,control:5,reactions:3,physical:1},'HYPERMOBILE'),
+ option('Elite Coordination','Running, striking and turning mechanics all begin unusually clean.','epic',{technique:6,control:5,acceleration:4,reactions:4},'COORDINATED'),
+ option('Complete Athlete','No glaring physical weakness and several clear strengths.','epic',{speed:5,acceleration:5,physical:5,stamina:5,reactions:3},'COMPLETE ATHLETE'),
+ option('Monster Frame','A rare combination of size, force and usable mobility.','legendary',{physical:11,speed:5,acceleration:3,stamina:5,defense:3},'MONSTER')
+);
+
+const egoStageV12=BUILD_STAGES.find(s=>s.key==='egoStyle');
+egoStageV12.options.push(
+ option('Devourer','You instinctively steal useful ideas from opponents and make them your own.','common',{vision:3,ego:4,technique:1},'DEVOURER',{statBias:{vision:.02,technique:.015}}),
+ option('Perfectionist','Small technical mistakes bother you more than losing the duel itself.','common',{technique:4,control:3,ego:2},'PERFECTION',{statBias:{technique:.025,control:.02,stamina:-.01}}),
+ option('Underdog','Being underestimated sharpens you rather than discouraging you.','common',{ego:4,stamina:2,reactions:2},'UNDERDOG',{statBias:{ego:.025,reactions:.015}}),
+ option('Rivalry Addict','You need a specific opponent to drag your best football out of you.','common',{ego:4,reactions:3,physical:1},'RIVAL',{statBias:{reactions:.02,ego:.025}}),
+ option('Cold Executor','Emotion disappears once the decisive action arrives.','common',{finishing:3,reactions:3,control:2},'EXECUTOR',{statBias:{finishing:.025,reactions:.02,dribbling:-.015}}),
+ option('Artist','You care about solving football beautifully as much as efficiently.','common',{technique:4,dribbling:3,control:2},'ARTIST',{statBias:{technique:.025,dribbling:.02,defense:-.015}}),
+ option('Provocateur','You deliberately drag opponents into emotional, physical games.','common',{ego:4,physical:3,defense:1},'PROVOKE',{statBias:{physical:.02,ego:.02,control:-.01}}),
+ option('Disciple','You improve fastest when a stronger player gives you a model to chase.','common',{vision:2,technique:2,ego:2},'DISCIPLE',{statBias:{vision:.015,technique:.015}}),
+ option('Rebel','Being told what not to do makes the forbidden option more attractive.','common',{ego:5,dribbling:2,technique:2},'REBEL',{statBias:{ego:.025,dribbling:.015,passing:-.015}}),
+ option('Architect','You want the goal to emerge from a sequence you designed several actions earlier.','common',{vision:5,passing:3,ego:2},'ARCHITECT',{statBias:{vision:.03,passing:.02,acceleration:-.01}}),
+ option('Gladiator','You understand yourself most clearly through direct contests.','common',{physical:4,ego:4,defense:2},'GLADIATOR',{statBias:{physical:.025,defense:.015,passing:-.01}}),
+ option('Survivor','Your ego is less about beauty than refusing to disappear from the project.','common',{stamina:4,reactions:3,ego:3},'SURVIVOR',{statBias:{stamina:.025,reactions:.015}}),
+ option('Collector','You measure progress in weapons, solutions and things you can now do.','common',{technique:3,vision:3,ego:3},'COLLECTOR',{statBias:{technique:.02,vision:.02}}),
+ option('Tactician','Winning the positional battle matters more than being the loudest player.','common',{vision:5,defense:3,passing:2},'TACTICIAN',{statBias:{vision:.03,defense:.02,shotPower:-.01}}),
+ option('Executioner','Once an opponent exposes a weakness, you attack the same wound until it breaks.','uncommon',{finishing:4,ego:5,offBall:2},'EXECUTIONER',{statBias:{finishing:.03,offBall:.02,passing:-.015}}),
+ option('Chaos Lover','Broken structure makes you more comfortable, not less.','uncommon',{ego:5,reactions:4,dribbling:2},'CHAOS',{statBias:{reactions:.025,dribbling:.015,passing:-.01}}),
+ option('Selfless Egoist','You use combinations and teammates to maximise your own decisive influence.','uncommon',{passing:4,vision:4,offBall:2},'SELFLESS',{statBias:{passing:.025,vision:.025}}),
+ option('Apex Mentality','You assume the match has a hierarchy and intend to stand at its top.','rare',{ego:7,physical:2,finishing:2},'APEX',{statBias:{ego:.04,finishing:.015,passing:-.015}}),
+ option('Blank-Slate Ego','You have unusually little attachment to one solution and can rebuild quickly.','rare',{vision:4,reactions:4,technique:3},'BLANK SLATE',{statBias:{vision:.02,reactions:.02,technique:.02}}),
+ option('Transcendent Ego','Extreme pressure is where your self-image becomes clearest rather than weakest.','epic',{ego:9,reactions:5,technique:3},'TRANSCEND',{statBias:{ego:.045,reactions:.03}})
+);
+
+ARCHETYPE_STAGE.options.push(
+ option('Second-Ball Hunter','You arrive first when structure breaks after a duel, block or save.','common',{reactions:5,offBall:4,stamina:2},'2ND BALL',{bonusText:'+ recoveries and loose-ball involvement',match:{recoveries:1,shots:.2},training:{press:.14,film:.12}}),
+ option('Cut-In Winger','You begin wide but treat the half-space as the real route to goal.','common',{dribbling:5,finishing:3,offBall:3},'CUT IN',{bonusText:'+ shooting after carries',match:{shots:.45,dribbles:.5},training:{duels:.22,finishing:.1}}),
+ option('Touchline Winger','You stretch the pitch and repeatedly isolate the full-back.','common',{speed:4,dribbling:5,passing:3},'TOUCHLINE',{bonusText:'+ dribbles and wide creation',match:{dribbles:.8,keyPasses:.45},training:{duels:.22,passing:.12}}),
+ option('Inside Forward','You attack as a scorer from a nominally wide role.','common',{finishing:4,offBall:4,acceleration:3},'INSIDE FWD',{bonusText:'+ extra shooting from wide starting areas',match:{shots:.55,goalP:.015},training:{finishing:.16}}),
+ option('Wide Playmaker','You create from the flank rather than simply crossing or dribbling.','common',{passing:5,vision:5,control:3},'WIDE PLAY',{bonusText:'+ key passes from wide areas',match:{keyPasses:.85,assistP:.02},training:{passing:.25}}),
+ option('Mezzala','You drift out of central midfield into attacking half-spaces.','common',{passing:4,offBall:4,vision:4,stamina:2},'MEZZALA',{bonusText:'+ mixed creation and late arrivals',match:{keyPasses:.55,shots:.3},training:{film:.16,passing:.16}}),
+ option('Carrilero','You connect midfield and flank while constantly covering transitions.','common',{stamina:5,passing:3,defense:3,vision:2},'CARRILERO',{bonusText:'+ recovery and linking volume',match:{defense:.6,keyPasses:.35,recoveries:.5},training:{press:.18,passing:.12}}),
+ option('Deep Runner','You attack from midfield through long, delayed runs rather than constant occupation.','common',{stamina:5,offBall:5,acceleration:3},'DEEP RUN',{bonusText:'+ late shooting involvement',match:{shots:.4,performance:.04},training:{speed:.14,film:.15}}),
+ option('Ball-Winning Eight','You press aggressively without becoming a pure holding midfielder.','common',{defense:5,stamina:5,reactions:3,passing:2},'BWM 8',{bonusText:'+ defensive actions with transition creation',match:{defense:.9,keyPasses:.25},training:{press:.28}}),
+ option('Covering Centre-Back','Your first instinct is to protect space behind aggressive teammates.','common',{defense:6,speed:3,vision:4,reactions:3},'COVER CB',{bonusText:'+ recoveries and last-man actions',match:{defense:1.25,blocks:.45},training:{shape:.28,speed:.1}}),
+ option('Front-Foot Centre-Back','You attack receivers before they can turn.','common',{defense:7,physical:4,acceleration:2},'FRONT FOOT',{bonusText:'+ tackles and pressure',match:{defense:1.45,oppDefense:.05},training:{defduels:.28}}),
+ option('Overlap Centre-Back','You occasionally carry beyond midfield to create an unexpected overload.','uncommon',{defense:5,dribbling:4,passing:4,stamina:3},'OVERLAP CB',{bonusText:'+ carries and deep creation',match:{defense:.75,dribbles:.45,keyPasses:.35},training:{duels:.14,passing:.14}}),
+ option('Set-Piece Centre-Back','You defend first but become a genuine scoring threat on dead balls.','uncommon',{defense:6,physical:5,finishing:3,reactions:2},'SET PIECE CB',{bonusText:'+ defensive value with occasional goal threat',match:{defense:1,shots:.22,goalP:.01},training:{aerial:.25}}),
+ option('Transition Six','You specialise in the instant after possession changes hands.','common',{defense:5,reactions:5,passing:3,stamina:3},'TRANSITION 6',{bonusText:'+ recoveries and fast progression',match:{recoveries:.8,keyPasses:.35,defense:.7},training:{press:.22,film:.16}}),
+ option('Press-Resistant Six','You invite pressure because escaping it opens the entire pitch.','uncommon',{control:6,passing:5,physical:3,vision:3},'PRESS 6',{bonusText:'+ stable progression under pressure',match:{keyPasses:.5,dribbles:.35,performance:.07},training:{duels:.2,passing:.2}}),
+ option('False Full-Back','You begin as a defender and repeatedly appear as a midfielder in possession.','uncommon',{passing:5,vision:5,control:4,defense:3},'FALSE FB',{bonusText:'+ build-up and positional flexibility',match:{keyPasses:.6,defense:.55,performance:.06},training:{passing:.22,film:.18}}),
+ option('Crossing Wing-Back','Your main attacking value is repeated high-quality delivery from wide zones.','common',{passing:6,stamina:5,speed:3},'CROSS WB',{bonusText:'+ wide chance creation',match:{keyPasses:.8,assistP:.025},training:{passing:.25,speed:.1}}),
+ option('Inverted Winger','You receive wide but solve the game with central combinations and shooting angles.','common',{control:4,dribbling:4,vision:3,finishing:3},'INV WINGER',{bonusText:'+ mixed dribble, creation and shot value',match:{dribbles:.45,keyPasses:.35,shots:.3},training:{duels:.16,film:.12}}),
+ option('Shadow Striker','You avoid being the highest player and attack the space another forward creates.','uncommon',{offBall:6,finishing:4,reactions:3},'SHADOW 10',{bonusText:'+ late goal involvement',match:{shots:.6,goalP:.012},training:{film:.2,finishing:.12}}),
+ option('Pressing Ten','You create attacking chances by hunting central build-up.','common',{stamina:5,defense:4,vision:3,offBall:2},'PRESS 10',{bonusText:'+ recoveries and transition creation',match:{defense:.65,recoveries:.6,keyPasses:.25},training:{press:.25}}),
+ option('Deep Target','You use strength and control to connect play from deeper than a normal target forward.','uncommon',{physical:6,control:5,passing:3,vision:2},'DEEP TARGET',{bonusText:'+ hold-up creation and stability',match:{keyPasses:.4,assistP:.015,performance:.05},training:{gym:.22,passing:.1}}),
+ option('False Centre-Back','You step into midfield so aggressively that your nominal position becomes misleading.','rare',{defense:5,passing:6,vision:6,control:4},'FALSE CB',{bonusText:'+ deep progression with defensive responsibility',match:{defense:.7,keyPasses:.7,performance:.08},training:{film:.25,passing:.25}}),
+ option('Emergency Goal Threat','Your normal role is secondary to an instinct for arriving in decisive chaos.','rare',{reactions:7,offBall:4,ego:3},'CHAOS THREAT',{bonusText:'+ decisive-event odds in broken games',match:{shots:.25,performance:.07,clutch:.06},training:{ego:.2,film:.12}}),
+ option('Adaptive Generalist','You do not dominate one phase, but rapidly identify what the match lacks.','rare',{vision:4,reactions:4,technique:4,stamina:3,ego:2},'GENERALIST',{bonusText:'+ broad consistency and flexible training',match:{performance:.1,defense:.35,keyPasses:.3,dribbles:.25},training:{finishing:.07,duels:.07,speed:.07,gym:.07,film:.07,passing:.07,press:.07,defduels:.07,aerial:.07,shape:.07}})
+);
+
+const primaryV12=BUILD_STAGES.find(s=>s.key==='primaryWeapon');
+primaryV12.options.push(
+ option('Low Driven Shot','You strike through crowded spaces before the keeper can set.','common',{finishing:5,shotPower:5},'LOW DRIVE',{bonusText:'+ conversion in tight shooting windows',match:{goalP:.018,shots:.2},training:{finishing:.14}}),
+ option('Chip Finish','You punish keepers who commit too early.','common',{finishing:5,technique:4},'CHIP',{bonusText:'+ specialist finishing conversion',match:{goalP:.016},training:{finishing:.13}}),
+ option('Near-Post Blast','You attack the keeper’s supposedly safe side with speed and power.','common',{finishing:5,shotPower:5,reactions:2},'NEAR POST',{bonusText:'+ close-range shot conversion',match:{goalP:.02},training:{finishing:.15}}),
+ option('Half-Volley','Bouncing balls become immediate shooting opportunities.','uncommon',{finishing:6,technique:6,reactions:3},'HALF VOLLEY',{bonusText:'+ chaotic-shot conversion',match:{goalP:.022,performance:.025},training:{finishing:.17}}),
+ option('Outside-Foot Strike','You can bend shots without opening your body conventionally.','uncommon',{technique:7,finishing:5,weakFoot:2},'TRIVELA SHOT',{bonusText:'+ unusual shooting angles',match:{goalP:.022},training:{finishing:.16}}),
+ option('Step-Over Chain','Repeated body feints let you manufacture the defender reaction you want.','common',{dribbling:6,acceleration:3,ego:2},'STEP-OVER',{bonusText:'+ take-ons and isolation value',match:{dribbles:.7,dribbleP:.03},training:{duels:.22}}),
+ option('La Croqueta','Fast lateral touches slip through narrow pressure.','uncommon',{dribbling:7,control:6,acceleration:2},'CROQUETA',{bonusText:'+ tight-space dribble success',match:{dribbles:.55,dribbleP:.04},training:{duels:.22}}),
+ option('Body-Swerve Dribble','You beat players without needing many touches.','common',{dribbling:5,acceleration:4,control:3},'SWERVE',{bonusText:'+ efficient take-ons',match:{dribbles:.55,dribbleP:.025},training:{duels:.18}}),
+ option('Progressive Carry','You advance territory by carrying through pressure rather than passing around it.','common',{dribbling:5,control:4,physical:3},'CARRY',{bonusText:'+ carry volume and progression',match:{dribbles:.65,performance:.03},training:{duels:.18}}),
+ option('Switch of Play','You can move the whole defensive block with one long pass.','common',{passing:7,vision:5,technique:2},'SWITCH',{bonusText:'+ deep key-pass creation',match:{keyPasses:.65},training:{passing:.24}}),
+ option('Vertical Laser Pass','You attack narrow central lanes with speed and precision.','uncommon',{passing:8,vision:6,reactions:2},'LASER PASS',{bonusText:'+ line-breaking creation',match:{keyPasses:.8,assistP:.018},training:{passing:.27}}),
+ option('No-Look Pass','Body orientation lies while the ball goes somewhere else.','rare',{passing:7,vision:7,technique:5},'NO LOOK',{bonusText:'+ deceptive chance creation',match:{keyPasses:.8,assistP:.02},training:{passing:.25}}),
+ option('Press Trap','You deliberately show the opponent a route you are ready to steal.','uncommon',{defense:7,vision:6,reactions:4},'PRESS TRAP',{bonusText:'+ interceptions and turnovers',match:{defense:1.2,recoveries:.5},training:{press:.27,film:.2}}),
+ option('Sliding Tackle','You can attack the ball from ranges most players cannot safely attempt.','uncommon',{defense:8,physical:4,reactions:3},'SLIDE',{bonusText:'+ duel volume with some risk',match:{defense:1.35},training:{defduels:.28}}),
+ option('Aerial Interception','Reach and timing let you kill direct passes before they reach the receiver.','rare',{defense:8,reactions:6,physical:4},'AIR INTERCEPT',{bonusText:'+ clearances and interceptions',match:{defense:1.1,clearances:.8},training:{aerial:.3}}),
+ option('Counterpress Trigger','You recognise the exact instant a lost ball becomes recoverable.','rare',{defense:7,stamina:6,reactions:5},'COUNTERPRESS',{bonusText:'+ recoveries after turnovers',match:{recoveries:1,defense:.8},training:{press:.3}}),
+ option('Third-Man Run','You exploit combinations by becoming the runner nobody initially tracks.','rare',{offBall:8,vision:5,acceleration:3},'3RD MAN',{bonusText:'+ late involvement and chance creation',match:{shots:.3,keyPasses:.3},training:{film:.24}}),
+ option('Tempo Dictation','You manipulate when possession speeds up or slows down.','epic',{vision:9,passing:8,control:5},'TEMPO',{bonusText:'+ stable creation and control',match:{keyPasses:.9,performance:.09},training:{passing:.28,film:.25}}),
+ option('Duel Reading','You recognise the opponent’s balance before committing your own body.','epic',{defense:9,reactions:8,vision:5},'DUEL READ',{bonusText:'+ defensive duel and interception quality',match:{defense:1.7,blocks:.35,performance:.08},training:{defduels:.32,film:.22}}),
+ option('Complete Scanning','You continuously refresh information before, during and after receiving.','legendary',{vision:13,reactions:8,control:5,offBall:4},'SCAN',{bonusText:'+ all-phase decision quality',match:{keyPasses:.8,defense:.65,performance:.14},training:{film:.4}})
+);
+
+const secondaryV12=BUILD_STAGES.find(s=>s.key==='secondaryWeapon');
+secondaryV12.options.push(
+ option('Backheel Link','You can keep combinations alive without turning toward the ball.','common',{passing:4,technique:3,reactions:2},'BACKHEEL',{bonusText:'+ combination creation',match:{keyPasses:.25},training:{passing:.12}}),
+ option('Dummy Run','Your movement creates value even when you never receive the pass.','common',{offBall:5,ego:1},'DUMMY',{bonusText:'+ teammate goal creation',match:{mateGoals:.04,performance:.025},training:{film:.14}}),
+ option('Shielding','You protect the ball long enough for the next action to appear.','common',{physical:4,control:4},'SHIELD',{bonusText:'+ stable possession under contact',match:{performance:.03},training:{gym:.12,duels:.1}}),
+ option('Reverse Pass','You can attack the lane opposite your body orientation.','common',{passing:5,vision:4,technique:2},'REVERSE',{bonusText:'+ key-pass variety',match:{keyPasses:.3},training:{passing:.15}}),
+ option('Cutback Delivery','You consistently find the dangerous runner behind the defensive line.','common',{passing:5,vision:3,offBall:2},'CUTBACK',{bonusText:'+ assist chance from wide areas',match:{assistP:.018,keyPasses:.25},training:{passing:.16}}),
+ option('Delayed Run','You arrive after defenders have already committed to the first threat.','common',{offBall:5,reactions:3},'DELAY',{bonusText:'+ late shooting involvement',match:{shots:.25},training:{film:.15}}),
+ option('Toe-Poke Finish','Minimal backlift lets you shoot in tiny spaces.','uncommon',{finishing:5,reactions:4},'TOE POKE',{bonusText:'+ close-range conversion',match:{goalP:.014},training:{finishing:.14}}),
+ option('Heel-to-Heel Burst','A simple touch pattern gives you immediate separation.','uncommon',{acceleration:5,dribbling:4},'HEEL BURST',{bonusText:'+ take-on volume',match:{dribbles:.35},training:{speed:.12,duels:.12}}),
+ option('Underlap Timing','You attack the inside lane while a teammate holds width.','uncommon',{offBall:5,vision:3,acceleration:2},'UNDERLAP',{bonusText:'+ half-space involvement',match:{shots:.18,keyPasses:.2},training:{film:.16}}),
+ option('Overlap Timing','You choose the exact moment to go around the outside.','uncommon',{stamina:4,speed:3,offBall:3},'OVERLAP',{bonusText:'+ wide involvement',match:{keyPasses:.25,dribbles:.18},training:{speed:.12}}),
+ option('Second-Ball Sense','You are unusually quick to attack rebounds and broken clearances.','uncommon',{reactions:6,offBall:3},'2ND BALL',{bonusText:'+ chaotic-phase involvement',match:{recoveries:.35,shots:.12},training:{film:.16}}),
+ option('Tactical Foul Sense','You recognise when stopping the transition matters more than staying clean.','uncommon',{defense:5,vision:3,ego:2},'TACTICAL FOUL',{bonusText:'+ transition suppression with discipline risk',match:{oppDefense:.025,defense:.35},training:{press:.15}}),
+ option('Covering Run','You instinctively protect the space a teammate has abandoned.','common',{defense:4,stamina:4,vision:2},'COVER',{bonusText:'+ recoveries and defensive stability',match:{recoveries:.45,defense:.3},training:{shape:.18}}),
+ option('Near-Side Block','You close shooting angles early rather than reacting after the shot.','rare',{defense:6,reactions:5},'ANGLE BLOCK',{bonusText:'+ block frequency',match:{blocks:.45},training:{shape:.2}}),
+ option('One-Touch Layoff','You can redirect difficult service into a teammate’s path immediately.','rare',{control:5,passing:5,reactions:3},'LAYOFF',{bonusText:'+ combination assist chains',match:{keyPasses:.35,mateGoals:.025},training:{passing:.18}}),
+ option('Disguised Cross','Your delivery looks like a pass, shot or carry until the final action.','rare',{passing:6,technique:5,vision:3},'DISGUISED CROSS',{bonusText:'+ wide chance creation',match:{keyPasses:.4,assistP:.014},training:{passing:.2}}),
+ option('Half-Turn Receive','You receive already oriented toward the next line.','rare',{control:6,vision:4,reactions:3},'HALF TURN',{bonusText:'+ progression and stable performance',match:{performance:.045,keyPasses:.2},training:{duels:.12,film:.14}}),
+ option('Aggressive Step','You leave the line early to prevent the receiver turning.','rare',{defense:6,acceleration:3,reactions:3},'STEP OUT',{bonusText:'+ front-foot defensive actions',match:{defense:.55},training:{defduels:.18}}),
+ option('Scanning Before Receive','You know more before the ball arrives than most players do afterwards.','epic',{vision:7,reactions:5,control:3},'PRE-SCAN',{bonusText:'+ stable creation and interception value',match:{performance:.065,keyPasses:.3,defense:.2},training:{film:.24}}),
+ option('Pressure Release','One touch can eliminate the nearest press and expose the next line.','epic',{control:7,technique:5,acceleration:2},'RELEASE',{bonusText:'+ press resistance and carries',match:{dribbles:.3,performance:.06},training:{duels:.2}})
+);
+
 const NEL_STAGE={key:'nelClub',chapter:'NEO EGOIST LEAGUE',name:'Choose Your NEL Club',prompt:'Which European philosophy will reshape your final stage?',mode:'equal',options:Object.keys(NEL_DATA).map(n=>option(n,NEL_DATA[n].master+' leads a squad built around a distinct football philosophy.','common',{},n.replace('Bastard München','Bastard').replace('Manshine City','Manshine').replace('FC Barcha','Barcha').replace('Paris X Gen','PXG')))};
 
 const TRAINING_ACTIONS=[
