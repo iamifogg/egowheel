@@ -501,6 +501,11 @@ function preNelFixtures(team){
 function nelFixtures(club){
  return Object.keys(NEL_DATA).filter(x=>x!==club).map((opp,i)=>({id:'nel'+i,stage:'Neo Egoist League',type:'match',team:club,opponent:opp,stars:NEL_DATA[opp].stars,strength:NEL_DATA[opp].strength,teamStrength:NEL_DATA[club].strength,venue:'NEL Match '+(i+1),importance:1.65}));
 }
+function beginStatRolls(){
+ state.run.mode='statSpin';state.run.statIndex=0;wheelRotation=0;
+ ATTR_KEYS.forEach(k=>delete state.run.selections['stat_'+k]);
+ renderAll();save();toast('Now roll every starting attribute.');
+}
 function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
@@ -637,9 +642,19 @@ function updateBid(rep){
  const c=state.run.career,stats=currentStats(),nt=c.totals,avgNel=nt.nelApps?nt.nelRatingTotal/nt.nelApps:rep.rating,base=Math.max(0,(overall(stats)-55)*2.1+nt.nelGoals*16+nt.nelAssists*10+(avgNel-6)*12+rand(-7,11));
  const next=Math.max(3,Math.round(base));c.bid=next;c.bidHistory.push(next);
 }
+function resolveMatchOutcome(outcome){
+ const c=state.run.career,fixture=currentFixture();if(!c||!fixture||!outcome)return;
+ whistleSound();
+ const rep=fixture.type==='challenge'?simulateChallenge(fixture,outcome):simulateMatch(fixture,outcome);
+ c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();
+ state.run.pendingMatch=null;
+}
 function playFixture(){
  const c=state.run.career,fixture=currentFixture();if(!c||!fixture||!c.prepared||c.report)return;
- whistleSound();const rep=fixture.type==='challenge'?simulateChallenge(fixture):simulateMatch(fixture);c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();save();renderAll();
+ state.run.pendingMatch=fixture.id;
+ delete state.run.selections.matchOutcome;
+ state.run.mode='matchSpin';wheelRotation=0;
+ renderAll();save();clickSound();
 }
 function advanceFixture(){
  const c=state.run.career,fixture=currentFixture();if(!c||!c.report)return;
@@ -673,13 +688,13 @@ function renderCareer(){
  if(!show)return;
  const c=state.run.career,fixture=currentFixture();
  if(!fixture&&c.complete){$('#careerStage').textContent='CAREER COMPLETE';$('#fixtureTitle').textContent=c.finalStatus;$('#fixtureSubtitle').textContent='Final bid: ¥'+c.bid+'m';$('#fixtureCount').textContent='FINAL';$('#fixtureType').textContent='ARCHIVE READY';$('#prepArea').hidden=true;$('#matchReport').hidden=false;$('#matchReport').innerHTML='<span class="result-eyebrow">FINAL EVALUATION</span><h3>'+esc(c.finalStatus)+'</h3><p>Your Blue Lock career ends with a ¥'+c.bid+'m bid, '+c.totals.goals+' goals and '+c.totals.assists+' assists.</p>';$('#advanceFixtureBtn').hidden=true;renderCareerLog();return;}
- $('#prepArea').hidden=!!c.report;$('#careerStage').textContent=fixture.stage;$('#fixtureTitle').textContent=fixture.venue;$('#fixtureSubtitle').textContent=fixture.type==='challenge'?'Individual qualification test.':'Your performance is simulated from your current attributes, form, condition and match plan.';
+ $('#prepArea').hidden=!!c.report;$('#careerStage').textContent=fixture.stage;$('#fixtureTitle').textContent=fixture.venue;$('#fixtureSubtitle').textContent=fixture.type==='challenge'?'Choose your preparation, then spin your performance in the individual qualification test.':'Choose training and a match plan. Your stats shape the odds, then the wheel decides how well you actually play.';
  $('#fixtureCount').textContent=(c.fixtureIndex+1)+' / '+c.fixtures.length;$('#fixtureType').textContent=fixture.type.toUpperCase();
  $('#homeLabel').textContent=fixture.type==='challenge'?'PLAYER':'YOUR SIDE';$('#homeTeam').textContent=fixture.team;$('#homeStars').textContent=fixture.type==='challenge'?'Beat the target to advance.':'OVR '+overall()+' · '+(state.run.selections.primaryWeapon?.name||'No weapon');
  $('#awayTeam').textContent=fixture.opponent;$('#awayStars').textContent=(fixture.stars||[]).slice(0,4).join(' · ');$('#fixtureStageTag').textContent=fixture.stage;$('#fixtureVenue').textContent=fixture.venue;
  renderCondition();renderTraining();renderPlans();
  const inj=$('#injuryNotice');if(state.run.injury){inj.hidden=false;inj.textContent=state.run.injury.name+' — '+state.run.injury.matches+' fixture(s) remaining; effective attributes are reduced.';}else inj.hidden=true;
- $('#playMatchBtn').disabled=!c.prepared;
+ $('#playMatchBtn').disabled=!c.prepared;$('#playMatchBtn').textContent=fixture.type==='challenge'?'Spin Challenge Performance':'Spin Match Performance';
  $('#matchReport').hidden=!c.report;$('#advanceFixtureBtn').hidden=!c.report;
  if(c.report)renderMatchReport(c.report,fixture);
  renderCareerLog();
@@ -690,7 +705,7 @@ function renderCondition(){
  $('#formValue').textContent=(state.run.form>0?'+':'')+state.run.form;$('#formBar').style.width=((state.run.form+3)/6*100)+'%';
 }
 function renderTraining(){
- const c=state.run.career;$('#prepStatus').textContent=c.prepared?'Prepared: '+(TRAINING_ACTIONS.find(a=>a.key===c.trainingKey)?.name||'Done'):'Choose one action';
+ const c=state.run.career;$('#prepStatus').textContent=c.prepared?'Result: '+(c.trainingResult||'Complete'):'Choose an action — its quality will be spun';
  $('#trainingActions').innerHTML=TRAINING_ACTIONS.map(a=>'<button type="button" class="training-action '+(c.trainingKey===a.key?'selected':'')+'" data-train="'+a.key+'" '+(c.prepared?'disabled':'')+'><strong>'+esc(a.name)+'</strong><span>'+esc(a.desc)+'</span><em>'+(a.cost<0?'+'+Math.abs(a.cost)+' energy':'-'+a.cost+' energy')+'</em></button>').join('');
 }
 function renderPlans(){
@@ -729,22 +744,49 @@ function recordHistory(){
 
 function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.classList.toggle('active',x.id===v));$$('.nav-button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));}
 function renderAll(){
- const wheelMode=state.run.mode==='build'||state.run.mode==='nelSpin';$('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
- renderCareer();renderPlayer();renderProfile();renderArchive();renderView();syncAudio();$('#quickBuildBtn').hidden=state.run.mode!=='build';
+ const wheelMode=['build','statSpin','trainingSpin','matchSpin','nelSpin'].includes(state.run.mode);
+ $('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
+ renderCareer();renderPlayer();renderProfile();renderArchive();renderView();syncAudio();
+ $('#quickBuildBtn').hidden=state.run.mode!=='build';
 }
 
 function spinCurrent(){
- if(spinning)return;if(audioEnabled)startMusic();spinning=true;const stage=currentWheelStage(),chosen=choose(stage),desired=360-chosen.mid;const previousRotation=wheelRotation;wheelRotation+=1440+((desired-(wheelRotation%360)+360)%360);const spinDelta=wheelRotation-previousRotation;const g=$('#wheelGroup'),labels=$('#wheelLabels');g.style.transition='transform 1.65s cubic-bezier(.08,.72,.12,1)';if(labels){labels.style.opacity='1';labels.style.transformOrigin='260px 260px';labels.style.transition='transform 1.65s cubic-bezier(.08,.72,.12,1)';labels.style.transform='rotate(0deg)';}spinSound();requestAnimationFrame(()=>{g.style.transform='rotate('+wheelRotation+'deg)';if(labels)labels.style.transform='rotate('+spinDelta+'deg)';});
- setTimeout(()=>{state.run.selections[stage.key]=chosen.opt;spinning=false;landSound(stage.mode==='rarity'?chosen.opt.rarity:'rare');renderWheel();renderSpinResult();renderPlayer();save();},1680);
+ if(spinning)return;
+ if(audioEnabled)startMusic();
+ const mode=state.run.mode,stage=currentWheelStage(),chosen=choose(stage),desired=360-chosen.mid;
+ spinning=true;
+ const previousRotation=wheelRotation;wheelRotation+=1440+((desired-(wheelRotation%360)+360)%360);const spinDelta=wheelRotation-previousRotation;
+ const g=$('#wheelGroup'),labels=$('#wheelLabels');
+ g.style.transition='transform 1.65s cubic-bezier(.08,.72,.12,1)';
+ if(labels){labels.style.opacity='1';labels.style.transformOrigin='260px 260px';labels.style.transition='transform 1.65s cubic-bezier(.08,.72,.12,1)';labels.style.transform='rotate(0deg)';}
+ spinSound();
+ requestAnimationFrame(()=>{g.style.transform='rotate('+wheelRotation+'deg)';if(labels)labels.style.transform='rotate('+spinDelta+'deg)';});
+ setTimeout(()=>{
+  state.run.selections[stage.key]=chosen.opt;
+  if(mode==='statSpin'&&chosen.opt.meta){state.run.baseStats[chosen.opt.meta.statKey]=chosen.opt.meta.value;state.run.lastChanges={[chosen.opt.meta.statKey]:0};}
+  if(mode==='trainingSpin')resolveTrainingOutcome(chosen.opt);
+  if(mode==='matchSpin')resolveMatchOutcome(chosen.opt);
+  spinning=false;
+  landSound(mode==='matchSpin'?(chosen.opt.name==='Flow State'?'legendary':chosen.opt.name==='Masterclass'?'epic':'rare'):(stage.mode==='rarity'?chosen.opt.rarity:'rare'));
+  renderWheel();renderSpinResult();renderPlayer();save();
+ },1680);
 }
 function nextBuild(){
- const stage=currentWheelStage();if(!state.run.selections[stage.key])return;
- if(state.run.mode==='nelSpin'){enterNEL();return;}
+ const mode=state.run.mode,stage=currentWheelStage();if(!state.run.selections[stage.key])return;
+ if(mode==='trainingSpin'||mode==='matchSpin'){state.run.mode='career';wheelRotation=0;renderAll();save();return;}
+ if(mode==='nelSpin'){enterNEL();return;}
+ if(mode==='statSpin'){
+  if(state.run.statIndex<ATTRS.length-1){state.run.statIndex++;wheelRotation=0;renderAll();save();return;}
+  startCareer();return;
+ }
  if(state.run.buildIndex<BUILD_STAGES.length-1){state.run.buildIndex++;wheelRotation=0;renderAll();save();return;}
- startCareer();
+ beginStatRolls();
 }
 function quickBuild(){
- BUILD_STAGES.forEach(s=>{state.run.selections[s.key]=choose(s).opt;});state.run.buildIndex=BUILD_STAGES.length-1;startCareer();clickSound();
+ BUILD_STAGES.forEach(s=>{state.run.selections[s.key]=choose(s).opt;});
+ ATTRS.forEach((_,i)=>{const st=makeStatStage(i),picked=choose(st).opt;state.run.selections[st.key]=picked;state.run.baseStats[picked.meta.statKey]=picked.meta.value;});
+ state.run.buildIndex=BUILD_STAGES.length-1;state.run.statIndex=ATTRS.length-1;
+ startCareer();clickSound();
 }
 function newRun(force=false){const progressed=Object.keys(state.run.selections).length||state.run.career;if(progressed&&!force&&!confirm('Start a new player? The current unarchived career will be replaced.'))return;state.run=defaultRun();wheelRotation=0;renderAll();save();clickSound();}
 function archiveCareer(){
