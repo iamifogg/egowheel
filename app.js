@@ -806,6 +806,34 @@ const BETWEEN_GAME_OUTCOMES=[
  weighted('Nothing Special','No breakthrough, no disaster. You simply reach the next fixture.',8,{},'QUIET',{kind:'direct'})
 ];
 
+BETWEEN_GAME_OUTCOMES.push(
+ weighted('Set-Piece Rehearsal','The staff build several corner and free-kick routines around your role.',7,{},'SET PIECES',{kind:'direct',stats:{reactions:1},tempMatch:{corner:.9,aerial:.7}}),
+ weighted('Aerial Session','You spend the week attacking and defending high service.',6,{},'AERIAL',{kind:'direct',stats:{physical:1,reactions:1},tempMatch:{aerial:.8,clearances:.45}}),
+ weighted('Defensive Unit Work','The back line rehearses cover, box defence and emergency rotations.',7,{},'DEF UNIT',{kind:'direct',stats:{defense:1,vision:1},tempMatch:{defense:.7,blocks:.4}}),
+ weighted('Crossing Clinic','Repeated wide-delivery work improves the quality of your next-match service.',6,{},'CROSSING',{kind:'direct',stats:{passing:1},tempMatch:{keyPasses:.55,assistP:.018}}),
+ weighted('Finishing Circuit','The week becomes a relentless sequence of finishing situations.',7,{},'FINISHING',{kind:'direct',stats:{finishing:1,reactions:1},tempMatch:{shots:.35,goalP:.012}}),
+ weighted('Pressing Simulation','You rehearse pressing traps and immediate play after the regain.',6,{},'PRESS SIM',{kind:'direct',stats:{defense:1,stamina:1},tempMatch:{defense:.55,recoveries:.45}}),
+ weighted('Team Chemistry Session','Extra combination work makes teammates more responsive to your decisions.',5,{},'CHEMISTRY',{kind:'direct',stats:{passing:1},tempMatch:{mateGoals:.1,keyPasses:.25}}),
+ weighted('Specialist Coach','A positional coach isolates one weakness and gives you a focused correction.',5,{},'SPECIALIST',{kind:'training'}),
+ weighted('Rival Session','You train specifically around the strengths of a player you cannot stop thinking about.',4.5,{},'RIVAL',{kind:'direct',stats:{ego:1,reactions:1},confidence:4,form:1}),
+ weighted('Private Film Obsession','You spend far too long breaking down movement patterns frame by frame.',5,{},'FILM',{kind:'direct',stats:{vision:2,reactions:1},fitness:-2}),
+ weighted('Physio Reset','A high-quality recovery intervention restores your body before the fixture.',6,{},'PHYSIO',{kind:'direct',fitness:18,confidence:2}),
+ weighted('Cold Recovery Block','You prioritise recovery and mobility over technical work.',5,{},'RECOVERY',{kind:'direct',fitness:13,stats:{stamina:1}}),
+ weighted('Full Match Simulation','Training becomes a high-intensity rehearsal of the upcoming game.',5,{},'SIMULATION',{kind:'direct',fitness:-5,form:1,tempMatch:{performance:.06}}),
+ weighted('Leadership Responsibility','You are asked to organise teammates rather than focus only on yourself.',3.5,{},'LEADERSHIP',{kind:'direct',stats:{ego:2,vision:1},confidence:5}),
+ weighted('Dead-Ball Duty','You unexpectedly become responsible for attacking set pieces.',3.5,{},'DEAD BALL',{kind:'direct',stats:{technique:1,passing:1},tempMatch:{corner:.55,keyPasses:.35}}),
+ weighted('One-on-One Challenge Day','The session is built around repeated individual duels.',5,{},'DUEL DAY',{kind:'training'}),
+ weighted('Tactical Role Trial','The coaching staff deliberately test whether you can solve another position.',4.5,{},'ROLE TRIAL',{kind:'positionExperiment'}),
+ weighted('Weapon Lab','You spend the week trying to force an existing weapon into a new application.',4.5,{},'WEAPON LAB',{kind:'weapon'}),
+ weighted('Mentor Intervention','A senior player pulls you aside for an unusually detailed lesson.',4,{},'MENTOR',{kind:'learn'}),
+ weighted('Public Criticism','A coach openly questions part of your game and forces an ego response.',3,{},'CRITICISM',{kind:'ego'}),
+ weighted('Minor Illness','You are not seriously ill, but the week leaves your body below its usual level.',3,{},'ILLNESS',{kind:'direct',fitness:-10,confidence:-2}),
+ weighted('Perfect Recovery Week','Everything lines up: sleep, treatment and workload all land perfectly.',3,{},'RESET',{kind:'direct',fitness:25,confidence:4}),
+ weighted('Sudden Growth Spurt','Something clicks physically and your development ceiling expands.',1.5,{},'GROWTH',{kind:'direct',stats:{physical:2,stamina:2},potential:1}),
+ weighted('Obsessive Extra Work','You add unplanned work after the scheduled session.',4,{},'EXTRA WORK',{kind:'direct',fitness:-7,stats:{ego:1,technique:1}}),
+ weighted('Team Conflict','A training disagreement damages confidence but sharpens competitive edge.',2.5,{},'CONFLICT',{kind:'direct',confidence:-6,form:-1,stats:{ego:1}})
+);
+
 const LEARNING_PLAYERS=[
  {name:'Yoichi Isagi',short:'ISAGI',desc:'Scanning and spatial problem solving.',stats:{vision:2,offBall:1,reactions:1}},
  {name:'Rin Itoshi',short:'RIN',desc:'Precision, control and ruthless decision making.',stats:{technique:2,finishing:1,vision:1}},
@@ -957,7 +985,11 @@ function contributionStage(){
  const baseBonus=gameplayBonuses().match||{},temp=state.run.career?.tempMatchBonus||{},bonus={...baseBonus};
  Object.entries(temp).forEach(([k,v])=>bonus[k]=(bonus[k]||0)+v);
  const fit=(state.run.fitness??100),stam=s.stamina||60,fitnessBoost=(fit-75)*.035+(stam-60)*.012;
- const formBoost=state.run.form*1.8+(state.run.confidence-50)*.05+fitnessBoost;
+ let formBoost=state.run.form*1.8+(state.run.confidence-50)*.05+fitnessBoost;
+ const egoStyle=state.run.selections.egoStyle?.name||'';
+ if(egoStyle==='Rivalry Addict'&&state.run.career?.rival&&fixture?.stars?.includes(state.run.career.rival))formBoost+=3;
+ if(egoStyle==='Underdog'&&fixture&&fixture.strength>overall())formBoost+=Math.min(3,(fixture.strength-overall())*.15);
+ if(egoStyle==='Pressure Junkie'&&(fixture?.importance||1)>=1.6)formBoost+=2.2;
  const attack=(s.finishing+s.offBall+s.reactions+s.shotPower)/4;
  const create=(s.passing+s.vision+s.control)/3;
  const carry=(s.dribbling+s.control+s.acceleration)/3;
@@ -990,13 +1022,13 @@ function contributionStage(){
   weighted('Header Goal From Corner','You rise above the defence and score from a corner.',Math.max(.06,.55*aerialThreat+(bonus.corner||0)*1.2),{},'HEADER GOAL',{contrib:{goals:1,shots:1,aerialDuels:1,setPieceGoals:1,bonusRating:1.18}}),
   weighted('Aerial Duel Won','You dominate a high ball and control the next phase.',Math.max(.8,3.8*heightFactor*(s.physical/75)*prof.defense),{},'AERIAL WIN',{contrib:{aerialDuels:1,clearances:isDefensiveRole()?1:0,bonusRating:.12}}),
   weighted('Assist','You create the final pass for a goal.',Math.max(.8,create*.075*prof.creation+(bonus.assistP||0)*85),{},'ASSIST',{contrib:{assists:1,keyPasses:1,bonusRating:.7}}),
-  weighted('Key Pass','You create a chance that someone else fails to finish.',Math.max(2,create*.1*prof.creation+(bonus.keyPasses||0)*2),{},'KEY PASS',{contrib:{keyPasses:1,bonusRating:.12}}),
+  weighted('Key Pass','You create a chance that someone else fails to finish.',Math.max(2,create*.1*prof.creation+(bonus.keyPasses||0)*2+(egoStyle==='Architect'?2.2:0)),{},'KEY PASS',{contrib:{keyPasses:1,bonusRating:.12}}),
   weighted('Cross Creates Chance','Your delivery beats the first defender and finds a dangerous runner.',Math.max(1.1,(s.passing+s.vision)/35*prof.creation),{},'CROSS',{contrib:{keyPasses:1,bonusRating:.12}}),
   weighted('Switch of Play','A long pass moves the entire defensive block and opens the weak side.',Math.max(.8,(s.passing+s.vision)/42*prof.creation),{},'SWITCH',{contrib:{keyPasses:1,bonusRating:.09}}),
-  weighted('Successful Take-On','You beat an opponent and carry the attack forward.',Math.max(2,carry*.09*prof.carry+(bonus.dribbles||0)*2),{},'DRIBBLE',{contrib:{dribbles:1,bonusRating:.1}}),
+  weighted('Successful Take-On','You beat an opponent and carry the attack forward.',Math.max(2,carry*.09*prof.carry+(bonus.dribbles||0)*2+(['Gladiator','Isolationist','Artist'].includes(egoStyle)?1.4:0)),{},'DRIBBLE',{contrib:{dribbles:1,bonusRating:.1}}),
   weighted('Progressive Carry','You carry through pressure and advance the team into a better zone.',Math.max(1.1,carry*.065*prof.carry),{},'CARRY',{contrib:{dribbles:1,keyPasses:1,bonusRating:.16}}),
   weighted('Foul Won','You protect the ball or beat a man and force the opponent to foul you.',Math.max(.8,(s.control+s.physical+s.dribbling)/70),{},'FOUL WON',{contrib:{bonusRating:.07}}),
-  weighted('Tackle Won','You stop an opponent cleanly and win possession.',Math.max(1,defend*.085*prof.defense+(bonus.defense||0)*1.7),{},'TACKLE',{contrib:{tackles:1,bonusRating:.11}}),
+  weighted('Tackle Won','You stop an opponent cleanly and win possession.',Math.max(1,defend*.085*prof.defense+(bonus.defense||0)*1.7+(['Gladiator','Provocateur'].includes(egoStyle)?1.3:0)),{},'TACKLE',{contrib:{tackles:1,bonusRating:.11}}),
   weighted('Interception','You read the pass before it reaches danger.',Math.max(1,(s.vision+s.reactions+s.defense)/36*prof.defense+(bonus.defense||0)*1.5),{},'INTERCEPT',{contrib:{interceptions:1,bonusRating:.13}}),
   weighted('Shot Block','You get between the ball and goal in time.',Math.max(.7,defend*.05*prof.defense+(bonus.blocks||0)*2.2),{},'BLOCK',{contrib:{blocks:1,bonusRating:.18}}),
   weighted('Goal-Line Clearance','You recover behind the goalkeeper and prevent a certain goal.',Math.max(.15,(defend-55)*.035*prof.defense),{},'GOAL-LINE',{contrib:{clearances:1,blocks:1,bonusRating:.5}}),
@@ -1403,7 +1435,7 @@ function repairPrepState(){
 }
 function resetMatchPreparation(c){
  if(!c)return;
- c.betweenEvent=null;c.trainingKey=null;c.trainingResult=null;c.prepResolution=null;c.planKey='balanced';c.report=null;c.temporaryPosition=null;
+ c.betweenEvent=null;c.trainingKey=null;c.trainingResult=null;c.prepResolution=null;c.tempMatchBonus=null;c.planKey='balanced';c.report=null;c.temporaryPosition=null;
  state.run.pendingBetweenFollowup=null;
  setPrepPhase(c,PREP_PHASE.EVENT);
 }
@@ -1420,6 +1452,11 @@ function applyDirectBetween(meta={}){
  if(meta.fitness)state.run.fitness=clamp(state.run.fitness+meta.fitness,20,100);
  if(meta.confidence)state.run.confidence=clamp(state.run.confidence+meta.confidence,0,100);
  if(meta.form)state.run.form=clamp(state.run.form+meta.form,-3,3);
+ if(meta.potential)raisePotential(meta.potential);
+ if(meta.tempMatch){
+  const c=state.run.career;c.tempMatchBonus=c.tempMatchBonus||{};
+  Object.entries(meta.tempMatch).forEach(([k,v])=>c.tempMatchBonus[k]=(c.tempMatchBonus[k]||0)+v);
+ }
 }
 function resolveBetweenGameOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
