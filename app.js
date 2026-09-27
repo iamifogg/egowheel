@@ -1114,10 +1114,16 @@ function resolveMatchOutcome(outcome){
 }
 function playFixture(){
  const c=state.run.career,fixture=currentFixture();if(!c||!fixture||!c.prepared||c.report)return;
- state.run.pendingMatch=fixture.id;
- delete state.run.selections.matchOutcome;
- state.run.mode='matchSpin';wheelRotation=0;
- renderAll();save();clickSound();
+ if(fixture.type==='challenge'){
+  state.run.pendingMatch={fixtureId:fixture.id};
+  delete state.run.selections.challengeOutcome;
+  state.run.mode='challengeSpin';
+ }else{
+  state.run.pendingMatch={fixtureId:fixture.id,spinIndex:0,contributions:emptyMatchContribution()};
+  for(let i=0;i<4;i++)delete state.run.selections['contribution_'+i];
+  state.run.mode='contributionSpin';
+ }
+ wheelRotation=0;renderAll();save();clickSound();
 }
 function advanceFixture(){
  const c=state.run.career,fixture=currentFixture();if(!c||!c.report)return;
@@ -1294,7 +1300,7 @@ function recordHistory(){
 
 function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.classList.toggle('active',x.id===v));$$('.nav-button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));}
 function renderAll(){
- const wheelMode=['build','statSpin','trainingSpin','matchSpin','survivalSpin','nelSpin'].includes(state.run.mode);
+ const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','challengeSpin','survivalSpin','nelSpin'].includes(state.run.mode);
  $('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
  renderCareer();renderPlayer();renderProfile();renderArchive();renderView();syncAudio();
  $('#quickBuildBtn').hidden=state.run.mode!=='build';
@@ -1315,28 +1321,60 @@ function spinCurrent(){
   state.run.selections[stage.key]=chosen.opt;
   if(mode==='statSpin'&&chosen.opt.meta){state.run.baseStats[chosen.opt.meta.statKey]=chosen.opt.meta.value;state.run.lastChanges={[chosen.opt.meta.statKey]:0};}
   if(mode==='trainingSpin')resolveTrainingOutcome(chosen.opt);
-  if(mode==='matchSpin')resolveMatchOutcome(chosen.opt);
+  if(mode==='betweenSpin')resolveBetweenGameOutcome(chosen.opt);
+  if(mode==='learnSpin')resolveLearningOutcome(chosen.opt);
+  if(mode==='injuryEventSpin')resolveInjuryEventOutcome(chosen.opt);
+  if(mode==='egoEventSpin')resolveEgoEventOutcome(chosen.opt);
+  if(mode==='weaponEventSpin')resolveWeaponEventOutcome(chosen.opt);
+  if(mode==='contributionSpin')resolveContributionOutcome(chosen.opt);
+  if(mode==='challengeSpin')resolveChallengeOutcome(chosen.opt);
   if(mode==='survivalSpin')resolveSurvivalOutcome(chosen.opt);
   spinning=false;
-  landSound(mode==='matchSpin'?(chosen.opt.name==='Flow State'?'legendary':chosen.opt.name==='Masterclass'?'epic':'rare'):(stage.mode==='rarity'?chosen.opt.rarity:'rare'));
+  landSound(stage.mode==='rarity'?chosen.opt.rarity:'rare');
   renderWheel();renderSpinResult();renderPlayer();save();
  },1680);
 }
+
 function nextBuild(){
  const mode=state.run.mode,stage=currentWheelStage();if(!state.run.selections[stage.key])return;
+
+ if(mode==='betweenSpin'){
+  const kind=state.run.selections.betweenGame?.meta?.kind;
+  if(kind==='learn'){state.run.mode='learnSpin';delete state.run.selections.learningPlayer;wheelRotation=0;renderAll();save();return;}
+  if(kind==='injury'){state.run.mode='injuryEventSpin';delete state.run.selections.injuryEvent;wheelRotation=0;renderAll();save();return;}
+  if(kind==='ego'){state.run.mode='egoEventSpin';delete state.run.selections.egoEvent;wheelRotation=0;renderAll();save();return;}
+  if(kind==='weapon'){state.run.mode='weaponEventSpin';delete state.run.selections.weaponEvent;wheelRotation=0;renderAll();save();return;}
+  state.run.mode='career';wheelRotation=0;renderAll();save();return;
+ }
+ if(mode==='learnSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin'){
+  state.run.pendingBetweenFollowup=null;state.run.mode='career';wheelRotation=0;renderAll();save();return;
+ }
+ if(mode==='injuryEventSpin'){
+  if(state.run.pendingInjuryElimination){
+   const why=state.run.pendingInjuryElimination;state.run.pendingInjuryElimination=null;
+   endRun('MEDICALLY WITHDRAWN','A '+why.toLowerCase()+' ends your Blue Lock run before the next fixture.');
+   return;
+  }
+  state.run.pendingBetweenFollowup=null;state.run.mode='career';wheelRotation=0;renderAll();save();return;
+ }
  if(mode==='trainingSpin'){state.run.pendingTraining=null;state.run.mode='career';wheelRotation=0;renderAll();save();return;}
- if(mode==='matchSpin'){state.run.mode='career';wheelRotation=0;renderAll();save();return;}
+ if(mode==='challengeSpin'){state.run.mode='career';wheelRotation=0;renderAll();save();return;}
+ if(mode==='contributionSpin'){
+  const p=state.run.pendingMatch;
+  if(!p)return;
+  if((p.spinIndex||0)<3){
+   p.spinIndex++;wheelRotation=0;renderAll();save();return;
+  }
+  finalizeContributionMatch();state.run.mode='career';wheelRotation=0;renderAll();save();return;
+ }
  if(mode==='survivalSpin'){
   const result=state.run.pendingSurvivalResult;
   if(!result)return;
-  if(!result.meta?.survive){
-   endRun('ELIMINATED — SECOND SELECTION','Your team lost and the winners chose somebody else. You leave Blue Lock.');
-   return;
-  }
+  if(!result.meta?.survive){endRun('ELIMINATED — SECOND SELECTION','Your team lost and the winners chose somebody else. You leave Blue Lock.');return;}
   if(state.run.injury){state.run.injury.matches--;if(state.run.injury.matches<=0)state.run.injury=null;}
   state.run.energy=clamp(state.run.energy+7,0,100);state.run.fitness=clamp(state.run.fitness+4,20,100);
   const career=state.run.career;
-  career.fixtureIndex++;career.prepared=false;career.trainingKey=null;career.trainingResult=null;career.planKey='balanced';career.report=null;
+  career.fixtureIndex++;resetMatchPreparation(career);
   state.run.pendingSurvival=null;state.run.pendingSurvivalResult=null;state.run.mode='career';wheelRotation=0;
   renderAll();save();return;
  }
@@ -1348,6 +1386,7 @@ function nextBuild(){
  if(state.run.buildIndex<BUILD_STAGES.length-1){state.run.buildIndex++;wheelRotation=0;renderAll();save();return;}
  beginStatRolls();
 }
+
 function quickBuild(){
  BUILD_STAGES.forEach(s=>{state.run.selections[s.key]=choose(s).opt;});
  ATTRS.forEach((_,i)=>{const st=makeStatStage(i),picked=choose(st).opt;state.run.selections[st.key]=picked;state.run.baseStats[picked.meta.statKey]=picked.meta.value;});
