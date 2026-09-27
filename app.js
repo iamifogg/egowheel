@@ -658,7 +658,7 @@ function beginStatRolls(){
 function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
- state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,trainingKey:null,planKey:'balanced',history:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
+ state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,trainingKey:null,planKey:'balanced',history:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
  state.run.energy=100;state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
  save();renderAll();toast('Blue Lock career started.');
 }
@@ -722,13 +722,18 @@ function effectiveStats(){
  return out;
 }
 function matchMoments(rep,fixture){
- const m=[];
+ const m=[],defActions=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
  if(rep.goals===1)m.push('You score once against '+fixture.opponent+'.');
  if(rep.goals>1)m.push('You score '+rep.goals+' goals and become the centre of the match.');
  if(rep.assists===1)m.push('You create one goal for a teammate.');
  if(rep.assists>1)m.push('You supply '+rep.assists+' assists.');
- if(rep.dribbles>=4)m.push('You repeatedly beat defenders 1v1 ('+rep.dribbles+' successful dribbles).');
- if(rep.tackles+rep.interceptions>=4)m.push('You make '+(rep.tackles+rep.interceptions)+' meaningful defensive interventions.');
+ if(rep.dribbles>=4)m.push('You repeatedly beat opponents in possession ('+rep.dribbles+' successful carries/dribbles).');
+ if(rep.tackles>=3)m.push('You win '+rep.tackles+' tackles and repeatedly kill attacks at source.');
+ if(rep.interceptions>=3)m.push('You read '+rep.interceptions+' passing lanes before they can become chances.');
+ if(rep.blocks>=2)m.push('You make '+rep.blocks+' decisive blocks inside dangerous phases.');
+ if(rep.clearances>=4)m.push('You dominate the box with '+rep.clearances+' clearances.');
+ if(rep.recoveries>=4)m.push('You recover possession '+rep.recoveries+' times and restart the attack.');
+ if(defActions>=7)m.push('Your defensive output becomes one of the match’s defining features ('+defActions+' actions).');
  if(rep.rating>=8.5&&fixture.stars?.length)m.push('Your duel with '+pick(fixture.stars)+' becomes one of the match’s defining battles.');
  if(rep.rating<6&&fixture.stars?.length)m.push(pick(fixture.stars)+' repeatedly exposes the gap between your current level and the next one.');
  if(!m.length)m.push('You play a relatively quiet match without a decisive individual moment.');
@@ -741,31 +746,53 @@ function simulateChallenge(fixture,tier){
  return{type:'challenge',passed,challengeScore:score,rating,performanceTier:tier?.name||'Solid',goals:0,assists:0,shots:score,keyPasses:0,dribbles:0,tackles:0,interceptions:0,teamGoals:0,oppGoals:0,result:passed?'CLEAR':'RETRY',moments:[passed?'Your '+(tier?.name||'Solid')+' performance clears the 100 Goal Challenge with '+score+' successful finishes.':'A '+(tier?.name||'Poor')+' performance leaves you on '+score+' and forces a retry.']};
 }
 function simulateMatch(fixture,tier){
- const s=effectiveStats(),bonus=gameplayBonuses().match||{},perf=tier?.meta?.factor||1,baseRating=tier?.meta?.rating||6.7,opp=fixture.strength;
+ const s=effectiveStats(),bonus=gameplayBonuses().match||{},profile=positionProfile(),perf=tier?.meta?.factor||1,baseRating=tier?.meta?.rating||6.7,opp=fixture.strength;
  const minutes=tier?.meta?.redCard?int(18,68):tier?.meta?.injury?int(12,62):(state.run.injury?int(52,76):90);
- const involvement=clamp(Math.round((2+s.offBall/25+s.ego/45+state.run.form*.35)*(0.72+perf*.3)),1,10);
- const shots=clamp(Math.round(involvement+rand(-1,1)+(bonus.shots||0)),0,11);
- const baseGoalP=.055+s.finishing*.004+s.shotPower*.00135+s.reactions*.00145+s.technique*.00075-opp*.0027+(bonus.goalP||0);
- const goalP=clamp(baseGoalP*(.72+perf*.27),.025,.72);
+
+ const involvement=clamp(Math.round((2+s.offBall/27+s.ego/48+state.run.form*.3)*(0.72+perf*.3)),1,10);
+ const shots=clamp(Math.round((involvement+rand(-1,1)+(bonus.shots||0))*profile.shots),0,11);
+ const baseGoalP=.05+s.finishing*.0038+s.shotPower*.00125+s.reactions*.00135+s.technique*.0007-opp*.0026+(bonus.goalP||0);
+ const goalP=clamp(baseGoalP*(.72+perf*.27),.02,.72);
  const goals=binomial(shots,goalP);
- const keyPasses=clamp(Math.round((1+s.vision/34+s.passing/45+rand(-.7,.7))*(.72+perf*.3)+(bonus.keyPasses||0)),0,9);
- const dribbleAttempts=clamp(Math.round((1+s.dribbling/28+s.ego/55)*(0.75+perf*.28)+(bonus.dribbles||0)),0,10);
+
+ const keyPasses=clamp(Math.round(((1+s.vision/34+s.passing/45+rand(-.7,.7))*(.72+perf*.3)+(bonus.keyPasses||0))*profile.creation),0,10);
+ const dribbleAttempts=clamp(Math.round(((1+s.dribbling/30+s.ego/58)*(0.75+perf*.28)+(bonus.dribbles||0))*profile.carry),0,10);
  const dribbles=binomial(dribbleAttempts,clamp(.16+s.dribbling*.0048+s.control*.0024-opp*.0028+(bonus.dribbleP||0),.1,.88));
- const defensiveAttempts=clamp(Math.round((1+s.defense/34+s.reactions/55)*(0.76+perf*.25)+(bonus.defense||0)),0,9);
- const tackles=binomial(defensiveAttempts,clamp(.11+s.defense*.0048+s.physical*.0017-opp*.0024,.08,.75));
- const interceptionAttempts=clamp(Math.round((s.vision/35)*(0.75+perf*.25)+(bonus.defense||0)*.3),0,6);
- const interceptions=binomial(interceptionAttempts,clamp(.14+s.vision*.0038+s.reactions*.0019-opp*.0019,.1,.72));
+
+ const defensiveAttempts=clamp(Math.round(((1+s.defense/32+s.reactions/52)*(0.74+perf*.3)+(bonus.defense||0))*profile.defense),0,14);
+ const tackleP=clamp(.11+s.defense*.0048+s.physical*.0017+s.reactions*.001-opp*.0024,.08,.82);
+ const tackles=binomial(defensiveAttempts,tackleP);
+
+ const interceptionAttempts=clamp(Math.round(((s.vision/37+s.reactions/65)*(0.74+perf*.3)+(bonus.defense||0)*.32)*profile.defense),0,10);
+ const interceptions=binomial(interceptionAttempts,clamp(.13+s.vision*.0038+s.reactions*.0021+s.defense*.0014-opp*.0019,.1,.78));
+
+ const blockAttempts=clamp(Math.round(((s.defense+s.reactions)/78)*(0.7+perf*.32)*profile.defense+(bonus.blocks||0)),0,8);
+ const blocks=binomial(blockAttempts,clamp(.12+s.defense*.0042+s.reactions*.0024+s.physical*.0012-opp*.002,.08,.76));
+
+ const clearanceAttempts=clamp(Math.round(((s.defense+s.physical)/70)*(0.72+perf*.3)*profile.defense+(bonus.clearances||0)),0,10);
+ const clearances=binomial(clearanceAttempts,clamp(.16+s.defense*.0037+s.physical*.003-opp*.0017,.12,.8));
+
+ const recoveryAttempts=clamp(Math.round(((s.stamina+s.reactions+s.vision)/105)*(0.74+perf*.28)*profile.defense),0,10);
+ const recoveries=binomial(recoveryAttempts,clamp(.2+s.stamina*.0022+s.reactions*.0018+s.vision*.0014,.18,.72));
+
  const ownStrength=fixture.teamStrength+overall()*.15+state.run.form*1.5;
  const mateLambda=clamp(.5+(ownStrength-58)/38+(s.passing+s.vision)/500+(bonus.mateGoals||0),.2,3.2);
  const teammateGoals=poisson(mateLambda);
  const assists=Math.min(teammateGoals,binomial(keyPasses,clamp(.1+s.passing*.003+s.vision*.0017+(bonus.assistP||0),.08,.62)));
  const teamGoals=goals+teammateGoals;
- const defensiveHelp=(s.defense+s.reactions+s.stamina)/3;
- const oppLambda=clamp(.68+(opp-62)/34-defensiveHelp/260-(bonus.oppDefense||0),.18,3.5);
+
+ const defensiveHelp=((s.defense+s.reactions+s.stamina)/3)*profile.defense;
+ const directDefValue=tackles*.45+interceptions*.5+blocks*.75+clearances*.28+recoveries*.22;
+ const oppLambda=clamp(.72+(opp-62)/34-defensiveHelp/300-directDefValue*.018-(bonus.oppDefense||0),.12,3.6);
  const oppGoals=poisson(oppLambda);
  const result=teamGoals>oppGoals?'WIN':teamGoals<oppGoals?'LOSS':'DRAW';
- const rating=clamp(baseRating+goals*.38+assists*.26+keyPasses*.035+dribbles*.035+(tackles+interceptions)*.03-(shots-goals)*.018+(result==='WIN'?.18:result==='LOSS'?-.15:0)+(bonus.rating||0),4,10);
- const rep={type:'match',passed:true,minutes,performanceTier:tier?.name||'Solid',goals,assists,shots,keyPasses,dribbles,tackles,interceptions,teamGoals,oppGoals,result,rating};
+
+ const attackValue=goals*.4+assists*.28+keyPasses*.035+dribbles*.03-(shots-goals)*.015;
+ const defenseWeight=.018+.026*profile.defense;
+ const defenseValue=(tackles+interceptions)*defenseWeight+blocks*(.035+.03*profile.defense)+clearances*(.012+.014*profile.defense)+recoveries*(.01+.012*profile.defense);
+ const rating=clamp(baseRating+attackValue+defenseValue+(result==='WIN'?.18:result==='LOSS'?-.15:0)+(bonus.rating||0),4,10);
+
+ const rep={type:'match',passed:true,minutes,performanceTier:tier?.name||'Solid',goals,assists,shots,keyPasses,dribbles,tackles,interceptions,blocks,clearances,recoveries,teamGoals,oppGoals,result,rating};
  rep.moments=matchMoments(rep,fixture);rep.moments.unshift('Performance wheel: '+rep.performanceTier+'.');return rep;
 }
 function applyPostMatch(rep,fixture){
