@@ -542,11 +542,150 @@ function resolveSurvivalOutcome(outcome){
  if(!meta.survive)careerLog('Second Selection: rejected by the winning side.');
  else careerLog('Second Selection: '+outcome.name+'. You remain in Blue Lock.');
 }
+const BETWEEN_GAME_OUTCOMES=[
+ weighted('Focused Training Block','You get a proper development window before the next fixture.',27,{},'TRAIN',{kind:'training'}),
+ weighted('Learn From a Teammate','A teammate deliberately shows you something from their game.',11,{},'LEARN',{kind:'learn'}),
+ weighted('Study an Opponent','You obsess over one player’s habits and steal a useful detail.',8,{},'STUDY',{kind:'learn'}),
+ weighted('Recovery Window','The schedule gives your body a rare chance to reset.',10,{},'RECOVER',{kind:'direct',energy:20,fitness:12,confidence:2}),
+ weighted('Tactical Breakthrough','A positioning idea suddenly makes the pitch easier to read.',8,{},'TACTICS',{kind:'direct',stats:{vision:2,reactions:1,defense:1},confidence:3}),
+ weighted('Weapon Inspiration','A training moment suggests a new way to use what you already have.',6,{},'WEAPON',{kind:'weapon'}),
+ weighted('Ego Test','Something challenges your self-image before the next game.',7,{},'EGO TEST',{kind:'ego'}),
+ weighted('Position Experiment','The staff make you work outside your normal comfort zone.',5,{},'EXPERIMENT',{kind:'direct',stats:{vision:1,passing:1,defense:1,offBall:1},confidence:1}),
+ weighted('Overtraining','You push past the useful part of the session and carry fatigue forward.',5,{},'OVERTRAIN',{kind:'direct',energy:-18,fitness:-6,confidence:-2,form:-1}),
+ weighted('Training Injury','A routine session turns into an injury scare.',4.5,{},'INJURY',{kind:'injury'}),
+ weighted('Illness','You lose sharpness during the week and cannot prepare normally.',2.5,{},'ILLNESS',{kind:'direct',energy:-16,fitness:-9,confidence:-2}),
+ weighted('Confidence Crisis','A bad week gets into your head before the match.',2.5,{},'CRISIS',{kind:'direct',confidence:-11,form:-1}),
+ weighted('Unexpected Praise','A senior player or coach singles out something you did well.',4,{},'PRAISE',{kind:'direct',confidence:9,form:1}),
+ weighted('Nothing Special','No breakthrough, no disaster. You simply reach the next fixture.',8,{},'QUIET',{kind:'direct'})
+];
+
+const LEARNING_PLAYERS=[
+ {name:'Yoichi Isagi',short:'ISAGI',desc:'Scanning and spatial problem solving.',stats:{vision:2,offBall:1,reactions:1}},
+ {name:'Rin Itoshi',short:'RIN',desc:'Precision, control and ruthless decision making.',stats:{technique:2,finishing:1,vision:1}},
+ {name:'Meguru Bachira',short:'BACHIRA',desc:'Creative dribbling and freedom under pressure.',stats:{dribbling:2,control:1,ego:1}},
+ {name:'Seishiro Nagi',short:'NAGI',desc:'First touch and impossible-ball control.',stats:{control:2,technique:2}},
+ {name:'Reo Mikage',short:'REO',desc:'Adaptability and rounded technical execution.',stats:{technique:1,passing:1,vision:1,control:1}},
+ {name:'Shoei Barou',short:'BAROU',desc:'Power, finishing conviction and selfish attacking routes.',stats:{finishing:2,shotPower:1,ego:1}},
+ {name:'Hyoma Chigiri',short:'CHIGIRI',desc:'Sprint mechanics and exploiting open grass.',stats:{speed:2,acceleration:2}},
+ {name:'Rensuke Kunigami',short:'KUNIGAMI',desc:'Power striking and physical resilience.',stats:{shotPower:2,physical:2}},
+ {name:'Oliver Aiku',short:'AIKU',desc:'Reading attackers, timing interventions and defensive leadership.',stats:{defense:2,vision:1,reactions:1}},
+ {name:'Ikki Niko',short:'NIKO',desc:'Interception reading and defensive spatial awareness.',stats:{defense:1,vision:2,reactions:1}},
+ {name:'Tabito Karasu',short:'KARASU',desc:'Press resistance, analysis and targeted duels.',stats:{control:1,vision:1,defense:1,physical:1}},
+ {name:'Yo Hiori',short:'HIORI',desc:'Passing technique, vision and timing.',stats:{passing:2,vision:2}},
+ {name:'Jyubei Aryu',short:'ARYU',desc:'Reach, aerial play and awkward-angle defending.',stats:{physical:2,defense:1,reactions:1}},
+ {name:'Gin Gagamaru',short:'GAGAMARU',desc:'Reflexes and unconventional body control.',stats:{reactions:2,physical:1,technique:1}},
+ {name:'Michael Kaiser',short:'KAISER',desc:'Elite shot execution and controlling attacking space.',stats:{finishing:2,offBall:1,ego:1}},
+ {name:'Don Lorenzo',short:'LORENZO',desc:'Duel defending with ball-carrying confidence.',stats:{defense:2,dribbling:1,control:1}}
+];
+
+function betweenGameStage(){
+ return{key:'betweenGame',chapter:'BETWEEN GAMES',name:'What Happens This Week?',prompt:'You do not choose the opportunity. Spin to see what Blue Lock gives you before the next match.',mode:'weights',options:BETWEEN_GAME_OUTCOMES};
+}
+function learningStage(){
+ const fixture=currentFixture(),relevant=[...(fixture?.stars||[])];
+ const pool=LEARNING_PLAYERS.filter(p=>relevant.includes(p.name));
+ const src=pool.length>=4?pool:LEARNING_PLAYERS;
+ return{key:'learningPlayer',chapter:'LEARN FROM ANOTHER PLAYER',name:'Who Influences Your Game?',prompt:'Spin the player whose football leaves something behind in yours.',mode:'equal',options:src.map(p=>option(p.name,p.desc,'common',{},p.short,{learnStats:p.stats}))};
+}
+function injuryEventStage(){
+ return{key:'injuryEvent',chapter:'TRAINING SETBACK',name:'How Bad Is It?',prompt:'The injury scare is real. Spin the severity.',mode:'weights',options:[
+  weighted('False Alarm','Pain fades quickly; nothing meaningful is damaged.',24,{},'FINE',{matches:0,penalty:0,fitness:-2}),
+  weighted('Minor Knock','You can play, but you will not be completely free.',40,{},'KNOCK',{matches:1,penalty:5,fitness:-7}),
+  weighted('Muscle Strain','You carry a real physical restriction into multiple fixtures.',25,{},'STRAIN',{matches:2,penalty:10,fitness:-14}),
+  weighted('Serious Injury','You miss a major stretch and return diminished.',9,{},'SERIOUS',{matches:3,penalty:14,fitness:-24,confidence:-8}),
+  weighted('Medical Withdrawal','The injury is too severe to continue this Blue Lock run.',2,{},'OUT',{eliminate:true,fitness:-35,confidence:-15})
+ ]};
+}
+function egoEventStage(){
+ return{key:'egoEvent',chapter:'EGO EVENT',name:'How Do You Respond?',prompt:'Pressure can create evolution or break the version of you that entered the week.',mode:'weights',options:[
+  weighted('Ego Collapse','Doubt wins. Confidence and form fall hard.',12,{},'COLLAPSE',{confidence:-14,form:-2,stats:{ego:-1}}),
+  weighted('Stagnation','You understand the problem but cannot yet solve it.',24,{},'STAGNATE',{confidence:-3}),
+  weighted('Resolve','You stabilise and return to your own game.',32,{},'RESOLVE',{confidence:5,stats:{ego:1}}),
+  weighted('Breakthrough','You leave the week with a clearer weapon and stronger conviction.',24,{},'BREAKTHROUGH',{confidence:9,form:1,stats:{ego:2,vision:1}}),
+  weighted('Ego Awakening','The pressure forces a genuine leap in how you see yourself on the pitch.',8,{},'AWAKEN',{confidence:14,form:2,stats:{ego:3,reactions:1,technique:1}})
+ ]};
+}
+function weaponEventStage(){
+ const pos=state.run.selections.position?.name||'Centre Forward';
+ const defensive=isDefensiveRole(),mid=isMidfieldRole();
+ const opts=defensive?[
+  weighted('Sharper Duel Timing','Your defensive weapon becomes cleaner in direct contests.',30,{},'DUEL',{stats:{defense:2,reactions:1}}),
+  weighted('Better First Pass','Your regain now has a more dangerous next action.',24,{},'PROGRESS',{stats:{passing:2,vision:1}}),
+  weighted('Aerial Detail','You improve body shape and timing in the air.',18,{},'AERIAL',{stats:{physical:1,defense:1,reactions:1}}),
+  weighted('Scanning Habit','You refresh the picture earlier and defend with more information.',20,{},'SCAN',{stats:{vision:2,reactions:1}}),
+  weighted('No Useful Discovery','The idea never becomes reliable enough to use.',8,{},'NOTHING',{})
+ ]:mid?[
+  weighted('Faster Release','You move the ball before pressure can settle.',26,{},'RELEASE',{stats:{passing:2,reactions:1}}),
+  weighted('New Receiving Angle','Your first touch opens the next lane more often.',24,{},'ANGLE',{stats:{control:2,vision:1}}),
+  weighted('Late-Run Timing','You become harder to track around the box.',20,{},'RUN',{stats:{offBall:2,reactions:1}}),
+  weighted('Scanning Habit','You see the next phase earlier.',22,{},'SCAN',{stats:{vision:2,reactions:1}}),
+  weighted('No Useful Discovery','The idea never becomes reliable enough to use.',8,{},'NOTHING',{})
+ ]:[
+  weighted('Cleaner Finishing Window','Your setup touch creates a better strike.',27,{},'FINISH',{stats:{finishing:2,control:1}}),
+  weighted('New Run Pattern','You learn a different way to arrive in scoring space.',24,{},'RUN',{stats:{offBall:2,acceleration:1}}),
+  weighted('Stronger Shot Shape','Technique and power align more consistently.',20,{},'SHOT',{stats:{shotPower:2,technique:1}}),
+  weighted('1v1 Detail','You add a small but usable change of rhythm.',21,{},'1V1',{stats:{dribbling:2,control:1}}),
+  weighted('No Useful Discovery','The idea never becomes reliable enough to use.',8,{},'NOTHING',{})
+ ];
+ return{key:'weaponEvent',chapter:'WEAPON DEVELOPMENT',name:'What Do You Discover?',prompt:'The inspiration only matters if it becomes something usable.',mode:'weights',options:opts};
+}
+function emptyMatchContribution(){
+ return{goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,mistakes:0,bigMisses:0,bonusRating:0,labels:[]};
+}
+function contributionStage(){
+ const fixture=currentFixture(),p=state.run.pendingMatch||{},idx=p.spinIndex||0,s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{};
+ const formBoost=state.run.form*1.8+(state.run.confidence-50)*.05+(state.run.energy-60)*.025;
+ const attack=(s.finishing+s.offBall+s.reactions+s.shotPower)/4;
+ const create=(s.passing+s.vision+s.control)/3;
+ const carry=(s.dribbling+s.control+s.acceleration)/3;
+ const defend=(s.defense+s.reactions+s.physical+s.vision)/4;
+ const safe=Math.max(0,overall(s)-fixture.strength+formBoost);
+ const bad=Math.max(2,18-safe*.22-(s.reactions+s.control)/28);
+ const opts=[
+  weighted('Major Error','A bad decision creates a dangerous moment for the opponent.',Math.max(1,bad*.45),{},'ERROR',{contrib:{mistakes:1,bonusRating:-.7}}),
+  weighted('Lose Important Duel','You are beaten in a meaningful individual contest.',Math.max(2,bad*.8),{},'LOST DUEL',{contrib:{mistakes:1,bonusRating:-.28}}),
+  weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(1,9+prof.shots*5-attack*.07),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,bonusRating:-.18}}),
+  weighted('Quiet Phase','The match moves around you without a decisive contribution.',16,{},'QUIET',{contrib:{}}),
+  weighted('Shot on Target','You create a credible attempt without scoring.',Math.max(2,6+attack*.08*prof.shots+(bonus.shots||0)*2),{},'SHOT',{contrib:{shots:1,bonusRating:.04}}),
+  weighted('Goal','You finish a decisive chance.',Math.max(.8,attack*.095*prof.shots+(bonus.goalP||0)*90+formBoost*.4),{},'GOAL',{contrib:{goals:1,shots:1,bonusRating:1.05}}),
+  weighted('Brace Moment','You punish the opponent twice in the same spell.',Math.max(.15,(attack-62)*.025*prof.shots+(bonus.goalP||0)*18+Math.max(0,formBoost)*.08),{},'BRACE',{contrib:{goals:2,shots:2,bonusRating:2.05}}),
+  weighted('Assist','You create the final pass for a goal.',Math.max(.8,create*.075*prof.creation+(bonus.assistP||0)*85),{},'ASSIST',{contrib:{assists:1,keyPasses:1,bonusRating:.7}}),
+  weighted('Key Pass','You create a chance that someone else fails to finish.',Math.max(2,create*.1*prof.creation+(bonus.keyPasses||0)*2),{},'KEY PASS',{contrib:{keyPasses:1,bonusRating:.12}}),
+  weighted('Successful Take-On','You beat an opponent and carry the attack forward.',Math.max(2,carry*.09*prof.carry+(bonus.dribbles||0)*2),{},'DRIBBLE',{contrib:{dribbles:1,bonusRating:.1}}),
+  weighted('Tackle Won','You stop an opponent cleanly and win possession.',Math.max(1,defend*.085*prof.defense+(bonus.defense||0)*1.7),{},'TACKLE',{contrib:{tackles:1,bonusRating:.11}}),
+  weighted('Interception','You read the pass before it reaches danger.',Math.max(1,(s.vision+s.reactions+s.defense)/36*prof.defense+(bonus.defense||0)*1.5),{},'INTERCEPT',{contrib:{interceptions:1,bonusRating:.13}}),
+  weighted('Shot Block','You get between the ball and goal in time.',Math.max(.7,defend*.05*prof.defense+(bonus.blocks||0)*2.2),{},'BLOCK',{contrib:{blocks:1,bonusRating:.18}}),
+  weighted('Dominant Clearance','You own a dangerous aerial or box situation.',Math.max(.7,defend*.045*prof.defense*heightAerialFactor()+(bonus.clearances||0)*2),{},'CLEAR',{contrib:{clearances:1,bonusRating:.1}}),
+  weighted('Ball Recovery','You regain possession and reset the phase.',Math.max(1,(s.stamina+s.reactions+s.vision)/42*prof.defense),{},'RECOVERY',{contrib:{recoveries:1,bonusRating:.08}}),
+  weighted('Last-Man Stop','You erase a chance that looked certain to become a shot.',Math.max(.2,(defend-55)*.025*prof.defense+(bonus.blocks||0)*.8),{},'LAST MAN',{contrib:{tackles:1,blocks:1,bonusRating:.42}}),
+  weighted('Turnover to Chance','You win the ball and immediately create a dangerous attack.',Math.max(.2,(defend+create-105)*.035*Math.min(1.4,prof.defense)),{},'TURNOVER',{contrib:{interceptions:1,keyPasses:1,bonusRating:.32}})
+ ];
+ return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:'Match Moment '+(idx+1)+' / 4',prompt:'Your stats, form, role, weapons and opponent change every slice. Spin the action you actually contribute.',mode:'weights',options:opts};
+}
+function challengeStage(){
+ const s=effectiveStats(),q=s.finishing*.28+s.reactions*.17+s.technique*.17+s.control*.14+s.stamina*.1+s.ego*.14+state.run.form*2+(state.run.confidence-50)*.08;
+ const boost=(q-60)*.45;
+ return{key:'challengeOutcome',chapter:'100 GOAL CHALLENGE',name:'How Many Do You Score?',prompt:'One spin. Miss 100 and the run ends.',mode:'weights',options:[
+  weighted('58 Goals','The pace of the machine overwhelms you.',Math.max(1,15-boost*.15),{},'58',{score:58}),
+  weighted('74 Goals','You improve, but the clock wins comfortably.',Math.max(1,20-boost*.12),{},'74',{score:74}),
+  weighted('88 Goals','A respectable attempt, but still elimination.',Math.max(1,24-boost*.08),{},'88',{score:88}),
+  weighted('97 Goals','You come agonisingly close.',Math.max(1,20-boost*.03),{},'97',{score:97}),
+  weighted('100 Goals','You clear the line exactly.',Math.max(1,12+boost*.12),{},'100',{score:100}),
+  weighted('108 Goals','You solve the test with time to spare.',Math.max(.5,7+boost*.13),{},'108',{score:108}),
+  weighted('120 Goals','The finishing test becomes a demonstration.',Math.max(.2,2.5+boost*.08),{},'120',{score:120})
+ ]};
+}
 function currentWheelStage(){
  if(state.run.mode==='nelSpin')return NEL_STAGE;
  if(state.run.mode==='statSpin')return makeStatStage();
  if(state.run.mode==='trainingSpin')return trainingOutcomeStage();
- if(state.run.mode==='matchSpin')return matchPerformanceStage();
+ if(state.run.mode==='betweenSpin')return betweenGameStage();
+ if(state.run.mode==='learnSpin')return learningStage();
+ if(state.run.mode==='injuryEventSpin')return injuryEventStage();
+ if(state.run.mode==='egoEventSpin')return egoEventStage();
+ if(state.run.mode==='weaponEventSpin')return weaponEventStage();
+ if(state.run.mode==='contributionSpin')return contributionStage();
+ if(state.run.mode==='challengeSpin')return challengeStage();
  if(state.run.mode==='survivalSpin')return secondSelectionSurvivalStage();
  return BUILD_STAGES[state.run.buildIndex];
 }
