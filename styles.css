@@ -8,3 +8,17 @@
 @media(max-width:900px){main{padding:10px 8px}.topbar{padding:9px 10px}.run-grid{grid-template-columns:1fr}.hero-strip{align-items:center}.hero-strip h1{font-size:2rem}.hero-strip p{font-size:.76rem}.wheel-card,.player-card{padding:10px}.wheel-shell{width:min(96vw,500px);margin:0 auto}.player-card{margin-top:0}.profile-content{grid-template-columns:1fr}.archive-grid{grid-template-columns:1fr 1fr}.save-state span{display:none}.stage-head p{font-size:.73rem}.wheel-actions .button{min-height:47px}.dossier-list{max-height:none}}
 @media(max-width:520px){.subtitle{display:none}.brand-mark{width:36px;height:36px}.brand{font-size:.9rem}.hero-strip{display:grid;grid-template-columns:1fr auto}.hero-strip p{grid-column:1/-1}.hero-strip .button{font-size:.66rem;padding:8px}.stage-head h2{font-size:1.08rem}.stage-progress span{display:none}.wheel-shell{width:min(98vw,440px)}.identity-grid,.stats-grid{grid-template-columns:repeat(2,1fr)}.archive-grid{grid-template-columns:1fr}.dossier-row{grid-template-columns:92px minmax(0,1fr)}.rarity-key{gap:3px}.rarity-key span{font-size:.45rem;padding:2px 4px}.profile-title{font-size:1.55rem}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.wheel-shell,.wheel-pointer{animation:none!important}#wheelGroup{transition:none!important}}
+
+
+/* v2 wheel labels + audio polish */
+.icon-button.active-audio{border-color:rgba(101,201,255,.72);box-shadow:0 0 0 1px rgba(24,152,255,.35),0 0 22px rgba(24,152,255,.22);background:linear-gradient(180deg,#111f32,#0a1421)}
+#wheelShell{--land:#1598ff}
+#wheelShell.land{box-shadow:0 0 0 1px rgba(41,139,255,.4),0 0 34px color-mix(in srgb,var(--land) 26%,transparent);transition:box-shadow .28s ease}
+#wheelGroup .wheel-slice{stroke:rgba(198,232,255,.28);stroke-width:1;filter:saturate(1.02)}
+#wheelGroup .wheel-label{fill:#f6fbff;font-weight:900;letter-spacing:.04em;paint-order:stroke;stroke:rgba(3,8,18,.88);stroke-width:3px;stroke-linejoin:round;text-transform:uppercase;pointer-events:none}
+#wheelGroup .wheel-label.small{font-size:8px}
+#wheelGroup .wheel-label.large{font-size:10px}
+#wheelGroup .wheel-label.tiny{font-size:6.3px;letter-spacing:.02em}
+#wheelGroup .wheel-label tspan{dominant-baseline:middle}
+.result-rarity,.rarity-chip{white-space:nowrap}
+@media(max-width:520px){#wheelGroup .wheel-label.large{font-size:9px}#wheelGroup .wheel-label.small{font-size:7.2px}#wheelGroup .wheel-label.tiny{font-size:5.8px;stroke-width:2.6px}}
