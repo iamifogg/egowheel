@@ -907,25 +907,30 @@ function contributionStage(){
  ];
  return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:'Match Moment '+(idx+1)+' / 4',prompt:'Your stats, form, role, weapons and opponent change every slice. Spin the action you actually contribute.',mode:'weights',options:opts};
 }
-function challengeQuality(stats=effectiveStats()){
- const ov=overall(currentStats());
+function challengeEffectiveStats(){
+ const s=currentStats(),condition=clamp(.90+state.run.energy/1000+state.run.fitness/1200+(state.run.confidence-50)/1000+state.run.form*.0125,.82,1.08),inj=state.run.injury?.penalty||0,out={};
+ ATTR_KEYS.forEach(k=>out[k]=clamp(s[k]*condition-inj,15,110));
+ return out;
+}
+function challengeQuality(stats=challengeEffectiveStats()){
+ const ov=overall(stats);
  return clamp(
-  stats.finishing*.29+
-  stats.shotPower*.15+
+  stats.finishing*.27+
+  stats.shotPower*.14+
   stats.reactions*.16+
-  stats.technique*.11+
-  stats.control*.08+
+  stats.technique*.10+
+  stats.control*.07+
   stats.stamina*.08+
   stats.ego*.05+
-  ov*.08+
-  state.run.form*1.1+
-  (state.run.confidence-50)*.045,
+  ov*.13+
+  state.run.form*.8+
+  (state.run.confidence-50)*.035,
   25,105
  );
 }
-function challengePassChance(stats=effectiveStats()){
+function challengePassChance(stats=challengeEffectiveStats()){
  const q=challengeQuality(stats);
- return clamp(.50+(q-68)*.025,.08,.92);
+ return clamp(.55+(q-68)*.025,.08,.92);
 }
 function challengeStage(){
  const q=challengeQuality(),pass=challengePassChance(),fail=1-pass;
