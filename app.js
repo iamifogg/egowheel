@@ -1,9 +1,9 @@
 (() => {
 'use strict';
 
-const STORAGE_KEY='egowheel.save.v6';
+const STORAGE_KEY='egowheel.save.v7';
 const AUDIO_KEY='egowheel.audio.v1';
-const VERSION=6;
+const VERSION=7;
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -388,16 +388,19 @@ const POSITION_MATCH_PROFILE={
 
 function playerHeight(){return state.run.selections.height?.meta?.heightCm||181;}
 function heightAerialFactor(){return clamp(1+(playerHeight()-181)/45,.78,1.48);}
+function activePositionName(){
+ return state.run.career?.temporaryPosition||state.run.selections.position?.name||'Centre Forward';
+}
 function positionProfile(){
- const name=state.run.selections.position?.name||'Centre Forward';
+ const name=activePositionName();
  return POSITION_MATCH_PROFILE[name]||POSITION_MATCH_PROFILE['Centre Forward'];
 }
 function isDefensiveRole(){
- const name=state.run.selections.position?.name||'Centre Forward';
+ const name=activePositionName();
  return ['Defensive Midfielder','Left Back','Right Back','Left Wing-Back','Right Wing-Back','Centre Back','Ball-Playing Centre Back','Stopper','Sweeper'].includes(name);
 }
 function isMidfieldRole(){
- const name=state.run.selections.position?.name||'Centre Forward';
+ const name=activePositionName();
  return ['Central Midfielder','Defensive Midfielder','Attacking Midfielder','False Nine'].includes(name);
 }
 
@@ -550,7 +553,7 @@ const BETWEEN_GAME_OUTCOMES=[
  weighted('Tactical Breakthrough','A positioning idea suddenly makes the pitch easier to read.',8,{},'TACTICS',{kind:'direct',stats:{vision:2,reactions:1,defense:1},confidence:3}),
  weighted('Weapon Inspiration','A training moment suggests a new way to use what you already have.',6,{},'WEAPON',{kind:'weapon'}),
  weighted('Ego Test','Something challenges your self-image before the next game.',7,{},'EGO TEST',{kind:'ego'}),
- weighted('Position Experiment','The staff make you work outside your normal comfort zone.',5,{},'EXPERIMENT',{kind:'direct',stats:{vision:1,passing:1,defense:1,offBall:1},confidence:1}),
+ weighted('Position Experiment','The staff make you work outside your normal comfort zone.',5,{},'EXPERIMENT',{kind:'positionExperiment'}),
  weighted('Overtraining','You push past the useful part of the session and carry fatigue forward.',5,{},'OVERTRAIN',{kind:'direct',energy:-18,fitness:-6,confidence:-2,form:-1}),
  weighted('Training Injury','A routine session turns into an injury scare.',4.5,{},'INJURY',{kind:'injury'}),
  weighted('Illness','You lose sharpness during the week and cannot prepare normally.',2.5,{},'ILLNESS',{kind:'direct',energy:-16,fitness:-9,confidence:-2}),
@@ -580,6 +583,11 @@ const LEARNING_PLAYERS=[
 
 function betweenGameStage(){
  return{key:'betweenGame',chapter:'BETWEEN GAMES',name:'What Happens This Week?',prompt:'You do not choose the opportunity. Spin to see what Blue Lock gives you before the next match.',mode:'weights',options:BETWEEN_GAME_OUTCOMES};
+}
+function positionExperimentStage(){
+ const natural=state.run.selections.position?.name||'Centre Forward';
+ const options=positionStage.options.filter(o=>o.name!==natural).map(o=>option(o.name,'You are trialled at '+o.name+' for the next fixture.','common',{},o.short||o.name,{positionName:o.name}));
+ return{key:'positionExperiment',chapter:'POSITION EXPERIMENT',name:'Where Do They Put You?',prompt:'This is a temporary role for the next fixture, not a permanent position change.',mode:'equal',options};
 }
 function learningStage(){
  const fixture=currentFixture(),relevant=[...(fixture?.stars||[])];
@@ -683,6 +691,7 @@ function currentWheelStage(){
  if(state.run.mode==='trainingSpin')return trainingOutcomeStage();
  if(state.run.mode==='betweenSpin')return betweenGameStage();
  if(state.run.mode==='learnSpin')return learningStage();
+ if(state.run.mode==='positionExperimentSpin')return positionExperimentStage();
  if(state.run.mode==='injuryEventSpin')return injuryEventStage();
  if(state.run.mode==='egoEventSpin')return egoEventStage();
  if(state.run.mode==='weaponEventSpin')return weaponEventStage();
@@ -733,6 +742,7 @@ function renderWheel(){
  else if(mode==='trainingSpin')$('#stageCount').textContent='TRAINING';
  else if(mode==='betweenSpin')$('#stageCount').textContent='BETWEEN';
  else if(mode==='learnSpin')$('#stageCount').textContent='LEARN';
+ else if(mode==='positionExperimentSpin')$('#stageCount').textContent='POSITION';
  else if(mode==='injuryEventSpin')$('#stageCount').textContent='INJURY';
  else if(mode==='egoEventSpin')$('#stageCount').textContent='EGO';
  else if(mode==='weaponEventSpin')$('#stageCount').textContent='WEAPON';
@@ -770,9 +780,9 @@ function renderWheel(){
  else if(mode==='trainingSpin')$('#nextBtn').textContent='Return to Match Prep';
  else if(mode==='betweenSpin'){
    const kind=picked?.meta?.kind;
-   $('#nextBtn').textContent=kind==='training'?'Choose Training Focus':kind==='learn'?'Spin Who You Learn From':kind==='injury'?'Spin Injury Severity':kind==='ego'?'Resolve Ego Test':kind==='weapon'?'Explore Weapon Development':'Continue to Match Plan';
+   $('#nextBtn').textContent=kind==='training'?'Choose Training Focus':kind==='learn'?'Spin Who You Learn From':kind==='positionExperiment'?'Spin Temporary Position':kind==='injury'?'Spin Injury Severity':kind==='ego'?'Resolve Ego Test':kind==='weapon'?'Explore Weapon Development':'Continue to Match Plan';
  }
- else if(mode==='learnSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin')$('#nextBtn').textContent='Return to Match Plan';
+ else if(mode==='learnSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin')$('#nextBtn').textContent='Return to Match Plan';
  else if(mode==='injuryEventSpin')$('#nextBtn').textContent=picked?.meta?.eliminate?'Accept Medical Withdrawal':'Return to Match Plan';
  else if(mode==='contributionSpin')$('#nextBtn').textContent=(state.run.pendingMatch?.endedEarly?'Resolve Match':((state.run.pendingMatch?.spinIndex||0)<3?'Next Match Moment':'Resolve Match'));
  else if(mode==='challengeSpin')$('#nextBtn').textContent='View Challenge Result';
@@ -787,6 +797,7 @@ function renderBuildStrip(){
  if(mode==='trainingSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Training Quality</span>';return;}
  if(mode==='betweenSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Between-Game Event</span>';return;}
  if(mode==='learnSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Learn From Player</span>';return;}
+ if(mode==='positionExperimentSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Temporary Position</span>';return;}
  if(mode==='injuryEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Injury Severity</span>';return;}
  if(mode==='egoEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Ego Response</span>';return;}
  if(mode==='weaponEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Weapon Discovery</span>';return;}
@@ -810,6 +821,7 @@ function renderSpinResult(){
   else if(mode==='trainingSpin')copy='The training focus is chosen. Spin how well the session actually goes.';
   else if(mode==='betweenSpin')copy='Spin what actually happens between these two fixtures.';
   else if(mode==='learnSpin')copy='Spin which player leaves something behind in your game.';
+  else if(mode==='positionExperimentSpin')copy='Spin the role the staff make you play in the next fixture.';
   else if(mode==='injuryEventSpin')copy='Spin how serious the injury actually is.';
   else if(mode==='egoEventSpin')copy='Spin whether pressure breaks, stabilises or evolves your ego.';
   else if(mode==='weaponEventSpin')copy='Spin whether the idea becomes a usable weapon detail.';
@@ -844,7 +856,7 @@ function currentStats(){
  return stats;
 }
 function overall(stats=currentStats()){
- const pos=state.run.selections.position?.name||'Centre Forward',w=POSITION_WEIGHTS[pos]||POSITION_WEIGHTS['Centre Forward'];let num=0,den=0;
+ const pos=activePositionName(),w=POSITION_WEIGHTS[pos]||POSITION_WEIGHTS['Centre Forward'];let num=0,den=0;
  ATTR_KEYS.forEach(k=>{const wt=w[k]||.35;num+=stats[k]*wt;den+=wt;});return Math.round(num/den);
 }
 function addChange(key,n){state.run.lastChanges[key]=(state.run.lastChanges[key]||0)+n;}
@@ -893,7 +905,7 @@ function careerLog(msg){const c=state.run.career;if(!c)return;c.log.unshift(msg)
 
 function resetMatchPreparation(c){
  if(!c)return;
- c.prepared=false;c.betweenDone=false;c.betweenEvent=null;c.trainingAvailable=false;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;
+ c.prepared=false;c.betweenDone=false;c.betweenEvent=null;c.trainingAvailable=false;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;c.temporaryPosition=null;
 }
 function startBetweenEvent(){
  const c=state.run.career;if(!c||c.report||c.prepared||c.trainingAvailable)return;
@@ -919,6 +931,23 @@ function resolveBetweenGameOutcome(outcome){
  }else{
   state.run.pendingBetweenFollowup=meta.kind;c.betweenDone=false;c.prepared=false;careerLog('Between games: '+outcome.name+'.');
  }
+}
+function resolvePositionExperiment(outcome){
+ const c=state.run.career;if(!c||!outcome)return;
+ c.temporaryPosition=outcome.meta?.positionName||outcome.name;
+ state.run.lastChanges={};
+ const role=c.temporaryPosition;
+ const gains={
+  'Centre Forward':{finishing:1,offBall:1},'Second Striker':{vision:1,offBall:1},'Left Wing':{dribbling:1,acceleration:1},'Right Wing':{dribbling:1,acceleration:1},
+  'False Nine':{vision:1,control:1},'Attacking Midfielder':{passing:1,vision:1},'Target Forward':{physical:1,control:1},'Pressing Forward':{stamina:1,defense:1},
+  'Central Midfielder':{passing:1,stamina:1},'Defensive Midfielder':{defense:1,vision:1},'Left Back':{defense:1,stamina:1},'Right Back':{defense:1,stamina:1},
+  'Left Wing-Back':{stamina:1,speed:1},'Right Wing-Back':{stamina:1,speed:1},'Centre Back':{defense:1,physical:1},'Ball-Playing Centre Back':{defense:1,passing:1},
+  'Stopper':{defense:1,physical:1},'Sweeper':{defense:1,vision:1}
+ }[role]||{vision:1};
+ Object.entries(gains).forEach(([k,v])=>changeStat(k,v));
+ state.run.confidence=clamp(state.run.confidence+1,0,100);
+ c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;
+ careerLog('Position experiment: trialled at '+role+' for the next fixture.');
 }
 function resolveLearningOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
@@ -1344,7 +1373,7 @@ function recordHistory(){
 
 function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.classList.toggle('active',x.id===v));$$('.nav-button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));}
 function renderAll(){
- const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','challengeSpin','survivalSpin','nelSpin'].includes(state.run.mode);
+ const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','challengeSpin','survivalSpin','nelSpin'].includes(state.run.mode);
  $('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
  renderCareer();renderPlayer();renderProfile();renderArchive();renderView();syncAudio();
  $('#quickBuildBtn').hidden=state.run.mode!=='build';
@@ -1367,6 +1396,7 @@ function spinCurrent(){
   if(mode==='trainingSpin')resolveTrainingOutcome(chosen.opt);
   if(mode==='betweenSpin')resolveBetweenGameOutcome(chosen.opt);
   if(mode==='learnSpin')resolveLearningOutcome(chosen.opt);
+  if(mode==='positionExperimentSpin')resolvePositionExperiment(chosen.opt);
   if(mode==='injuryEventSpin')resolveInjuryEventOutcome(chosen.opt);
   if(mode==='egoEventSpin')resolveEgoEventOutcome(chosen.opt);
   if(mode==='weaponEventSpin')resolveWeaponEventOutcome(chosen.opt);
@@ -1385,12 +1415,13 @@ function nextBuild(){
  if(mode==='betweenSpin'){
   const kind=state.run.selections.betweenGame?.meta?.kind;
   if(kind==='learn'){state.run.mode='learnSpin';delete state.run.selections.learningPlayer;wheelRotation=0;renderAll();save();return;}
+  if(kind==='positionExperiment'){state.run.mode='positionExperimentSpin';delete state.run.selections.positionExperiment;wheelRotation=0;renderAll();save();return;}
   if(kind==='injury'){state.run.mode='injuryEventSpin';delete state.run.selections.injuryEvent;wheelRotation=0;renderAll();save();return;}
   if(kind==='ego'){state.run.mode='egoEventSpin';delete state.run.selections.egoEvent;wheelRotation=0;renderAll();save();return;}
   if(kind==='weapon'){state.run.mode='weaponEventSpin';delete state.run.selections.weaponEvent;wheelRotation=0;renderAll();save();return;}
   state.run.mode='career';wheelRotation=0;renderAll();save();return;
  }
- if(mode==='learnSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin'){
+ if(mode==='learnSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin'){
   state.run.pendingBetweenFollowup=null;state.run.mode='career';wheelRotation=0;renderAll();save();return;
  }
  if(mode==='injuryEventSpin'){
