@@ -239,39 +239,55 @@ function wheelLabelLines(label,span){
 }
 function wheelLabelSize(span){return span>=100?22:span>=55?18:span>=32?15:span>=20?12:span>=12?9:7;}
 function renderWheel(){
- const stage=currentWheelStage(),layout=layoutFor(stage),g=$('#wheelGroup');
+ const stage=currentWheelStage(),layout=layoutFor(stage),g=$('#wheelGroup'),labels=$('#wheelLabels');
  $('#stageChapter').textContent=stage.chapter;$('#stageName').textContent=stage.name;$('#stagePrompt').textContent=stage.prompt;
  $('#stageCount').textContent=state.run.mode==='nelSpin'?'NEL':' '+(state.run.buildIndex+1)+' / '+BUILD_STAGES.length;
  $('#stageMode').textContent=stage.mode==='equal'?layout.length+' equal outcomes':'Weighted outcomes';
- g.innerHTML='';const selected=state.run.selections[stage.key]?.name;
+ g.innerHTML='';labels.innerHTML='';
+ const selected=state.run.selections[stage.key]?.name;
+ const normalized=((wheelRotation%360)+360)%360;
+
  layout.forEach((row,i)=>{
    const p=document.createElementNS('http://www.w3.org/2000/svg','path');
-   p.setAttribute('d',annularPath(row.start,row.end));p.setAttribute('fill',sliceColor(row.opt,i,stage.mode));p.setAttribute('class','wheel-slice');
+   p.setAttribute('d',annularPath(row.start,row.end));
+   p.setAttribute('fill',sliceColor(row.opt,i,stage.mode));
+   p.setAttribute('class','wheel-slice');
    if(row.opt.name===selected)p.style.filter='brightness(1.35) saturate(1.25) drop-shadow(0 0 5px #62d7ff)';
    g.appendChild(p);
 
    const span=row.end-row.start;
    if(span>=4.5){
+     const screenAngle=(row.mid+normalized)%360;
+     const a=(screenAngle-90)*Math.PI/180;
+     const radius=span>=70?148:span>=35?151:span>=18?154:158;
+     const x=260+radius*Math.cos(a), y=260+radius*Math.sin(a);
+
      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-     const r=span>=55?146:span>=25?150:156,a=(row.mid-90)*Math.PI/180,x=260+r*Math.cos(a),y=260+r*Math.sin(a);
-     t.setAttribute('x',x);t.setAttribute('y',y);t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');
-     t.setAttribute('class','wheel-label readable');
+     t.setAttribute('x',x);t.setAttribute('y',y);
+     t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');
+     t.setAttribute('class','wheel-label overlay-label');
      t.setAttribute('font-size',wheelLabelSize(span));
-     // Counter-rotate the glyphs so the result is horizontal/upright at the wheel's resting angle.
-     t.setAttribute('transform','rotate('+(-wheelRotation)+' '+x+' '+y+')');
-     const lines=wheelLabelLines(wheelLabelText(row.opt,span),span);
+
+     const label=wheelLabelText(row.opt,span);
+     const lines=wheelLabelLines(label,span);
      lines.forEach((line,idx)=>{
        const ts=document.createElementNS('http://www.w3.org/2000/svg','tspan');
        ts.setAttribute('x',x);
-       ts.setAttribute('dy',idx===0?(lines.length>1?'-.36em':'0'):'1.05em');
+       ts.setAttribute('dy',idx===0?(lines.length>1?'-.34em':'0'):'1.08em');
        ts.textContent=line.toUpperCase();
        t.appendChild(ts);
      });
-     g.appendChild(t);
+     labels.appendChild(t);
    }
  });
- g.style.transformOrigin='260px 260px';g.style.transform='rotate('+wheelRotation+'deg)';
- const picked=state.run.selections[stage.key];$('#nextBtn').disabled=!picked;$('#nextBtn').textContent=state.run.mode==='nelSpin'?'Enter Neo Egoist League':(state.run.buildIndex===BUILD_STAGES.length-1?'Enter Blue Lock':'Next Build Stage');
+
+ g.style.transformOrigin='260px 260px';
+ g.style.transform='rotate('+wheelRotation+'deg)';
+ labels.style.opacity=spinning?'0':'1';
+
+ const picked=state.run.selections[stage.key];
+ $('#nextBtn').disabled=!picked;
+ $('#nextBtn').textContent=state.run.mode==='nelSpin'?'Enter Neo Egoist League':(state.run.buildIndex===BUILD_STAGES.length-1?'Enter Blue Lock':'Next Build Stage');
  renderBuildStrip();
 }
 function renderBuildStrip(){if(state.run.mode==='nelSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">NEL Club Selection</span>';return;}$('#stageStrip').innerHTML=BUILD_STAGES.map((s,i)=>'<button class="stage-pill '+(state.run.selections[s.key]?'done ':'')+(i===state.run.buildIndex?'current':'')+'" data-build="'+i+'" type="button">'+(i+1)+'. '+esc(s.name)+'</button>').join('');}
@@ -518,7 +534,7 @@ function renderAll(){
 }
 
 function spinCurrent(){
- if(spinning)return;if(audioEnabled)startMusic();spinning=true;const stage=currentWheelStage(),chosen=choose(stage),desired=360-chosen.mid;wheelRotation+=1440+((desired-(wheelRotation%360)+360)%360);const g=$('#wheelGroup');g.style.transition='transform 1.65s cubic-bezier(.08,.72,.12,1)';spinSound();requestAnimationFrame(()=>g.style.transform='rotate('+wheelRotation+'deg)');
+ if(spinning)return;if(audioEnabled)startMusic();spinning=true;const stage=currentWheelStage(),chosen=choose(stage),desired=360-chosen.mid;wheelRotation+=1440+((desired-(wheelRotation%360)+360)%360);const g=$('#wheelGroup'),labels=$('#wheelLabels');g.style.transition='transform 1.65s cubic-bezier(.08,.72,.12,1)';if(labels)labels.style.opacity='0';spinSound();requestAnimationFrame(()=>g.style.transform='rotate('+wheelRotation+'deg)');
  setTimeout(()=>{state.run.selections[stage.key]=chosen.opt;spinning=false;landSound(stage.mode==='rarity'?chosen.opt.rarity:'rare');renderWheel();renderSpinResult();renderPlayer();save();},1680);
 }
 function nextBuild(){
