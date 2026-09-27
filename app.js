@@ -642,6 +642,8 @@ function contributionStage(){
  const safe=Math.max(0,overall(s)-fixture.strength+formBoost);
  const bad=Math.max(2,18-safe*.22-(s.reactions+s.control)/28);
  const opts=[
+  weighted('Sent Off','A reckless or desperate action gets you removed from the match.',Math.max(.5,1.8-(s.reactions+s.defense)/180+Math.max(0,-state.run.form)*.35),{},'RED CARD',{contrib:{sentOff:1,mistakes:1,bonusRating:-1.25}}),
+  weighted('Forced Off Injured','Your body gives way and your match ends early.',Math.max(.4,1+(55-state.run.fitness)*.035+(45-state.run.energy)*.02),{},'INJURED',{contrib:{injured:1,bonusRating:-.8}}),
   weighted('Major Error','A bad decision creates a dangerous moment for the opponent.',Math.max(1,bad*.45),{},'ERROR',{contrib:{mistakes:1,bonusRating:-.7}}),
   weighted('Lose Important Duel','You are beaten in a meaningful individual contest.',Math.max(2,bad*.8),{},'LOST DUEL',{contrib:{mistakes:1,bonusRating:-.28}}),
   weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(1,9+prof.shots*5-attack*.07),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,bonusRating:-.18}}),
@@ -772,7 +774,7 @@ function renderWheel(){
  }
  else if(mode==='learnSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin')$('#nextBtn').textContent='Return to Match Plan';
  else if(mode==='injuryEventSpin')$('#nextBtn').textContent=picked?.meta?.eliminate?'Accept Medical Withdrawal':'Return to Match Plan';
- else if(mode==='contributionSpin')$('#nextBtn').textContent=((state.run.pendingMatch?.spinIndex||0)<3?'Next Match Moment':'Resolve Match');
+ else if(mode==='contributionSpin')$('#nextBtn').textContent=(state.run.pendingMatch?.endedEarly?'Resolve Match':((state.run.pendingMatch?.spinIndex||0)<3?'Next Match Moment':'Resolve Match'));
  else if(mode==='challengeSpin')$('#nextBtn').textContent='View Challenge Result';
  else if(mode==='survivalSpin')$('#nextBtn').textContent=(picked?.meta?.survive?'Continue Second Selection':'Accept Elimination');
  else if(mode==='nelSpin')$('#nextBtn').textContent='Enter Neo Egoist League';
@@ -945,6 +947,7 @@ function resolveContributionOutcome(outcome){
  const target=p.contributions||(p.contributions=emptyMatchContribution()),add=outcome.meta?.contrib||{};
  for(const [k,v] of Object.entries(add)){if(k==='labels')continue;target[k]=(target[k]||0)+v;}
  target.labels.push(outcome.name);
+ if(add.sentOff||add.injured)p.endedEarly=true;
 }
 function finalizeContributionMatch(){
  const c=state.run.career,fixture=currentFixture(),p=state.run.pendingMatch;if(!c||!fixture||!p)return;
@@ -959,7 +962,10 @@ function finalizeContributionMatch(){
  const oppGoals=poisson(oppLambda);
  const result=teamGoals>oppGoals?'WIN':teamGoals<oppGoals?'LOSS':'DRAW';
  const rating=clamp(5.8+(a.bonusRating||0)+(a.keyPasses||0)*.06+(a.dribbles||0)*.05+(result==='WIN'?.22:result==='LOSS'?-.18:0),3.2,10);
- const rep={type:'match',passed:true,minutes:state.run.injury?int(55,82):90,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
+ const minutes=a.sentOff?int(18,70):a.injured?int(12,65):(state.run.injury?int(55,82):90);
+ if(a.sentOff){state.run.confidence=clamp(state.run.confidence-8,0,100);state.run.form=clamp(state.run.form-1,-3,3);}
+ if(a.injured){state.run.injury={name:'Match injury',matches:2,penalty:10};state.run.fitness=clamp(state.run.fitness-14,20,100);}
+ const rep={type:'match',passed:true,minutes,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
  rep.moments=matchMoments(rep,fixture);rep.moments.unshift('Contribution spins: '+rep.contributionLabels.join(' · ')+'.');
  c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();
  state.run.pendingMatch=null;
@@ -1189,9 +1195,13 @@ function advanceFixture(){
 
  // Third Selection can cost you the U-20 match without killing the whole run.
  if(fixture.id==='thirdB'){
-  const third=c.thirdSelection||{apps:0,ratingTotal:0,goals:0,assists:0};
+  const third=c.thirdSelection||{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0};
   const thirdAvg=third.apps?third.ratingTotal/third.apps:rep.rating;
-  const weakTrial=thirdAvg<6.45&&(third.goals+third.assists)<2;
+  const defPerGame=third.apps?(third.defActions||0)/third.apps:0;
+  const attackingCase=(third.goals+third.assists)>=2;
+  const defensiveCase=isDefensiveRole()&&defPerGame>=4.5&&thirdAvg>=6.8;
+  const midfieldCase=isMidfieldRole()&&thirdAvg>=7.05;
+  const weakTrial=thirdAvg<6.45||(!attackingCase&&!defensiveCase&&!midfieldCase&&thirdAvg<7.35);
   if(weakTrial){
    careerLog('Third Selection: you are not chosen for the Blue Lock XI. You miss the Japan U-20 match.');
    state.run.confidence=clamp(state.run.confidence-8,0,100);
@@ -1396,7 +1406,7 @@ function nextBuild(){
  if(mode==='contributionSpin'){
   const p=state.run.pendingMatch;
   if(!p)return;
-  if((p.spinIndex||0)<3){
+  if(!p.endedEarly&&(p.spinIndex||0)<3){
    p.spinIndex++;wheelRotation=0;renderAll();save();return;
   }
   finalizeContributionMatch();state.run.mode='career';wheelRotation=0;renderAll();save();return;
