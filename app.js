@@ -295,7 +295,10 @@ function renderWheel(){
 
  g.style.transformOrigin='260px 260px';
  g.style.transform='rotate('+wheelRotation+'deg)';
- labels.style.opacity=spinning?'0':'1';
+ labels.style.transformOrigin='260px 260px';
+ labels.style.transition='none';
+ labels.style.transform='rotate(0deg)';
+ labels.style.opacity='1';
 
  const picked=state.run.selections[stage.key];
  $('#nextBtn').disabled=!picked;
@@ -546,7 +549,7 @@ function renderAll(){
 }
 
 function spinCurrent(){
- if(spinning)return;if(audioEnabled)startMusic();spinning=true;const stage=currentWheelStage(),chosen=choose(stage),desired=360-chosen.mid;wheelRotation+=1440+((desired-(wheelRotation%360)+360)%360);const g=$('#wheelGroup'),labels=$('#wheelLabels');g.style.transition='transform 1.65s cubic-bezier(.08,.72,.12,1)';if(labels)labels.style.opacity='0';spinSound();requestAnimationFrame(()=>g.style.transform='rotate('+wheelRotation+'deg)');
+ if(spinning)return;if(audioEnabled)startMusic();spinning=true;const stage=currentWheelStage(),chosen=choose(stage),desired=360-chosen.mid;const previousRotation=wheelRotation;wheelRotation+=1440+((desired-(wheelRotation%360)+360)%360);const spinDelta=wheelRotation-previousRotation;const g=$('#wheelGroup'),labels=$('#wheelLabels');g.style.transition='transform 1.65s cubic-bezier(.08,.72,.12,1)';if(labels){labels.style.opacity='1';labels.style.transformOrigin='260px 260px';labels.style.transition='transform 1.65s cubic-bezier(.08,.72,.12,1)';labels.style.transform='rotate(0deg)';}spinSound();requestAnimationFrame(()=>{g.style.transform='rotate('+wheelRotation+'deg)';if(labels)labels.style.transform='rotate('+spinDelta+'deg)';});
  setTimeout(()=>{state.run.selections[stage.key]=chosen.opt;spinning=false;landSound(stage.mode==='rarity'?chosen.opt.rarity:'rare');renderWheel();renderSpinResult();renderPlayer();save();},1680);
 }
 function nextBuild(){
