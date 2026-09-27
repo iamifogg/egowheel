@@ -4,7 +4,7 @@
 const STORAGE_KEY='egowheel.save.v7';
 const AUDIO_KEY='egowheel.audio.v1';
 const VERSION=7;
-const BUILD_ID='v14';
+const BUILD_ID='v15';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -1154,8 +1154,35 @@ function completePrepEvent(c){
 function prepFollowupMode(kind){
  return({learn:'learnSpin',positionExperiment:'positionExperimentSpin',injury:'injuryEventSpin',ego:'egoEventSpin',weapon:'weaponEventSpin'})[kind]||null;
 }
+function setPrepResolution(c,eventName,outcomeName,detail=''){
+ if(!c)return;
+ c.prepResolution={
+  event:eventName||c.betweenEvent||state.run.selections.betweenGame?.name||'Between-game event',
+  outcome:outcomeName||'Resolved',
+  detail:detail||''
+ };
+}
+function repairPrepResolution(c){
+ if(!c||c.prepResolution)return;
+ const event=c.betweenEvent||state.run.selections.betweenGame?.name;
+ if(!event)return;
+ const sel=state.run.selections;
+ if(c.trainingResult){
+  const action=TRAINING_ACTIONS.find(x=>x.key===c.trainingKey);
+  setPrepResolution(c,event,(action?.name||'Training')+' → '+c.trainingResult);
+  return;
+ }
+ if(sel.learningPlayer){setPrepResolution(c,event,sel.learningPlayer.name,sel.learningPlayer.desc||'');return;}
+ if(sel.positionExperiment){setPrepResolution(c,event,sel.positionExperiment.name,'Temporary position for the next fixture.');return;}
+ if(sel.injuryEvent){setPrepResolution(c,event,sel.injuryEvent.name,sel.injuryEvent.desc||'');return;}
+ if(sel.egoEvent){setPrepResolution(c,event,sel.egoEvent.name,sel.egoEvent.desc||'');return;}
+ if(sel.weaponEvent){setPrepResolution(c,event,sel.weaponEvent.name,sel.weaponEvent.desc||'');return;}
+ const primary=sel.betweenGame;
+ if(primary?.meta?.kind==='direct')setPrepResolution(c,event,'Resolved',primary.desc||'');
+}
 function repairPrepState(){
  const c=state.run.career;if(!c||c.complete||c.report)return;
+ repairPrepResolution(c);
  // Recover old v12/v11 combinations into one deterministic phase.
  if(!c.prepPhase){
   if(c.prepared||c.betweenDone)c.prepPhase=PREP_PHASE.READY;
@@ -1179,7 +1206,7 @@ function repairPrepState(){
 }
 function resetMatchPreparation(c){
  if(!c)return;
- c.betweenEvent=null;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;c.temporaryPosition=null;
+ c.betweenEvent=null;c.trainingKey=null;c.trainingResult=null;c.prepResolution=null;c.planKey='balanced';c.report=null;c.temporaryPosition=null;
  state.run.pendingBetweenFollowup=null;
  setPrepPhase(c,PREP_PHASE.EVENT);
 }
@@ -1201,9 +1228,10 @@ function applyDirectBetween(meta={}){
 function resolveBetweenGameOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
  c.betweenEvent=outcome.name;
+ c.prepResolution={event:outcome.name,outcome:null,detail:outcome.desc||''};
  const meta=outcome.meta||{};
  if(meta.kind==='direct'){
-  applyDirectBetween(meta);completePrepEvent(c);careerLog('Between games: '+outcome.name+'.');
+  applyDirectBetween(meta);setPrepResolution(c,outcome.name,'Resolved',outcome.desc||'');completePrepEvent(c);careerLog('Between games: '+outcome.name+'.');
  }else if(meta.kind==='training'){
   setPrepPhase(c,PREP_PHASE.TRAINING);careerLog('Between games: a focused training block opens.');
  }else{
@@ -1226,6 +1254,7 @@ function resolvePositionExperiment(outcome){
  }[role]||{vision:1};
  Object.entries(gains).forEach(([k,v])=>changeStat(k,v));
  state.run.confidence=clamp(state.run.confidence+1,0,100);
+ setPrepResolution(c,c.betweenEvent,outcome.name,'Temporary position for the next fixture.');
  completePrepEvent(c);
  careerLog('Position experiment: trialled at '+role+' for the next fixture.');
 }
@@ -1233,6 +1262,7 @@ function resolveLearningOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
  state.run.lastChanges={};Object.entries(outcome.meta?.learnStats||{}).forEach(([k,v])=>changeStat(k,v));
  state.run.confidence=clamp(state.run.confidence+3,0,100);
+ setPrepResolution(c,c.betweenEvent,outcome.name,outcome.desc||'');
  completePrepEvent(c);
  careerLog('Learned from '+outcome.name+': '+outcome.desc);
 }
@@ -1241,15 +1271,15 @@ function resolveInjuryEventOutcome(outcome){
  const m=outcome.meta||{};state.run.fitness=clamp(state.run.fitness+(m.fitness||0),20,100);state.run.confidence=clamp(state.run.confidence+(m.confidence||0),0,100);
  if(m.eliminate){state.run.pendingInjuryElimination=outcome.name;careerLog('Training injury: medical withdrawal is being considered.');return;}
  if(m.matches>0)state.run.injury={name:outcome.name,matches:m.matches,penalty:m.penalty||0};
- completePrepEvent(c);careerLog('Training injury outcome: '+outcome.name+'.');
+ setPrepResolution(c,c.betweenEvent,outcome.name,outcome.desc||'');completePrepEvent(c);careerLog('Training injury outcome: '+outcome.name+'.');
 }
 function resolveEgoEventOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
- applyDirectBetween(outcome.meta||{});completePrepEvent(c);careerLog('Ego event: '+outcome.name+'.');
+ applyDirectBetween(outcome.meta||{});setPrepResolution(c,c.betweenEvent,outcome.name,outcome.desc||'');completePrepEvent(c);careerLog('Ego event: '+outcome.name+'.');
 }
 function resolveWeaponEventOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
- applyDirectBetween(outcome.meta||{});completePrepEvent(c);careerLog('Weapon development: '+outcome.name+'.');
+ applyDirectBetween(outcome.meta||{});setPrepResolution(c,c.betweenEvent,outcome.name,outcome.desc||'');completePrepEvent(c);careerLog('Weapon development: '+outcome.name+'.');
 }
 function resolveContributionOutcome(outcome){
  const p=state.run.pendingMatch;if(!p||!outcome)return;
@@ -1321,7 +1351,7 @@ function resolveTrainingOutcome(outcome){
   if(outcome.name==='Breakthrough'||outcome.name==='Ego Awakening')state.run.form=clamp(state.run.form+1,-3,3);
   careerLog(action.name+': '+outcome.name+'.');
  }
- c.trainingKey=action.key;c.trainingResult=outcome.name;completePrepEvent(c);
+ c.trainingKey=action.key;c.trainingResult=outcome.name;setPrepResolution(c,c.betweenEvent,action.name+' → '+outcome.name,outcome.desc||'');completePrepEvent(c);
 }
 function applyTraining(key){
  const c=state.run.career;if(!c||c.report)return;repairPrepState();if(c.prepPhase!==PREP_PHASE.TRAINING)return;
@@ -1604,10 +1634,17 @@ function renderCareer(){
 function renderTraining(){
  const c=state.run.career;repairPrepState();
  const phase=c.prepPhase||PREP_PHASE.EVENT;
- const eventPanel=$('#betweenEventPanel'),trainingPanel=$('#trainingChoicePanel'),planPanel=$('#matchPlanPanel');
+ const eventPanel=$('#betweenEventPanel'),trainingPanel=$('#trainingChoicePanel'),completedPanel=$('#completedPrepPanel'),planPanel=$('#matchPlanPanel');
  eventPanel.hidden=phase!==PREP_PHASE.EVENT;
  trainingPanel.hidden=phase!==PREP_PHASE.TRAINING;
+ completedPanel.hidden=phase!==PREP_PHASE.READY;
  planPanel.hidden=phase!==PREP_PHASE.READY;
+ if(phase===PREP_PHASE.READY){
+  repairPrepResolution(c);
+  const r=c.prepResolution||{event:c.betweenEvent||'Between-game event',outcome:'Resolved',detail:''};
+  $('#completedPrepEvent').textContent=r.event+' → '+r.outcome;
+  $('#completedPrepOutcome').textContent=r.detail||'This fixture’s pre-match event has been completed. Choose your match plan below.';
+ }
  if(phase===PREP_PHASE.EVENT){
   $('#prepHeading').textContent='See what happens before the match';
   $('#prepStatus').textContent='Event not spun';
