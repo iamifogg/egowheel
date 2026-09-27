@@ -254,3 +254,11 @@
   font-size:.65rem;
   line-height:1.4;
 }
+
+
+/* v20 condition grid */
+.condition-grid-v20{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:420px){
+  .condition-grid-v20{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+  .condition-grid-v20>div{padding:7px 5px}
+}
