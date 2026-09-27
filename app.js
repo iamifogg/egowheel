@@ -727,7 +727,13 @@ function renderPlayer(){
  $('#playerTitle').textContent=state.run.name||'Unnamed Egoist';$('#playerName').value=state.run.name||'';$('#overallBadge').textContent='OVR '+ov;
  $('#identityPosition').textContent=state.run.selections.position?.short||state.run.selections.position?.name||'—';$('#identityFirstTeam').textContent=state.run.selections.firstTeam?.name||'—';$('#identityNel').textContent=state.run.selections.nelClub?.name||'—';$('#identityBid').textContent=c?.bid?'¥'+c.bid+'m':'—';
  $('#totalApps').textContent=tot.apps||0;$('#totalGoals').textContent=tot.goals||0;$('#totalAssists').textContent=tot.assists||0;$('#avgRating').textContent=tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—';
- $('#primaryWeaponLabel').textContent=state.run.selections.primaryWeapon?.name||'—';$('#secondaryWeaponLabel').textContent=state.run.selections.secondaryWeapon?.name||'—';$('#rivalLabel').textContent=c?.rival||'—';
+ const archSel=state.run.selections.archetype;
+ const primarySel=state.run.selections.primaryWeapon;
+ const secondarySel=state.run.selections.secondaryWeapon;
+ $('#archetypeLabel').textContent=archSel?(archSel.name+(archSel.meta&&archSel.meta.bonusText?' — '+archSel.meta.bonusText:'')):'—';
+ $('#primaryWeaponLabel').textContent=primarySel?(primarySel.name+(primarySel.meta&&primarySel.meta.bonusText?' — '+primarySel.meta.bonusText:'')):'—';
+ $('#secondaryWeaponLabel').textContent=secondarySel?(secondarySel.name+(secondarySel.meta&&secondarySel.meta.bonusText?' — '+secondarySel.meta.bonusText:'')):'—';
+ $('#rivalLabel').textContent=c?.rival||'—';
  $('#statsGrid').innerHTML=ATTRS.map(([k,label])=>{const d=state.run.lastChanges[k]||0;return'<div class="stat detailed-stat"><span>'+label+'</span><strong>'+stats[k]+'</strong>'+(d?'<em class="'+(d>0?'up':'down')+'">'+(d>0?'+':'')+d+'</em>':'')+'<i><b style="width:'+stats[k]+'%"></b></i></div>';}).join('');
  const changed=Object.entries(state.run.lastChanges).filter(x=>x[1]).map(([k,v])=>(v>0?'+':'')+v+' '+(ATTRS.find(a=>a[0]===k)?.[1]||k));$('#statTrendSummary').textContent=changed.length?changed.slice(0,2).join(' · '):'Live development';
  const rows=BUILD_STAGES.map(s=>{const v=state.run.selections[s.key];return'<div class="dossier-row"><span>'+esc(s.name)+'</span><strong>'+esc(v?.name||'—')+'</strong></div>';});if(state.run.selections.nelClub)rows.push('<div class="dossier-row"><span>NEL CLUB</span><strong>'+esc(state.run.selections.nelClub.name)+'</strong></div>');$('#dossierList').innerHTML=rows.join('');
