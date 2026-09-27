@@ -181,3 +181,47 @@
   .career-totals span{font-size:.4rem}
   .career-totals strong{font-size:.72rem}
 }
+
+
+/* v11 audited career flow */
+.between-event-panel{
+  margin-top:8px;
+  padding:12px;
+  border:1px solid #1b4164;
+  border-radius:12px;
+  background:linear-gradient(145deg,rgba(10,38,66,.82),rgba(6,13,22,.96));
+}
+.between-event-panel p{
+  margin:0 0 10px;
+  color:#9eb1c9;
+  font-size:.68rem;
+  line-height:1.45;
+}
+#trainingChoicePanel[hidden],#matchPlanPanel[hidden],#betweenEventPanel[hidden]{display:none!important}
+.contribution-summary{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:5px;
+  margin:2px 0 10px;
+}
+.contribution-chip{
+  display:inline-flex;
+  align-items:center;
+  min-height:25px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid #2389d1;
+  background:rgba(12,78,126,.22);
+  color:#dff5ff;
+  font-size:.56rem;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.identity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.identity-grid>div:nth-child(5){grid-column:1/-1}
+@media(max-width:520px){
+  .between-event-panel{padding:10px}
+  .contribution-chip{font-size:.52rem}
+}
