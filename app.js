@@ -285,7 +285,7 @@ function nelFixtures(club){
 function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
- state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,trainingKey:null,planKey:'balanced',history:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,ratingTotal:0},firstSelectionPoints:0,bid:0,bidHistory:[],rival:null,complete:false,finalStatus:null};
+ state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,trainingKey:null,planKey:'balanced',history:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelRatingTotal:0},firstSelectionPoints:0,bid:0,bidHistory:[],rival:null,complete:false,finalStatus:null};
  state.run.energy=100;state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
  save();renderAll();toast('Blue Lock career started.');
 }
@@ -361,7 +361,7 @@ function simulateMatch(fixture){
 }
 function applyPostMatch(rep,fixture){
  const c=state.run.career,t=c.totals;
- if(rep.type==='match'){t.apps++;t.goals+=rep.goals;t.assists+=rep.assists;t.shots+=rep.shots;t.keyPasses+=rep.keyPasses;t.dribbles+=rep.dribbles;t.tackles+=rep.tackles;t.interceptions+=rep.interceptions;t.ratingTotal+=rep.rating;if(fixture.stage==='First Selection'){if(rep.result==='WIN')c.firstSelectionPoints+=3;else if(rep.result==='DRAW')c.firstSelectionPoints+=1;}}
+ if(rep.type==='match'){t.apps++;t.goals+=rep.goals;t.assists+=rep.assists;t.shots+=rep.shots;t.keyPasses+=rep.keyPasses;t.dribbles+=rep.dribbles;t.tackles+=rep.tackles;t.interceptions+=rep.interceptions;t.ratingTotal+=rep.rating;if(fixture.stage==='Neo Egoist League'){t.nelApps++;t.nelGoals+=rep.goals;t.nelAssists+=rep.assists;t.nelRatingTotal+=rep.rating;}if(fixture.stage==='First Selection'){if(rep.result==='WIN')c.firstSelectionPoints+=3;else if(rep.result==='DRAW')c.firstSelectionPoints+=1;}}
  const drain=rep.type==='match'?int(17,25)+(MATCH_PLANS.find(x=>x.key===c.planKey)?.extraEnergy||0):14;
  state.run.energy=clamp(state.run.energy-drain,0,100);state.run.fitness=clamp(state.run.fitness-int(1,5),20,100);
  if(rep.rating>=8){state.run.confidence=clamp(state.run.confidence+int(5,9),0,100);state.run.form=clamp(state.run.form+1,-3,3);}
@@ -379,12 +379,12 @@ function applyPostMatch(rep,fixture){
  careerLog(fixture.stage+': '+(rep.type==='challenge'?rep.result:(fixture.team+' '+rep.teamGoals+'–'+rep.oppGoals+' '+fixture.opponent))+' · rating '+rep.rating.toFixed(1));
 }
 function updateBid(rep){
- const c=state.run.career,stats=currentStats(),base=Math.max(0,(overall(stats)-55)*2.2+c.totals.goals*10+c.totals.assists*7+(rep.rating-6)*9+rand(-8,12));
+ const c=state.run.career,stats=currentStats(),nt=c.totals,avgNel=nt.nelApps?nt.nelRatingTotal/nt.nelApps:rep.rating,base=Math.max(0,(overall(stats)-55)*2.1+nt.nelGoals*16+nt.nelAssists*10+(avgNel-6)*12+rand(-7,11));
  const next=Math.max(3,Math.round(base));c.bid=next;c.bidHistory.push(next);
 }
 function playFixture(){
  const c=state.run.career,fixture=currentFixture();if(!c||!fixture||!c.prepared||c.report)return;
- whistleSound();const rep=fixture.type==='challenge'?simulateChallenge(fixture):simulateMatch(fixture);c.report=rep;applyPostMatch(rep,fixture);if(rep.goals)goalSound();save();renderAll();
+ whistleSound();const rep=fixture.type==='challenge'?simulateChallenge(fixture):simulateMatch(fixture);c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();save();renderAll();
 }
 function advanceFixture(){
  const c=state.run.career,fixture=currentFixture();if(!c||!c.report)return;
@@ -444,7 +444,7 @@ function renderPlans(){
 function renderMatchReport(r,f){
  if(r.type==='challenge'){$('#matchReport').innerHTML='<span class="result-eyebrow">'+esc(r.result)+'</span><div class="scoreline"><strong>'+r.challengeScore+'/100</strong></div><p>'+esc(r.moments.join(' '))+'</p><div class="performance-line"><span>RATING <b>'+r.rating.toFixed(1)+'</b></span><span>ENERGY <b>'+Math.round(state.run.energy)+'</b></span></div>';return;}
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
- $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>DEF ACTIONS <b>'+(r.tackles+r.interceptions)+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
+ $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
 }
 function renderCareerLog(){const c=state.run.career;$('#careerLog').innerHTML=(c?.log||[]).slice(0,8).map(x=>'<div>'+esc(x)+'</div>').join('')||'<div>No career events yet.</div>';}
 
@@ -503,7 +503,7 @@ function bind(){
  $('#randomNameBtn').addEventListener('click',()=>{state.run.name=randomName();renderPlayer();save();clickSound();});
  $('#trainingActions').addEventListener('click',e=>{const b=e.target.closest('[data-train]');if(b)applyTraining(b.dataset.train);});
  $('#matchPlans').addEventListener('click',e=>{const b=e.target.closest('[data-plan]');if(b)choosePlan(b.dataset.plan);});
- $('#playMatchBtn').addEventListener('click',()=>{playFixture();if(state.run.career?.report)recordHistory();});
+ $('#playMatchBtn').addEventListener('click',playFixture);
  $('#advanceFixtureBtn').addEventListener('click',advanceFixture);
  $('#archiveBtn').addEventListener('click',archiveCareer);$('#newRunBtn').addEventListener('click',()=>newRun(false));
  $('#stageStrip').addEventListener('click',e=>{const b=e.target.closest('[data-build]');if(!b||state.run.mode!=='build')return;const i=Number(b.dataset.build);if(i<=state.run.buildIndex||state.run.selections[BUILD_STAGES[i]?.key]){state.run.buildIndex=clamp(i,0,BUILD_STAGES.length-1);wheelRotation=0;renderAll();}});
