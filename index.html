@@ -113,12 +113,23 @@
               <div id="injuryNotice" class="career-notice" hidden></div>
 
               <div id="prepArea" class="prep-area">
-                <div class="subhead"><div><span class="kicker">BETWEEN GAMES</span><h3>Choose one development action</h3></div><span id="prepStatus" class="small-status">Not prepared</span></div>
-                <div id="trainingActions" class="action-grid"></div>
+                <div class="subhead"><div><span class="kicker">BETWEEN GAMES</span><h3 id="prepHeading">See what happens before the match</h3></div><span id="prepStatus" class="small-status">Event not spun</span></div>
 
-                <div class="subhead plan-head"><div><span class="kicker">MATCH PLAN</span><h3>How will you approach the game?</h3></div></div>
-                <div id="matchPlans" class="plan-grid"></div>
-                <button id="playMatchBtn" class="button primary full big" type="button" disabled>Play Match</button>
+                <div id="betweenEventPanel" class="between-event-panel">
+                  <p id="betweenEventText">Every gap between fixtures can change your run. Spin first; the outcome decides whether you train, learn from somebody, recover, suffer a setback or trigger something stranger.</p>
+                  <button id="betweenGameBtn" class="button primary full" type="button">Spin Between-Game Event</button>
+                </div>
+
+                <div id="trainingChoicePanel" hidden>
+                  <div class="subhead"><div><span class="kicker">TRAINING OPPORTUNITY</span><h3>Choose what you work on</h3></div></div>
+                  <div id="trainingActions" class="action-grid"></div>
+                </div>
+
+                <div id="matchPlanPanel">
+                  <div class="subhead plan-head"><div><span class="kicker">MATCH PLAN</span><h3>How will you approach the game?</h3></div></div>
+                  <div id="matchPlans" class="plan-grid"></div>
+                  <button id="playMatchBtn" class="button primary full big" type="button" disabled>Spin Match Contributions</button>
+                </div>
               </div>
 
               <div id="matchReport" class="match-report" hidden aria-live="polite"></div>
@@ -148,6 +159,7 @@
 
             <div class="identity-grid">
               <div><span>POSITION</span><strong id="identityPosition">—</strong></div>
+              <div><span>HEIGHT</span><strong id="identityHeight">—</strong></div>
               <div><span>FIRST TEAM</span><strong id="identityFirstTeam">—</strong></div>
               <div><span>NEL CLUB</span><strong id="identityNel">—</strong></div>
               <div><span>CURRENT BID</span><strong id="identityBid">—</strong></div>
