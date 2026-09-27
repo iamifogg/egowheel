@@ -1351,6 +1351,32 @@ function preNelFixtures(team){
 function nelFixtures(club){
  return Object.keys(NEL_DATA).filter(x=>x!==club).map((opp,i)=>({id:'nel'+i,stage:'Neo Egoist League',type:'match',team:club,opponent:opp,stars:NEL_DATA[opp].stars,strength:NEL_DATA[opp].strength,teamStrength:NEL_DATA[club].strength,venue:'NEL Match '+(i+1),importance:1.65}));
 }
+function postNelFixtures(club){
+ const clubStrength=Math.max(NEL_DATA[club]?.strength||90,overall());
+ return[
+  {id:'pro1',stage:'Professional League',type:'match',team:club,opponent:'Rhein Adler',stars:['Michael Kaiser'],strength:93,teamStrength:clubStrength,venue:'Professional League — Opening Day',importance:1.5},
+  {id:'pro2',stage:'Professional League',type:'match',team:club,opponent:'Royale Madrid',stars:['Sae Itoshi','Leonardo Luna'],strength:96,teamStrength:clubStrength,venue:'Professional League — European Showcase',importance:1.65},
+  {id:'pro3',stage:'Professional League',type:'match',team:club,opponent:'Berserk Dortmund',stars:['Ryusei Shidou'],strength:94,teamStrength:clubStrength,venue:'Professional League — Derby Night',importance:1.6},
+  {id:'pro4',stage:'Professional League',type:'match',team:club,opponent:'London Red',stars:['Adam Blake'],strength:95,teamStrength:clubStrength,venue:'Professional League — Title Run-In',importance:1.7,final:true,competition:'Professional League'},
+  {id:'ccqf',stage:'Champions Cup',type:'match',team:club,opponent:'Torino Ubers',stars:['Don Lorenzo','Oliver Aiku'],strength:97,teamStrength:clubStrength,venue:'Champions Cup Quarter-Final',importance:1.8},
+  {id:'ccsf',stage:'Champions Cup',type:'match',team:club,opponent:'Paris X Gen Elite',stars:['Julian Loki','Rin Itoshi'],strength:99,teamStrength:clubStrength,venue:'Champions Cup Semi-Final',importance:1.9},
+  {id:'ccf',stage:'Champions Cup',type:'match',team:club,opponent:'World Select XI',stars:['Julian Loki','Leonardo Luna','Michael Kaiser'],strength:101,teamStrength:clubStrength,venue:'Champions Cup Final',importance:2.0,final:true,competition:'Champions Cup'},
+  {id:'u20wc1',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'Germany U-20',stars:['Michael Kaiser'],strength:96,teamStrength:95,venue:'U-20 World Cup Group Stage',importance:1.75},
+  {id:'u20wc2',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'England U-20',stars:['Adam Blake'],strength:95,teamStrength:95,venue:'U-20 World Cup Group Stage',importance:1.75},
+  {id:'u20wcqf',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'Argentina U-20',stars:['Pablo Cavasoz'],strength:97,teamStrength:95,venue:'U-20 World Cup Quarter-Final',importance:1.9},
+  {id:'u20wcsf',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'France U-20',stars:['Julian Loki'],strength:99,teamStrength:95,venue:'U-20 World Cup Semi-Final',importance:2.0},
+  {id:'u20wcf',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'Spain U-20',stars:['Leonardo Luna'],strength:100,teamStrength:95,venue:'U-20 World Cup Final',importance:2.1,final:true,competition:'U-20 World Cup'},
+  {id:'elite1',stage:'Elite Club Season',type:'match',team:club,opponent:'Royale Madrid',stars:['Sae Itoshi','Leonardo Luna'],strength:100,teamStrength:Math.max(clubStrength,96),venue:'Elite Club Season — Matchday 1',importance:1.75},
+  {id:'elite2',stage:'Elite Club Season',type:'match',team:club,opponent:'Paris X Gen Elite',stars:['Julian Loki','Rin Itoshi','Ryusei Shidou'],strength:101,teamStrength:Math.max(clubStrength,96),venue:'Elite Club Season — Matchday 2',importance:1.8},
+  {id:'elite3',stage:'Elite Club Season',type:'match',team:club,opponent:'World Select XI',stars:['Michael Kaiser','Don Lorenzo','Julian Loki'],strength:102,teamStrength:Math.max(clubStrength,96),venue:'Elite Club Season — Championship Match',importance:1.95,final:true,competition:'Elite Club Season'},
+  {id:'wc1',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Germany',stars:['Michael Kaiser'],strength:99,teamStrength:98,venue:'Senior World Cup Group Stage',importance:1.9},
+  {id:'wc2',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Brazil',stars:['Dada Silva'],strength:100,teamStrength:98,venue:'Senior World Cup Group Stage',importance:1.95},
+  {id:'wcqf',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Spain',stars:['Leonardo Luna'],strength:101,teamStrength:98,venue:'Senior World Cup Quarter-Final',importance:2.0},
+  {id:'wcsf',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'France',stars:['Julian Loki'],strength:103,teamStrength:98,venue:'Senior World Cup Semi-Final',importance:2.1},
+  {id:'wcf',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'World Champions',stars:['Julian Loki','Leonardo Luna','Adam Blake'],strength:104,teamStrength:98,venue:'Senior World Cup Final',importance:2.2,final:true,competition:'Senior World Cup'}
+ ];
+}
+
 function beginStatRolls(){
  state.run.mode='statSpin';state.run.statIndex=0;wheelRotation=0;
  ATTR_KEYS.forEach(k=>delete state.run.selections['stat_'+k]);
@@ -1359,7 +1385,7 @@ function beginStatRolls(){
 function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
- state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,prepPhase:'event',trainingKey:null,trainingResult:null,planKey:'balanced',history:[],recentRatings:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
+ state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,prepPhase:'event',trainingKey:null,trainingResult:null,planKey:'balanced',history:[],recentRatings:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,postNelStarted:false,proClub:null,trophies:[],complete:false,eliminated:false,finalStatus:null,finalReason:null};
  state.run.energy=100;state.run.potentialBonus=state.run.potentialBonus||0;state.run.learnedWeapons=state.run.learnedWeapons||[];state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
  save();renderAll();toast('Blue Lock career started.');
 }
@@ -1874,7 +1900,11 @@ function advanceFixture(){
   return;
  }
 
- if(state.run.injury){state.run.injury.matches--;if(state.run.injury.matches<=0){careerLog('You are fully fit again.');state.run.injury=null;}}
+ if(fixture.final&&fixture.competition&&rep.result==='WIN'){
+  c.trophies=c.trophies||[];
+  if(!c.trophies.includes(fixture.competition)){c.trophies.push(fixture.competition);careerLog('Trophy won: '+fixture.competition+'.');}
+ }
+  if(state.run.injury){state.run.injury.matches--;if(state.run.injury.matches<=0){careerLog('You are fully fit again.');state.run.injury=null;}}
  const recoveryStamina=currentStats().stamina||60;state.run.fitness=clamp(state.run.fitness+Math.round(5+recoveryStamina/24),20,100);
  c.fixtureIndex++;resetMatchPreparation(c);
  if(c.fixtureIndex>=c.fixtures.length){
@@ -1887,21 +1917,42 @@ function enterNEL(){
  const club=state.run.selections.nelClub?.name;if(!club)return;
  const c=state.run.career;c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');save();renderAll();toast('Neo Egoist League begins.');
 }
+function canContinueBeyondNEL(){
+ const c=state.run.career;
+ return !!(c&&c.complete&&!c.eliminated&&!c.postNelStarted&&state.run.selections.nelClub);
+}
+function startPostNelCareer(){
+ const c=state.run.career;if(!c||c.postNelStarted)return;
+ const club=state.run.selections.nelClub?.name||c.proClub||'Bastard München';
+ c.postNelStarted=true;c.proClub=club;c.complete=false;c.eliminated=false;c.finalStatus=null;c.finalReason=null;c.trophies=c.trophies||[];
+ c.fixtures=c.fixtures.concat(postNelFixtures(club));
+ state.run.mode='career';resetMatchPreparation(c);
+ careerLog('Professional career begins with '+club+'. The NEL was only the start.');
+ save();renderAll();toast('Professional career unlocked.');
+}
+function continueProCareer(){if(canContinueBeyondNEL())startPostNelCareer();}
+
 function completeCareer(){
  const c=state.run.career,s=currentStats(),ov=overall(s),bid=c.bid||Math.max(5,Math.round((ov-50)*2+c.totals.goals*8+c.totals.assists*5));
- c.bid=bid;
- if(bid<30){
-  c.complete=true;c.eliminated=true;c.finalStatus='ELIMINATED — NEL FINAL CUT';
-  c.finalReason='Your final ¥'+bid+'m bid is below the qualifying line. The market does not place you inside the final Blue Lock group.';
-  state.run.mode='complete';careerLog(c.finalStatus+': '+c.finalReason);save();renderAll();toast(c.finalStatus);return;
+ c.bid=bid;c.trophies=c.trophies||[];
+ if(!c.postNelStarted){
+  if(bid<30){
+   c.complete=true;c.eliminated=true;c.finalStatus='ELIMINATED — NEL FINAL CUT';
+   c.finalReason='Your final ¥'+bid+'m bid is below the qualifying line. The market does not place you inside the final Blue Lock group.';
+   state.run.mode='complete';careerLog(c.finalStatus+': '+c.finalReason);save();renderAll();toast(c.finalStatus);return;
+  }
+  startPostNelCareer();return;
  }
- let status='Professional Prospect';
- if(bid>=220||ov>=94)status='World-Class Prospect';
- else if(bid>=150||ov>=90)status='New Generation Contender';
- else if(bid>=90||ov>=86)status='Blue Lock Star';
- else if(bid>=45||ov>=80)status='Japan U-20 Candidate';
- c.complete=true;c.eliminated=false;c.finalStatus=status;c.finalReason='You survive the final Neo Egoist League cut with a ¥'+bid+'m bid.';
- state.run.mode='complete';careerLog('Final status: '+status+' · ¥'+bid+'m bid.');save();renderAll();toast('Career complete: '+status);
+ const avg=c.totals.apps?c.totals.ratingTotal/c.totals.apps:0,trophies=c.trophies.length;
+ let status='Established Professional';
+ if(c.trophies.includes('Senior World Cup'))status='World Champion';
+ else if(ov>=98&&avg>=8.2)status='World-Class Superstar';
+ else if(ov>=94||avg>=7.8)status='International Star';
+ else if(ov>=89||avg>=7.35)status='Elite Professional';
+ else if(ov>=84)status='Top-Flight Professional';
+ c.complete=true;c.eliminated=false;c.finalStatus=status;
+ c.finalReason='Your extended career ends after '+c.totals.apps+' appearances with '+trophies+' major trophy'+(trophies===1?'':'ies')+' and a peak OVR of '+ov+'.';
+ state.run.mode='complete';careerLog('Final career status: '+status+'.');save();renderAll();toast('Career complete: '+status);
 }
 
 function renderCondition(){
@@ -1946,8 +1997,9 @@ function renderCareer(){
   $('#fixtureCount').textContent='FINAL';$('#fixtureType').textContent=eliminated?'ELIMINATED':'ARCHIVE READY';
   $('#prepArea').hidden=true;$('#matchReport').hidden=false;
   $('#matchReport').innerHTML='<span class="result-eyebrow '+(eliminated?'loss':'win')+'">'+(eliminated?'ELIMINATED':'SURVIVED')+'</span><h3>'+esc(c.finalStatus||'Career Complete')+'</h3><p>'+esc(c.finalReason||'Your Blue Lock run is complete.')+'</p><div class="performance-line"><span>APPS <b>'+c.totals.apps+'</b></span><span>GOALS <b>'+c.totals.goals+'</b></span><span>ASSISTS <b>'+c.totals.assists+'</b></span><span>DEF <b>'+((c.totals.tackles||0)+(c.totals.interceptions||0)+(c.totals.blocks||0)+(c.totals.clearances||0)+(c.totals.recoveries||0))+'</b></span><span>BID <b>¥'+(c.bid||0)+'m</b></span></div>';
-  $('#advanceFixtureBtn').hidden=true;$('#retryGoal100Btn').hidden=!canRetryRebalancedGoal100();renderCareerLog();return;
+  $('#advanceFixtureBtn').hidden=true;$('#retryGoal100Btn').hidden=!canRetryRebalancedGoal100();$('#continueProCareerBtn').hidden=!canContinueBeyondNEL();renderCareerLog();return;
  }
+ $('#continueProCareerBtn').hidden=true;
  $('#prepArea').hidden=!!c.report;
  $('#careerStage').textContent=fixture.stage;$('#fixtureTitle').textContent=fixture.venue;
  $('#fixtureSubtitle').textContent=fixture.type==='challenge'?'Resolve the between-game event, choose your plan, then spin the 100-goal result.':'Resolve the between-game event first. Then choose a match plan and spin the actual actions you contribute.';
@@ -2029,7 +2081,7 @@ function renderPlayer(){
 }
 function renderProfile(){
  const c=state.run.career,s=currentStats(),hist=c?.history||[],tot=c?.totals||{apps:0,goals:0,assists:0,ratingTotal:0};
- $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">CURRENT EGOIST</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">OVR '+overall(s)+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Defensive actions: '+((tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0))+'<br>Average rating: '+(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—')+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Rival: '+esc(c?.rival||'—')+'</p></div><div class="profile-block"><span class="kicker">LEARNED WEAPONS</span><h3>'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)).join(' · '):'None yet')+'</h3><p class="profile-sub">'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)+' — '+esc(w.source||'evolved')).join('<br>'):'Learn from elite players or trigger breakthroughs to add permanent weapons.')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
+ $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">CURRENT EGOIST</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">OVR '+overall(s)+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Defensive actions: '+((tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0))+'<br>Average rating: '+(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—')+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Trophies: '+esc((c?.trophies||[]).join(' · ')||'—')+'<br>Rival: '+esc(c?.rival||'—')+'</p></div><div class="profile-block"><span class="kicker">LEARNED WEAPONS</span><h3>'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)).join(' · '):'None yet')+'</h3><p class="profile-sub">'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)+' — '+esc(w.source||'evolved')).join('<br>'):'Learn from elite players or trigger breakthroughs to add permanent weapons.')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
 }
 function renderArchive(){
  const g=$('#archiveGrid');if(!state.archive.length){g.innerHTML='<div class="empty-state">No completed careers yet.</div>';return;}
@@ -2169,7 +2221,7 @@ function bind(){
  $('#trainingActions').addEventListener('click',e=>{const b=e.target.closest('[data-train]');if(b)applyTraining(b.dataset.train);});
  $('#matchPlans').addEventListener('click',e=>{const b=e.target.closest('[data-plan]');if(b)choosePlan(b.dataset.plan);});
  $('#playMatchBtn').addEventListener('click',playFixture);
- $('#advanceFixtureBtn').addEventListener('click',advanceFixture);$('#retryGoal100Btn').addEventListener('click',retryRebalancedGoal100);
+ $('#advanceFixtureBtn').addEventListener('click',advanceFixture);$('#retryGoal100Btn').addEventListener('click',retryRebalancedGoal100);$('#continueProCareerBtn').addEventListener('click',continueProCareer);
  $('#archiveBtn').addEventListener('click',archiveCareer);$('#newRunBtn').addEventListener('click',()=>newRun(false));
  $('#stageStrip').addEventListener('click',e=>{const b=e.target.closest('[data-build]');if(!b||state.run.mode!=='build')return;const i=Number(b.dataset.build);if(i<=state.run.buildIndex||state.run.selections[BUILD_STAGES[i]?.key]){state.run.buildIndex=clamp(i,0,BUILD_STAGES.length-1);wheelRotation=0;renderAll();}});
  $$('.nav-button').forEach(b=>b.addEventListener('click',()=>{state.ui.view=b.dataset.view;renderView();if(state.ui.view==='profileView')renderProfile();if(state.ui.view==='archiveView')renderArchive();save();clickSound();}));
