@@ -148,3 +148,23 @@
 @media(max-width:520px){
   #wheelLabels .overlay-label{stroke-width:4px}
 }
+
+
+/* v6 high contrast wheel badges */
+#wheelLabels .wheel-badge{pointer-events:none}
+#wheelLabels .wheel-label-badge-bg{
+  fill:rgba(2,11,22,.88);
+  stroke:rgba(121,215,255,.85);
+  stroke-width:1.5px;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.45));
+}
+#wheelLabels .overlay-label{
+  fill:#ffffff;
+  stroke:none;
+  font-weight:1000;
+  letter-spacing:.04em;
+  text-rendering:geometricPrecision;
+}
+@media(max-width:520px){
+  #wheelLabels .wheel-label-badge-bg{stroke-width:1.35px}
+}
