@@ -287,7 +287,74 @@ function startMusic(){const c=ensureAudio();if(!c||musicRunning)return;musicRunn
 function stopMusic(){if(musicLoop){clearInterval(musicLoop);musicLoop=null;}if(audioCtx&&musicGain){musicGain.gain.cancelScheduledValues(audioCtx.currentTime);musicGain.gain.setValueAtTime(Math.max(.0001,musicGain.gain.value),audioCtx.currentTime);musicGain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.2);}musicRunning=false;}
 function syncAudio(){const b=$('#soundBtn');if(b){b.textContent=audioEnabled?'🎵':'🔇';b.classList.toggle('active-audio',audioEnabled);}if(audioEnabled)startMusic();else stopMusic();}
 
-function currentWheelStage(){return state.run.mode==='nelSpin'?NEL_STAGE:BUILD_STAGES[state.run.buildIndex];}
+const START_STAT_TABLE=[
+ {value:25,weight:.6},{value:30,weight:1.2},{value:35,weight:2.5},{value:40,weight:5},{value:45,weight:9},
+ {value:50,weight:14},{value:55,weight:18},{value:60,weight:18},{value:65,weight:14},{value:70,weight:9},
+ {value:75,weight:5},{value:80,weight:2.5},{value:85,weight:1.2},{value:90,weight:.5},{value:95,weight:.12}
+];
+
+function gameplayBonuses(){
+ const match={},training={};
+ for(const key of ['archetype','primaryWeapon','secondaryWeapon']){
+  const meta=state.run.selections[key]?.meta||{};
+  Object.entries(meta.match||{}).forEach(([k,v])=>match[k]=(match[k]||0)+v);
+  Object.entries(meta.training||{}).forEach(([k,v])=>training[k]=(training[k]||0)+v);
+ }
+ return{match,training};
+}
+function makeStatStage(index=state.run.statIndex||0){
+ const [statKey,label]=ATTRS[index]||ATTRS[0];
+ const opts=START_STAT_TABLE.map(r=>weighted(String(r.value),label+' begins at '+r.value+'.',r.weight,{},String(r.value),{statKey,value:r.value}));
+ return{key:'stat_'+statKey,chapter:'STARTING ATTRIBUTES',name:label+' Rating',prompt:'Spin your exact starting '+label.toLowerCase()+' rating.',mode:'weights',options:opts};
+}
+function trainingOutcomeStage(){
+ const action=TRAINING_ACTIONS.find(a=>a.key===state.run.pendingTraining)||TRAINING_ACTIONS[0];
+ const affinity=gameplayBonuses().training[action.key]||0;
+ if(action.key==='rest'){
+  return{key:'trainingOutcome',chapter:'TRAINING RESULT',name:'Rest & Recovery',prompt:'How effective is the recovery block?',mode:'weights',options:[
+   weighted('Sluggish Recovery','You recover, but nowhere near as much as hoped.',12,{},'SLUGGISH',{mult:.45,confidence:-2}),
+   weighted('Normal Recovery','A routine recovery block restores useful energy.',46-affinity*8,{},'NORMAL',{mult:1}),
+   weighted('Good Recovery','You come back fresher than expected.',28+affinity*6,{},'GOOD',{mult:1.35,confidence:2}),
+   weighted('Full Reset','Body and mind respond exceptionally well.',11+affinity*4,{},'FULL',{mult:1.75,confidence:5}),
+   weighted('Mental Breakthrough','Rest creates clarity as well as recovery.',3+affinity*3,{},'BREAKTHROUGH',{mult:1.9,confidence:8,extraStat:'ego'})
+  ]};
+ }
+ const risk=Math.max(0,action.risk||0),fatigue=Math.max(0,50-state.run.energy)/10;
+ return{key:'trainingOutcome',chapter:'TRAINING RESULT',name:action.name+' Result',prompt:'You chose the session. The wheel decides how well it actually goes.',mode:'weights',options:[
+  weighted('Training Injury','The session ends with a physical setback.',2+risk*28+fatigue*.4,{},'INJURY',{mult:0,injury:true,confidence:-5}),
+  weighted('Disaster Session','Timing is off and the work actively knocks confidence.',5+risk*8,{},'DISASTER',{mult:-.45,confidence:-7}),
+  weighted('Poor Session','Very little sticks and one detail regresses.',11,{},'POOR',{mult:-.15,confidence:-3}),
+  weighted('Average Session','The planned work lands at an ordinary level.',31-affinity*5,{},'AVERAGE',{mult:1}),
+  weighted('Good Session','The session clearly improves the targeted tools.',28+affinity*8,{},'GOOD',{mult:1.5,confidence:2}),
+  weighted('Excellent Session','You make a visible jump in the focus area.',16+affinity*10,{},'EXCELLENT',{mult:2.2,confidence:5}),
+  weighted('Breakthrough','A training insight changes how the weapon functions.',6+affinity*8,{},'BREAKTHROUGH',{mult:3.1,confidence:8,extra:true}),
+  weighted('Ego Awakening','The session unlocks a much larger leap than planned.',1.5+affinity*5,{},'AWAKENING',{mult:4,confidence:12,extra:true,awakening:true})
+ ]};
+}
+function matchPerformanceStage(){
+ const fixture=currentFixture(),bonus=gameplayBonuses().match||{},stats=currentStats(),ov=overall(stats);
+ const importance=fixture?.importance||1,underdog=fixture?Math.max(0,fixture.strength-ov):0;
+ const edge=(fixture?ov-fixture.strength:0)+(state.run.energy-60)*.08+(state.run.confidence-50)*.07+state.run.form*2.2+(bonus.performance||0)*45+(bonus.clutch||0)*30*Math.max(0,importance-1)+(bonus.underdog||0)*underdog*.55;
+ const tiers=[
+  ['Nightmare','Nothing works; the level of the match overwhelms you.',5,-1.25,.58,4.6],
+  ['Poor','You struggle to impose your weapon.',10,-.85,.74,5.3],
+  ['Quiet','You survive the game without becoming central to it.',19,-.4,.88,6.0],
+  ['Solid','A competent performance with useful contributions.',27,0,1,6.7],
+  ['Strong','Your strengths repeatedly influence the match.',22,.42,1.15,7.5],
+  ['Star Performance','You become one of the defining players on the pitch.',11,.82,1.32,8.3],
+  ['Masterclass','Your weapon dominates long stretches of the match.',4.5,1.18,1.5,9.0],
+  ['Flow State','Challenge and ability align; you play beyond your ordinary level.',1.5,1.55,1.72,9.6]
+ ];
+ const options=tiers.map(([name,desc,base,bias,factor,rating])=>weighted(name,desc,Math.max(.15,base*Math.exp(edge*bias/30)),{},name==='Star Performance'?'STAR':name.toUpperCase(),{factor,rating,edge}));
+ return{key:'matchOutcome',chapter:'MATCH PERFORMANCE',name:fixture?(fixture.team+' vs '+fixture.opponent):'Match Performance',prompt:'Your attributes, condition and opponent shape the odds. The wheel decides your actual performance.',mode:'weights',options};
+}
+function currentWheelStage(){
+ if(state.run.mode==='nelSpin')return NEL_STAGE;
+ if(state.run.mode==='statSpin')return makeStatStage();
+ if(state.run.mode==='trainingSpin')return trainingOutcomeStage();
+ if(state.run.mode==='matchSpin')return matchPerformanceStage();
+ return BUILD_STAGES[state.run.buildIndex];
+}
 function layoutFor(stage){
  const opts=stage.options;
  if(stage.mode==='equal'){const sh=1/opts.length;return opts.map((o,i)=>({opt:o,start:i*sh*360,end:(i+1)*sh*360,mid:(i+.5)*sh*360,share:sh}));}
