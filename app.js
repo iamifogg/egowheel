@@ -321,7 +321,9 @@ function trainingOutcomeStage(){
  }
  const risk=Math.max(0,action.risk||0),fatigue=Math.max(0,50-state.run.energy)/10;
  return{key:'trainingOutcome',chapter:'TRAINING RESULT',name:action.name+' Result',prompt:'You chose the session. The wheel decides how well it actually goes.',mode:'weights',options:[
+  weighted('Serious Training Injury','A bad movement ends the session and puts your place in immediate danger.',.8+risk*10+fatigue*.25,{},'SERIOUS INJURY',{mult:0,injury:true,serious:true,confidence:-12}),
   weighted('Training Injury','The session ends with a physical setback.',2+risk*28+fatigue*.4,{},'INJURY',{mult:0,injury:true,confidence:-5}),
+  weighted('Ego Collapse','The session gets inside your head; confidence and form crash.',2.5+risk*5,{},'EGO COLLAPSE',{mult:-.65,confidence:-12,form:-2}),
   weighted('Disaster Session','Timing is off and the work actively knocks confidence.',5+risk*8,{},'DISASTER',{mult:-.45,confidence:-7}),
   weighted('Poor Session','Very little sticks and one detail regresses.',11,{},'POOR',{mult:-.15,confidence:-3}),
   weighted('Average Session','The planned work lands at an ordinary level.',31-affinity*5,{},'AVERAGE',{mult:1}),
@@ -336,6 +338,8 @@ function matchPerformanceStage(){
  const importance=fixture?.importance||1,underdog=fixture?Math.max(0,fixture.strength-ov):0;
  const edge=(fixture?ov-fixture.strength:0)+(state.run.energy-60)*.08+(state.run.confidence-50)*.07+state.run.form*2.2+(bonus.performance||0)*45+(bonus.clutch||0)*30*Math.max(0,importance-1)+(bonus.underdog||0)*underdog*.55;
  const tiers=[
+  ['Sent Off','A reckless or desperate moment removes you from the match entirely.',1.2,-1.6,.38,3.6,{redCard:true}],
+  ['Injury Collapse','Your body gives way during the match and your influence disappears.',1.6,-1.45,.42,4.0,{injury:true}],
   ['Nightmare','Nothing works; the level of the match overwhelms you.',5,-1.25,.58,4.6],
   ['Poor','You struggle to impose your weapon.',10,-.85,.74,5.3],
   ['Quiet','You survive the game without becoming central to it.',19,-.4,.88,6.0],
@@ -345,14 +349,48 @@ function matchPerformanceStage(){
   ['Masterclass','Your weapon dominates long stretches of the match.',4.5,1.18,1.5,9.0],
   ['Flow State','Challenge and ability align; you play beyond your ordinary level.',1.5,1.55,1.72,9.6]
  ];
- const options=tiers.map(([name,desc,base,bias,factor,rating])=>weighted(name,desc,Math.max(.15,base*Math.exp(edge*bias/30)),{},name==='Star Performance'?'STAR':name.toUpperCase(),{factor,rating,edge}));
+ const options=tiers.map(([name,desc,base,bias,factor,rating,extra={}])=>weighted(name,desc,Math.max(.15,base*Math.exp(edge*bias/30)),{},name==='Star Performance'?'STAR':name.toUpperCase(),{factor,rating,edge,...extra}));
  return{key:'matchOutcome',chapter:'MATCH PERFORMANCE',name:fixture?(fixture.team+' vs '+fixture.opponent):'Match Performance',prompt:'Your attributes, condition and opponent shape the odds. The wheel decides your actual performance.',mode:'weights',options};
+}
+function secondSelectionSurvivalStage(){
+ const p=state.run.pendingSurvival||{},r=p.report||{};
+ const merit=(r.rating||5)*8+(r.goals||0)*18+(r.assists||0)*11+(r.dribbles||0)*2+((r.tackles||0)+(r.interceptions||0))*2;
+ const chosenBoost=clamp((merit-48)*.7,-16,32);
+ return{key:'survivalOutcome',chapter:'SECOND SELECTION',name:'Will They Choose You?',prompt:'Your team lost. The winners may take one player. Your individual performance changes the odds — but rejection ends the run.',mode:'weights',options:[
+  weighted('Rejected','The winners see no reason to take you. Your Blue Lock run ends here.',Math.max(8,42-chosenBoost),{},'REJECTED',{survive:false,confidence:-12}),
+  weighted('Barely Chosen','You survive, but only just. The loss follows you into the next stage.',Math.max(10,30+chosenBoost*.25),{},'BARELY',{survive:true,confidence:-7,form:-1}),
+  weighted('Chosen','Your individual value is obvious even in defeat. You are selected by the winners.',Math.max(10,25+chosenBoost*.55),{},'CHOSEN',{survive:true,confidence:3}),
+  weighted('First Pick','They choose you immediately; your display mattered more than the result.',Math.max(2,3+chosenBoost*.2),{},'FIRST PICK',{survive:true,confidence:8,form:1})
+ ]};
+}
+function endRun(status,reason){
+ const c=state.run.career;if(!c)return;
+ c.complete=true;c.eliminated=true;c.finalStatus=status;c.finalReason=reason||'Your Blue Lock run is over.';
+ state.run.mode='complete';
+ careerLog(status+': '+c.finalReason);
+ save();renderAll();toast(status);
+}
+function firstSelectionQualified(){
+ const c=state.run.career,t=c.totals,apps=Math.max(1,t.apps),avg=t.ratingTotal/apps;
+ const teamPass=c.firstSelectionPoints>=5;
+ const individualPass=t.goals>=4||(t.goals>=3&&avg>=7.2)||(t.goals>=2&&t.assists>=3&&avg>=7.5);
+ return{pass:teamPass||individualPass,teamPass,individualPass,avg};
+}
+function resolveSurvivalOutcome(outcome){
+ const c=state.run.career;if(!c||!outcome)return;
+ const meta=outcome.meta||{};
+ state.run.confidence=clamp(state.run.confidence+(meta.confidence||0),0,100);
+ state.run.form=clamp(state.run.form+(meta.form||0),-3,3);
+ state.run.pendingSurvivalResult=outcome;
+ if(!meta.survive)careerLog('Second Selection: rejected by the winning side.');
+ else careerLog('Second Selection: '+outcome.name+'. You remain in Blue Lock.');
 }
 function currentWheelStage(){
  if(state.run.mode==='nelSpin')return NEL_STAGE;
  if(state.run.mode==='statSpin')return makeStatStage();
  if(state.run.mode==='trainingSpin')return trainingOutcomeStage();
  if(state.run.mode==='matchSpin')return matchPerformanceStage();
+ if(state.run.mode==='survivalSpin')return secondSelectionSurvivalStage();
  return BUILD_STAGES[state.run.buildIndex];
 }
 function layoutFor(stage){
@@ -539,7 +577,7 @@ function resolveTrainingOutcome(outcome){
   state.run.energy=clamp(state.run.energy-action.cost,0,100);
   if(meta.injury){
    state.run.fitness=clamp(state.run.fitness-12,20,100);
-   state.run.injury={name:Math.random()<.3?'Muscle strain':'Training knock',matches:Math.random()<.3?2:1,penalty:Math.random()<.3?10:6};
+   state.run.injury=meta.serious?{name:'Serious muscle injury',matches:3,penalty:14}:{name:Math.random()<.3?'Muscle strain':'Training knock',matches:Math.random()<.3?2:1,penalty:Math.random()<.3?10:6};
   }else{
    Object.entries(action.effects).forEach(([k,v])=>{
     const amount=mult<0?-Math.max(1,Math.round(Math.abs(v*mult))):Math.round(v*mult);
@@ -551,7 +589,8 @@ function resolveTrainingOutcome(outcome){
    }
   }
   state.run.confidence=clamp(state.run.confidence+(meta.confidence||0),0,100);
-  if(outcome.name==='Disaster Session'||outcome.name==='Poor Session')state.run.form=clamp(state.run.form-1,-3,3);
+  if(meta.form)state.run.form=clamp(state.run.form+meta.form,-3,3);
+  else if(outcome.name==='Disaster Session'||outcome.name==='Poor Session')state.run.form=clamp(state.run.form-1,-3,3);
   if(outcome.name==='Breakthrough'||outcome.name==='Ego Awakening')state.run.form=clamp(state.run.form+1,-3,3);
   careerLog(action.name+': '+outcome.name+'.');
  }
@@ -595,7 +634,8 @@ function simulateChallenge(fixture,tier){
  return{type:'challenge',passed,challengeScore:score,rating,performanceTier:tier?.name||'Solid',goals:0,assists:0,shots:score,keyPasses:0,dribbles:0,tackles:0,interceptions:0,teamGoals:0,oppGoals:0,result:passed?'CLEAR':'RETRY',moments:[passed?'Your '+(tier?.name||'Solid')+' performance clears the 100 Goal Challenge with '+score+' successful finishes.':'A '+(tier?.name||'Poor')+' performance leaves you on '+score+' and forces a retry.']};
 }
 function simulateMatch(fixture,tier){
- const s=effectiveStats(),bonus=gameplayBonuses().match||{},perf=tier?.meta?.factor||1,baseRating=tier?.meta?.rating||6.7,opp=fixture.strength,minutes=state.run.injury?int(52,76):90;
+ const s=effectiveStats(),bonus=gameplayBonuses().match||{},perf=tier?.meta?.factor||1,baseRating=tier?.meta?.rating||6.7,opp=fixture.strength;
+ const minutes=tier?.meta?.redCard?int(18,68):tier?.meta?.injury?int(12,62):(state.run.injury?int(52,76):90);
  const involvement=clamp(Math.round((2+s.offBall/25+s.ego/45+state.run.form*.35)*(0.72+perf*.3)),1,10);
  const shots=clamp(Math.round(involvement+rand(-1,1)+(bonus.shots||0)),0,11);
  const baseGoalP=.055+s.finishing*.004+s.shotPower*.00135+s.reactions*.00145+s.technique*.00075-opp*.0027+(bonus.goalP||0);
@@ -649,6 +689,8 @@ function resolveMatchOutcome(outcome){
  const c=state.run.career,fixture=currentFixture();if(!c||!fixture||!outcome)return;
  whistleSound();
  const rep=fixture.type==='challenge'?simulateChallenge(fixture,outcome):simulateMatch(fixture,outcome);
+ if(outcome.meta?.redCard){rep.moments.unshift('A sending-off ends your match early.');state.run.confidence=clamp(state.run.confidence-8,0,100);state.run.form=clamp(state.run.form-1,-3,3);}
+ if(outcome.meta?.injury){rep.moments.unshift('You are forced off injured.');state.run.injury={name:'Match injury',matches:2,penalty:10};state.run.fitness=clamp(state.run.fitness-14,20,100);}
  c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();
  state.run.pendingMatch=null;
 }
@@ -661,10 +703,58 @@ function playFixture(){
 }
 function advanceFixture(){
  const c=state.run.career,fixture=currentFixture();if(!c||!c.report)return;
- if(c.report.type==='challenge'&&!c.report.passed){c.prepared=false;c.trainingKey=null;c.planKey='balanced';c.report=null;state.run.energy=clamp(state.run.energy+10,0,100);renderAll();save();return;}
+ const rep=c.report;
+
+ // The 100 Goal Challenge is a real elimination gate: no infinite retries.
+ if(fixture.id==='goal100'&&!rep.passed){
+  endRun('ELIMINATED — 100 GOAL CHALLENGE','You failed to score 100 goals before the clock expired. There is no retry.');
+  return;
+ }
+
+ // Losing a small-sided Second Selection match puts your individual value on trial.
+ if(['2v2','3v3','4v4'].includes(fixture.id)&&rep.result==='LOSS'){
+  state.run.pendingSurvival={fixtureId:fixture.id,report:{rating:rep.rating,goals:rep.goals,assists:rep.assists,dribbles:rep.dribbles,tackles:rep.tackles,interceptions:rep.interceptions}};
+  state.run.pendingSurvivalResult=null;
+  delete state.run.selections.survivalOutcome;
+  state.run.mode='survivalSpin';wheelRotation=0;
+  renderAll();save();toast('Your team lost. Spin to see if the winners choose you.');
+  return;
+ }
+
+ // First Selection: weak teams can still produce one surviving top individual.
+ const nextFixture=c.fixtures[c.fixtureIndex+1];
+ if(fixture.stage==='First Selection'&&(!nextFixture||nextFixture.stage!=='First Selection')){
+  const q=firstSelectionQualified();
+  if(!q.pass){
+   endRun('ELIMINATED — FIRST SELECTION','Your team failed to qualify and your individual output was not high enough for the top-scorer escape route.');
+   return;
+  }
+  careerLog(q.teamPass?'First Selection cleared through team results.':'First Selection survived through outstanding individual production.');
+ }
+
+ // Third Selection can cost you the U-20 match without killing the whole run.
+ if(fixture.id==='thirdB'){
+  const third=c.history.filter(h=>h.stage==='Third Selection');
+  const weakTrial=rep.rating<6.2&&c.totals.goals+c.totals.assists<4;
+  if(weakTrial){
+   careerLog('Third Selection: you are not chosen for the Blue Lock XI. You miss the Japan U-20 match.');
+   state.run.confidence=clamp(state.run.confidence-8,0,100);
+   state.run.form=clamp(state.run.form-1,-3,3);
+   c.fixtureIndex+=2;c.prepared=false;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;
+   if(c.fixtureIndex>=c.fixtures.length){state.run.mode='nelSpin';wheelRotation=0;renderAll();save();return;}
+   renderAll();save();return;
+  }
+ }
+
+ // Losing the U-20 match destroys this Blue Lock run.
+ if(fixture.id==='u20'&&rep.result==='LOSS'){
+  endRun('BLUE LOCK PROJECT DEFEATED','Japan U-20 defeated Blue Lock. Your route through the project ends with the loss.');
+  return;
+ }
+
  if(state.run.injury){state.run.injury.matches--;if(state.run.injury.matches<=0){careerLog('You are fully fit again.');state.run.injury=null;}}
  state.run.energy=clamp(state.run.energy+9,0,100);state.run.fitness=clamp(state.run.fitness+5,0,100);
- c.fixtureIndex++;c.prepared=false;c.trainingKey=null;c.planKey='balanced';c.report=null;
+ c.fixtureIndex++;c.prepared=false;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;
  if(c.fixtureIndex>=c.fixtures.length){
   if(!state.run.selections.nelClub){state.run.mode='nelSpin';wheelRotation=0;renderAll();save();toast('Choose your Neo Egoist League club.');return;}
   completeCareer();return;
