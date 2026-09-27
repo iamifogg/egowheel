@@ -542,6 +542,19 @@ const TRAINING_ACTIONS=[
  {key:'shape',name:'Positioning Unit',desc:'Train line height, cover shadows, scanning and recovery positions.',cost:8,effects:{defense:2,vision:2,reactions:1},risk:.04}
 ];
 
+TRAINING_ACTIONS.push(
+ {key:'heading',name:'Heading & Set Pieces',desc:'Attack corners, work on aerial timing and finish headers under contact.',cost:13,effects:{physical:2,reactions:2,finishing:2},risk:.09},
+ {key:'crossing',name:'Crossing & Delivery',desc:'Work on cutbacks, whipped crosses and early service.',cost:9,effects:{passing:3,technique:2,vision:1},risk:.04},
+ {key:'weakfoot',name:'Weak-Foot Lab',desc:'Force technical actions onto your weaker side until it becomes trustworthy.',cost:11,effects:{weakFoot:4,technique:2,control:1},risk:.05},
+ {key:'firsttouch',name:'First-Touch Laboratory',desc:'Receive awkward service under pressure and make the first touch solve the next action.',cost:8,effects:{control:3,technique:2,reactions:1},risk:.04},
+ {key:'striking',name:'Ball-Striking Mechanics',desc:'Refine contact, body shape and repeatable power across different shot types.',cost:12,effects:{shotPower:3,finishing:2,technique:1},risk:.07},
+ {key:'endurance',name:'Endurance Conditioning',desc:'Build repeat-sprint capacity and physical durability.',cost:16,effects:{stamina:4,physical:2,speed:1},risk:.13},
+ {key:'agility',name:'Reaction & Agility',desc:'Sharp changes of direction, reaction cues and body-control work.',cost:12,effects:{reactions:3,acceleration:2,control:1},risk:.09},
+ {key:'scanning',name:'Tactical Scanning',desc:'Constant shoulder checks, line awareness and positional prediction.',cost:6,effects:{vision:3,reactions:2,offBall:1,defense:1},risk:.03},
+ {key:'progression',name:'Ball Progression',desc:'Carry or pass through pressure instead of circulating around it.',cost:10,effects:{passing:2,dribbling:2,control:2,vision:1},risk:.06},
+ {key:'boxdef',name:'Penalty-Box Defence',desc:'Blocks, clearances, aerial positioning and last-man interventions.',cost:12,effects:{defense:3,reactions:2,physical:1},risk:.08}
+);
+
 const MATCH_PLANS=[
  {key:'balanced',name:'Balanced',desc:'Read the game and take what appears.',mods:{}},
  {key:'poacher',name:'Goal Hunter',desc:'Sacrifice some creation to attack scoring positions constantly.',mods:{finishing:6,offBall:6,ego:3,passing:-3}},
@@ -555,6 +568,17 @@ const MATCH_PLANS=[
  {key:'overlap',name:'Aggressive Overlap',desc:'Attack the flank repeatedly and accept the recovery burden.',mods:{speed:6,stamina:7,passing:5,dribbling:3,defense:-2},extraEnergy:7},
  {key:'anchor',name:'Anchor',desc:'Stay central, screen the defence and make the game pass around you.',mods:{defense:9,vision:6,stamina:5,physical:3,offBall:-2}}
 ];
+
+MATCH_PLANS.push(
+ {key:'setpiece',name:'Set-Piece Target',desc:'Attack dead balls aggressively and accept fewer open-play touches.',mods:{physical:6,reactions:5,finishing:4,offBall:-2},extraEnergy:2},
+ {key:'aerialcontrol',name:'Aerial Control',desc:'Prioritise first contact on long balls, crosses and clearances.',mods:{physical:7,reactions:5,defense:4,speed:-2}},
+ {key:'frontfoot',name:'Step Out',desc:'Defend aggressively in front of the receiver and hunt interceptions.',mods:{defense:7,acceleration:4,reactions:5,vision:2},extraEnergy:3},
+ {key:'counter',name:'Counter-Attack',desc:'Hold shape until the regain, then attack space immediately.',mods:{speed:6,acceleration:5,offBall:4,passing:2}},
+ {key:'tempo',name:'Control Tempo',desc:'Slow the match down, own possession and choose when it accelerates.',mods:{passing:7,vision:7,control:5,stamina:-1}},
+ {key:'markstar',name:'Erase Their Star',desc:'Sacrifice some freedom to track the opposition’s main threat.',mods:{defense:9,reactions:5,physical:4,offBall:-3},extraEnergy:3},
+ {key:'laterunner',name:'Late Arrival',desc:'Stay outside the first attack and arrive after defenders have committed.',mods:{offBall:7,reactions:5,finishing:3,defense:-2}},
+ {key:'chaos',name:'Break Structure',desc:'Play aggressively and unpredictably, increasing both upside and risk.',mods:{ego:7,dribbling:5,acceleration:4,defense:-3}}
+);
 
 const POSITION_WEIGHTS={
  'Centre Forward':{finishing:2,shotPower:1.2,offBall:1.5,reactions:1.1,ego:1},
@@ -996,10 +1020,11 @@ function contributionStage(){
  const defend=(s.defense+s.reactions+s.physical+s.vision)/4;
  const safe=Math.max(0,overall(s)-fixture.strength+formBoost);
  const bad=Math.max(2,18-safe*.22-(s.reactions+s.control)/28);
- const role=activePositionName(),arch=state.run.selections.archetype?.name||'',heightFactor=heightAerialFactor();
+ const role=activePositionName(),arch=state.run.selections.archetype?.name||'',heightFactor=heightAerialFactor(),planKey=state.run.career?.planKey||'balanced';
  const defenderSetPiece=['Centre Back','Ball-Playing Centre Back','Stopper','Sweeper'].includes(role)?1.6:isDefensiveRole()?1.2:1;
  const specialistSetPiece=['Set-Piece Centre-Back','Set-Piece Threat','Aerial Enforcer','Aerial Centre-Back'].includes(arch)?1.8:1;
- const aerialThreat=clamp(((s.physical+s.reactions+s.finishing)/210)*heightFactor*defenderSetPiece*specialistSetPiece,.35,2.8);
+ const planSetPiece=planKey==='setpiece'?1.55:planKey==='aerialcontrol'?1.25:1;
+ const aerialThreat=clamp(((s.physical+s.reactions+s.finishing)/210)*heightFactor*defenderSetPiece*specialistSetPiece*planSetPiece,.35,3.2);
  const yellowAlready=(p.contributions?.yellowCards||0)>0;
  const pressureEgo=state.run.selections.egoStyle?.name||'';
  const importance=fixture?.importance||1;
@@ -1325,8 +1350,9 @@ function overall(stats=currentStats()){
 function addChange(key,n){state.run.lastChanges[key]=(state.run.lastChanges[key]||0)+n;}
 function changeStat(key,amount){
  const p=potentialMeta(),stats=currentStats(),ceil=potentialCeiling();if(!ATTR_KEYS.includes(key))return 0;
+ const setup=setupDerived(),starting=(state.run.baseStats[key]||50)+(setup[key]||0),cap=Math.max(starting,ceil,key==='ego'?99:ceil);
  let n=amount;
- if(n>0){n=Math.max(1,Math.round(n*(p.growth||1)));n=Math.min(n,Math.max(0,ceil-stats[key]));}
+ if(n>0){n=Math.max(1,Math.round(n*(p.growth||1)));n=Math.min(n,Math.max(0,cap-stats[key]));}
  else n=Math.max(n,20-stats[key]);
  state.run.development[key]=(state.run.development[key]||0)+n;if(n)addChange(key,n);return n;
 }
@@ -1520,7 +1546,7 @@ function resolvePositionExperiment(outcome){
   'Left Wing-Back':{stamina:1,speed:1},'Right Wing-Back':{stamina:1,speed:1},'Centre Back':{defense:1,physical:1},'Ball-Playing Centre Back':{defense:1,passing:1},
   'Stopper':{defense:1,physical:1},'Sweeper':{defense:1,vision:1}
  }[role]||{vision:1};
- Object.entries(gains).forEach(([k,v])=>changeStat(k,v));
+ const flexible=['Adaptive Generalist','Utility Egoist'].includes(state.run.selections.archetype?.name);Object.entries(gains).forEach(([k,v])=>changeStat(k,flexible?v*2:v));
  state.run.confidence=clamp(state.run.confidence+1,0,100);
  setPrepResolution(c,c.betweenEvent,outcome.name,'Temporary position for the next fixture.');
  completePrepEvent(c);
