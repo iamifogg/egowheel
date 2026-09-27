@@ -168,3 +168,16 @@
 @media(max-width:520px){
   #wheelLabels .wheel-label-badge-bg{stroke-width:1.35px}
 }
+
+
+/* v10 defensive roles */
+.career-totals{grid-template-columns:repeat(5,minmax(0,1fr))}
+.career-totals>div{min-width:0}
+.career-totals span{font-size:.44rem}
+.career-totals strong{font-size:.78rem}
+@media(max-width:390px){
+  .career-totals{gap:3px}
+  .career-totals>div{padding:6px 3px}
+  .career-totals span{font-size:.4rem}
+  .career-totals strong{font-size:.72rem}
+}
