@@ -4,7 +4,7 @@
 const STORAGE_KEY='egowheel.save.v7';
 const AUDIO_KEY='egowheel.audio.v1';
 const VERSION=7;
-const BUILD_ID='v15';
+const BUILD_ID='v16';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -873,7 +873,7 @@ function weaponEventStage(){
  return{key:'weaponEvent',chapter:'WEAPON DEVELOPMENT',name:'What Do You Discover?',prompt:'The inspiration only matters if it becomes something usable.',mode:'weights',options:opts};
 }
 function emptyMatchContribution(){
- return{goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,mistakes:0,bigMisses:0,bonusRating:0,labels:[]};
+ return{goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,mistakes:0,bigMisses:0,bonusRating:0,ratingPenalty:0,labels:[]};
 }
 function contributionStage(){
  const fixture=currentFixture(),p=state.run.pendingMatch||{},idx=p.spinIndex||0,s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{};
@@ -885,11 +885,11 @@ function contributionStage(){
  const safe=Math.max(0,overall(s)-fixture.strength+formBoost);
  const bad=Math.max(2,18-safe*.22-(s.reactions+s.control)/28);
  const opts=[
-  weighted('Sent Off','A reckless or desperate action gets you removed from the match.',Math.max(.5,1.8-(s.reactions+s.defense)/180+Math.max(0,-state.run.form)*.35),{},'RED CARD',{contrib:{sentOff:1,mistakes:1,bonusRating:-1.25}}),
-  weighted('Forced Off Injured','Your body gives way and your match ends early.',Math.max(.4,1+(55-state.run.fitness)*.035+(45-state.run.energy)*.02),{},'INJURED',{contrib:{injured:1,bonusRating:-.8}}),
-  weighted('Major Error','A bad decision creates a dangerous moment for the opponent.',Math.max(1,bad*.45),{},'ERROR',{contrib:{mistakes:1,bonusRating:-.7}}),
-  weighted('Lose Important Duel','You are beaten in a meaningful individual contest.',Math.max(2,bad*.8),{},'LOST DUEL',{contrib:{mistakes:1,bonusRating:-.28}}),
-  weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(1,9+prof.shots*5-attack*.07),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,bonusRating:-.18}}),
+  weighted('Sent Off','A reckless or desperate action gets you removed from the match.',Math.max(.5,1.8-(s.reactions+s.defense)/180+Math.max(0,-state.run.form)*.35),{},'RED CARD',{contrib:{sentOff:1,mistakes:1,ratingPenalty:1.25}}),
+  weighted('Forced Off Injured','Your body gives way and your match ends early.',Math.max(.4,1+(55-state.run.fitness)*.035+(45-state.run.energy)*.02),{},'INJURED',{contrib:{injured:1,ratingPenalty:.8}}),
+  weighted('Major Error','A bad decision creates a dangerous moment for the opponent.',Math.max(1,bad*.45),{},'ERROR',{contrib:{mistakes:1,ratingPenalty:.7}}),
+  weighted('Lose Important Duel','You are beaten in a meaningful individual contest.',Math.max(2,bad*.8),{},'LOST DUEL',{contrib:{mistakes:1,ratingPenalty:.28}}),
+  weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(1,9+prof.shots*5-attack*.07),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,ratingPenalty:.18}}),
   weighted('Quiet Phase','The match moves around you without a decisive contribution.',16,{},'QUIET',{contrib:{}}),
   weighted('Shot on Target','You create a credible attempt without scoring.',Math.max(2,6+attack*.08*prof.shots+(bonus.shots||0)*2),{},'SHOT',{contrib:{shots:1,bonusRating:.04}}),
   weighted('Goal','You finish a decisive chance.',Math.max(.8,attack*.095*prof.shots+(bonus.goalP||0)*90+formBoost*.4),{},'GOAL',{contrib:{goals:1,shots:1,bonusRating:1.05}}),
@@ -907,17 +907,43 @@ function contributionStage(){
  ];
  return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:'Match Moment '+(idx+1)+' / 4',prompt:'Your stats, form, role, weapons and opponent change every slice. Spin the action you actually contribute.',mode:'weights',options:opts};
 }
+function challengeQuality(stats=effectiveStats()){
+ const ov=overall(currentStats());
+ return clamp(
+  stats.finishing*.29+
+  stats.shotPower*.15+
+  stats.reactions*.16+
+  stats.technique*.11+
+  stats.control*.08+
+  stats.stamina*.08+
+  stats.ego*.05+
+  ov*.08+
+  state.run.form*1.1+
+  (state.run.confidence-50)*.045,
+  25,105
+ );
+}
+function challengePassChance(stats=effectiveStats()){
+ const q=challengeQuality(stats);
+ return clamp(.50+(q-68)*.025,.08,.92);
+}
 function challengeStage(){
- const s=effectiveStats(),q=s.finishing*.28+s.reactions*.17+s.technique*.17+s.control*.14+s.stamina*.1+s.ego*.14+state.run.form*2+(state.run.confidence-50)*.08;
- const boost=(q-60)*.45;
- return{key:'challengeOutcome',chapter:'100 GOAL CHALLENGE',name:'How Many Do You Score?',prompt:'One spin. Miss 100 and the run ends.',mode:'weights',options:[
-  weighted('58 Goals','The pace of the machine overwhelms you.',Math.max(1,15-boost*.15),{},'58',{score:58}),
-  weighted('74 Goals','You improve, but the clock wins comfortably.',Math.max(1,20-boost*.12),{},'74',{score:74}),
-  weighted('88 Goals','A respectable attempt, but still elimination.',Math.max(1,24-boost*.08),{},'88',{score:88}),
-  weighted('97 Goals','You come agonisingly close.',Math.max(1,20-boost*.03),{},'97',{score:97}),
-  weighted('100 Goals','You clear the line exactly.',Math.max(1,12+boost*.12),{},'100',{score:100}),
-  weighted('108 Goals','You solve the test with time to spare.',Math.max(.5,7+boost*.13),{},'108',{score:108}),
-  weighted('120 Goals','The finishing test becomes a demonstration.',Math.max(.2,2.5+boost*.08),{},'120',{score:120})
+ const q=challengeQuality(),pass=challengePassChance(),fail=1-pass;
+ const nearFail=clamp(.30+(q-60)*.008,.24,.48);
+ const badFail=clamp(.13-(q-60)*.004,.035,.16);
+ const midFail=clamp(.24-(q-60)*.002,.14,.27);
+ const restFail=Math.max(.08,1-nearFail-badFail-midFail);
+ const highPass=clamp(.12+(q-68)*.01,.06,.34);
+ const strongPass=clamp(.30+(q-68)*.007,.24,.44);
+ const clearPass=Math.max(.22,1-highPass-strongPass);
+ return{key:'challengeOutcome',chapter:'100 GOAL CHALLENGE',name:'How Many Do You Score?',prompt:'One spin. Your finishing profile and overall level set the odds. Current clear chance: '+Math.round(pass*100)+'%.',mode:'weights',options:[
+  weighted('58 Goals','The pace of the machine overwhelms you.',fail*badFail*100,{},'58',{score:58}),
+  weighted('74 Goals','You improve, but the clock wins comfortably.',fail*midFail*100,{},'74',{score:74}),
+  weighted('88 Goals','A strong attempt that still falls short.',fail*restFail*100,{},'88',{score:88}),
+  weighted('97 Goals','You come agonisingly close.',fail*nearFail*100,{},'97',{score:97}),
+  weighted('100 Goals','You clear the line exactly.',pass*clearPass*100,{},'100',{score:100}),
+  weighted('108 Goals','You solve the test with time to spare.',pass*strongPass*100,{},'108',{score:108}),
+  weighted('120 Goals','The finishing test becomes a demonstration.',pass*highPass*100,{},'120',{score:120})
  ]};
 }
 function currentWheelStage(){
@@ -1131,7 +1157,7 @@ function beginStatRolls(){
 function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
- state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,prepPhase:'event',trainingKey:null,trainingResult:null,planKey:'balanced',history:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
+ state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,prepPhase:'event',trainingKey:null,trainingResult:null,planKey:'balanced',history:[],recentRatings:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
  state.run.energy=100;state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
  save();renderAll();toast('Blue Lock career started.');
 }
@@ -1182,6 +1208,7 @@ function repairPrepResolution(c){
 }
 function repairPrepState(){
  const c=state.run.career;if(!c||c.complete||c.report)return;
+ c.recentRatings=c.recentRatings||[];
  repairPrepResolution(c);
  // Recover old v12/v11 combinations into one deterministic phase.
  if(!c.prepPhase){
@@ -1288,6 +1315,38 @@ function resolveContributionOutcome(outcome){
  target.labels.push(outcome.name);
  if(add.sentOff||add.injured)p.endedEarly=true;
 }
+function contributionRating(a,result,profile=positionProfile()){
+ const defScale=clamp(.72+profile.defense*.42,.82,1.58);
+ const attackScale=clamp(.78+profile.shots*.24,.8,1.08);
+ const createScale=clamp(.82+profile.creation*.18,.88,1.08);
+ const positive=
+  (a.goals||0)*1.02*attackScale+
+  (a.assists||0)*.78*createScale+
+  (a.keyPasses||0)*.085*createScale+
+  (a.dribbles||0)*.065*clamp(.8+profile.carry*.18,.85,1.08)+
+  (a.tackles||0)*.115*defScale+
+  (a.interceptions||0)*.14*defScale+
+  (a.blocks||0)*.19*defScale+
+  (a.clearances||0)*.10*defScale+
+  (a.recoveries||0)*.085*defScale;
+ const penalty=(a.ratingPenalty||0)+(a.sentOff?1.1:0)+(a.injured?.35:0);
+ const resultAdj=result==='WIN'?.20:result==='LOSS'?-.14:0;
+ return clamp(6+positive-penalty+resultAdj,3.2,10);
+}
+function updateRollingForm(c,rep){
+ if(!c||rep.type!=='match')return;
+ c.recentRatings=c.recentRatings||[];
+ c.recentRatings.push(rep.rating);
+ c.recentRatings=c.recentRatings.slice(-5);
+ let weighted=0,total=0;
+ c.recentRatings.forEach((r,i)=>{
+  const w=1+i*.18;weighted+=r*w;total+=w;
+ });
+ const avg=total?weighted/total:rep.rating;
+ const resultAdj=rep.result==='WIN'?.18:rep.result==='LOSS'?-.12:0;
+ const target=clamp((avg-6.6)*1.45+resultAdj,-3,3);
+ state.run.form=Math.round(target*2)/2;
+}
 function finalizeContributionMatch(){
  const c=state.run.career,fixture=currentFixture(),p=state.run.pendingMatch;if(!c||!fixture||!p)return;
  const a=p.contributions||emptyMatchContribution(),s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{};
@@ -1300,7 +1359,7 @@ function finalizeContributionMatch(){
  const oppLambda=clamp(.72+(fixture.strength-62)/34-defensiveHelp/310-(bonus.oppDefense||0),.1,3.8);
  const oppGoals=poisson(oppLambda);
  const result=teamGoals>oppGoals?'WIN':teamGoals<oppGoals?'LOSS':'DRAW';
- const rating=clamp(5.8+(a.bonusRating||0)+(a.keyPasses||0)*.06+(a.dribbles||0)*.05+(result==='WIN'?.22:result==='LOSS'?-.18:0),3.2,10);
+ const rating=contributionRating(a,result,prof);
  const minutes=a.sentOff?int(18,70):a.injured?int(12,65):(state.run.injury?int(55,82):90);
  if(a.sentOff){state.run.confidence=clamp(state.run.confidence-8,0,100);state.run.form=clamp(state.run.form-1,-3,3);}
  if(a.injured){state.run.injury={name:'Match injury',matches:2,penalty:10};state.run.fitness=clamp(state.run.fitness-14,20,100);}
@@ -1457,9 +1516,13 @@ function applyPostMatch(rep,fixture){
  }
  const drain=rep.type==='match'?int(17,25)+(MATCH_PLANS.find(x=>x.key===c.planKey)?.extraEnergy||0):14;
  state.run.energy=clamp(state.run.energy-drain,0,100);state.run.fitness=clamp(state.run.fitness-int(1,5),20,100);
- if(rep.rating>=8){state.run.confidence=clamp(state.run.confidence+int(5,9),0,100);state.run.form=clamp(state.run.form+1,-3,3);}
- else if(rep.rating<6){state.run.confidence=clamp(state.run.confidence-int(5,9),0,100);state.run.form=clamp(state.run.form-1,-3,3);}
- else state.run.confidence=clamp(state.run.confidence+int(-2,3),0,100);
+ if(rep.type==='match'){
+  const confDelta=rep.rating>=8.5?7:rep.rating>=7.5?4:rep.rating>=6.8?2:rep.rating>=6.2?0:rep.rating>=5.5?-3:-6;
+  state.run.confidence=clamp(state.run.confidence+confDelta,0,100);
+  updateRollingForm(c,rep);
+ }else{
+  state.run.confidence=clamp(state.run.confidence+(rep.rating>=7?2:rep.rating<6?-2:0),0,100);
+ }
  state.run.lastChanges={};
  const totalDef=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
  const growthPool=rep.goals?['finishing','offBall','reactions','shotPower']:rep.assists?['passing','vision','control','offBall']:totalDef>=4?['defense','reactions','stamina','physical','vision']:['ego','stamina','technique','vision'];
