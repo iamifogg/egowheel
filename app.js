@@ -873,7 +873,7 @@ function weaponEventStage(){
  return{key:'weaponEvent',chapter:'WEAPON DEVELOPMENT',name:'What Do You Discover?',prompt:'The inspiration only matters if it becomes something usable.',mode:'weights',options:opts};
 }
 function contributionMomentCount(){
- const s=effectiveStats(),role=activePositionName();
+ const s=currentStats(),role=activePositionName();
  let count=6;
  if(s.stamina>=86)count++;
  if(['Pressing Forward','Central Midfielder','Defensive Midfielder','Left Wing-Back','Right Wing-Back'].includes(role)&&s.stamina>=74)count=Math.max(count,7);
