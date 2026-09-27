@@ -4,6 +4,7 @@
 const STORAGE_KEY='egowheel.save.v7';
 const AUDIO_KEY='egowheel.audio.v1';
 const VERSION=7;
+const BUILD_ID='v14';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -1125,7 +1126,7 @@ function nelFixtures(club){
 function beginStatRolls(){
  state.run.mode='statSpin';state.run.statIndex=0;wheelRotation=0;
  ATTR_KEYS.forEach(k=>delete state.run.selections['stat_'+k]);
- renderAll();save();toast('Now roll every starting attribute.');
+ save();renderAll();toast('Now roll every starting attribute.');
 }
 function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
@@ -1187,7 +1188,7 @@ function startBetweenEvent(){
  repairPrepState();
  if(c.prepPhase!==PREP_PHASE.EVENT)return;
  delete state.run.selections.betweenGame;
- state.run.mode='betweenSpin';wheelRotation=0;renderAll();save();clickSound();
+ state.run.mode='betweenSpin';wheelRotation=0;save();renderAll();clickSound();
 }
 function applyDirectBetween(meta={}){
  state.run.lastChanges={};
@@ -1329,7 +1330,7 @@ function applyTraining(key){
  delete state.run.selections.trainingOutcome;
  state.run.mode='trainingSpin';
  wheelRotation=0;
- renderAll();save();clickSound();
+ save();renderAll();clickSound();
 }
 function choosePlan(key){const c=state.run.career;if(!c||c.report)return;repairPrepState();if(c.prepPhase!==PREP_PHASE.READY)return;if(!MATCH_PLANS.some(x=>x.key===key))return;c.planKey=key;save();renderCareer();clickSound();}
 
@@ -1468,7 +1469,7 @@ function playFixture(){
   for(let i=0;i<4;i++)delete state.run.selections['contribution_'+i];
   state.run.mode='contributionSpin';
  }
- wheelRotation=0;renderAll();save();clickSound();
+ wheelRotation=0;save();renderAll();clickSound();
 }
 function advanceFixture(){
  const c=state.run.career,fixture=currentFixture();if(!c||!c.report)return;
@@ -1486,7 +1487,7 @@ function advanceFixture(){
   state.run.pendingSurvivalResult=null;
   delete state.run.selections.survivalOutcome;
   state.run.mode='survivalSpin';wheelRotation=0;
-  renderAll();save();toast('Your team lost. Spin to see if the winners choose you.');
+  save();renderAll();toast('Your team lost. Spin to see if the winners choose you.');
   return;
  }
 
@@ -1515,8 +1516,8 @@ function advanceFixture(){
    state.run.confidence=clamp(state.run.confidence-8,0,100);
    state.run.form=clamp(state.run.form-1,-3,3);
    c.fixtureIndex+=2;resetMatchPreparation(c);
-   if(c.fixtureIndex>=c.fixtures.length){state.run.mode='nelSpin';wheelRotation=0;renderAll();save();return;}
-   renderAll();save();return;
+   if(c.fixtureIndex>=c.fixtures.length){state.run.mode='nelSpin';wheelRotation=0;save();renderAll();return;}
+   save();renderAll();return;
   }
  }
 
@@ -1530,14 +1531,14 @@ function advanceFixture(){
  state.run.energy=clamp(state.run.energy+9,0,100);state.run.fitness=clamp(state.run.fitness+5,0,100);
  c.fixtureIndex++;resetMatchPreparation(c);
  if(c.fixtureIndex>=c.fixtures.length){
-  if(!state.run.selections.nelClub){state.run.mode='nelSpin';wheelRotation=0;renderAll();save();toast('Choose your Neo Egoist League club.');return;}
+  if(!state.run.selections.nelClub){state.run.mode='nelSpin';wheelRotation=0;save();renderAll();toast('Choose your Neo Egoist League club.');return;}
   completeCareer();return;
  }
- renderAll();save();
+ save();renderAll();
 }
 function enterNEL(){
  const club=state.run.selections.nelClub?.name;if(!club)return;
- const c=state.run.career;c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');renderAll();save();toast('Neo Egoist League begins.');
+ const c=state.run.career;c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');save();renderAll();toast('Neo Egoist League begins.');
 }
 function completeCareer(){
  const c=state.run.career,s=currentStats(),ov=overall(s),bid=c.bid||Math.max(5,Math.round((ov-50)*2+c.totals.goals*8+c.totals.assists*5));
@@ -1545,7 +1546,7 @@ function completeCareer(){
  if(bid<30){
   c.complete=true;c.eliminated=true;c.finalStatus='ELIMINATED — NEL FINAL CUT';
   c.finalReason='Your final ¥'+bid+'m bid is below the qualifying line. The market does not place you inside the final Blue Lock group.';
-  state.run.mode='complete';careerLog(c.finalStatus+': '+c.finalReason);renderAll();save();toast(c.finalStatus);return;
+  state.run.mode='complete';careerLog(c.finalStatus+': '+c.finalReason);save();renderAll();toast(c.finalStatus);return;
  }
  let status='Professional Prospect';
  if(bid>=220||ov>=94)status='World-Class Prospect';
@@ -1553,7 +1554,7 @@ function completeCareer(){
  else if(bid>=90||ov>=86)status='Blue Lock Star';
  else if(bid>=45||ov>=80)status='Japan U-20 Candidate';
  c.complete=true;c.eliminated=false;c.finalStatus=status;c.finalReason='You survive the final Neo Egoist League cut with a ¥'+bid+'m bid.';
- state.run.mode='complete';careerLog('Final status: '+status+' · ¥'+bid+'m bid.');renderAll();save();toast('Career complete: '+status);
+ state.run.mode='complete';careerLog('Final status: '+status+' · ¥'+bid+'m bid.');save();renderAll();toast('Career complete: '+status);
 }
 
 function renderCondition(){
@@ -1712,15 +1713,15 @@ function nextBuild(){
 
  if(mode==='betweenSpin'){
   const kind=state.run.selections.betweenGame?.meta?.kind;
-  if(kind==='learn'){state.run.mode='learnSpin';delete state.run.selections.learningPlayer;wheelRotation=0;renderAll();save();return;}
-  if(kind==='positionExperiment'){state.run.mode='positionExperimentSpin';delete state.run.selections.positionExperiment;wheelRotation=0;renderAll();save();return;}
-  if(kind==='injury'){state.run.mode='injuryEventSpin';delete state.run.selections.injuryEvent;wheelRotation=0;renderAll();save();return;}
-  if(kind==='ego'){state.run.mode='egoEventSpin';delete state.run.selections.egoEvent;wheelRotation=0;renderAll();save();return;}
-  if(kind==='weapon'){state.run.mode='weaponEventSpin';delete state.run.selections.weaponEvent;wheelRotation=0;renderAll();save();return;}
-  state.run.mode='career';wheelRotation=0;renderAll();save();return;
+  if(kind==='learn'){state.run.mode='learnSpin';delete state.run.selections.learningPlayer;wheelRotation=0;save();renderAll();return;}
+  if(kind==='positionExperiment'){state.run.mode='positionExperimentSpin';delete state.run.selections.positionExperiment;wheelRotation=0;save();renderAll();return;}
+  if(kind==='injury'){state.run.mode='injuryEventSpin';delete state.run.selections.injuryEvent;wheelRotation=0;save();renderAll();return;}
+  if(kind==='ego'){state.run.mode='egoEventSpin';delete state.run.selections.egoEvent;wheelRotation=0;save();renderAll();return;}
+  if(kind==='weapon'){state.run.mode='weaponEventSpin';delete state.run.selections.weaponEvent;wheelRotation=0;save();renderAll();return;}
+  state.run.mode='career';wheelRotation=0;save();renderAll();return;
  }
  if(mode==='learnSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin'){
-  completePrepEvent(state.run.career);state.run.mode='career';wheelRotation=0;renderAll();save();return;
+  completePrepEvent(state.run.career);state.run.mode='career';wheelRotation=0;save();renderAll();return;
  }
  if(mode==='injuryEventSpin'){
   if(state.run.pendingInjuryElimination){
@@ -1728,17 +1729,17 @@ function nextBuild(){
    endRun('MEDICALLY WITHDRAWN','A '+why.toLowerCase()+' ends your Blue Lock run before the next fixture.');
    return;
   }
-  completePrepEvent(state.run.career);state.run.mode='career';wheelRotation=0;renderAll();save();return;
+  completePrepEvent(state.run.career);state.run.mode='career';wheelRotation=0;save();renderAll();return;
  }
- if(mode==='trainingSpin'){state.run.pendingTraining=null;state.run.mode='career';wheelRotation=0;renderAll();save();return;}
- if(mode==='challengeSpin'){state.run.mode='career';wheelRotation=0;renderAll();save();return;}
+ if(mode==='trainingSpin'){state.run.pendingTraining=null;state.run.mode='career';wheelRotation=0;save();renderAll();return;}
+ if(mode==='challengeSpin'){state.run.mode='career';wheelRotation=0;save();renderAll();return;}
  if(mode==='contributionSpin'){
   const p=state.run.pendingMatch;
   if(!p)return;
   if(!p.endedEarly&&(p.spinIndex||0)<3){
-   p.spinIndex++;wheelRotation=0;renderAll();save();return;
+   p.spinIndex++;wheelRotation=0;save();renderAll();return;
   }
-  finalizeContributionMatch();state.run.mode='career';wheelRotation=0;renderAll();save();return;
+  finalizeContributionMatch();state.run.mode='career';wheelRotation=0;save();renderAll();return;
  }
  if(mode==='survivalSpin'){
   const result=state.run.pendingSurvivalResult;
@@ -1749,14 +1750,14 @@ function nextBuild(){
   const career=state.run.career;
   career.fixtureIndex++;resetMatchPreparation(career);
   state.run.pendingSurvival=null;state.run.pendingSurvivalResult=null;state.run.mode='career';wheelRotation=0;
-  renderAll();save();return;
+  save();renderAll();return;
  }
  if(mode==='nelSpin'){enterNEL();return;}
  if(mode==='statSpin'){
-  if(state.run.statIndex<ATTRS.length-1){state.run.statIndex++;wheelRotation=0;renderAll();save();return;}
+  if(state.run.statIndex<ATTRS.length-1){state.run.statIndex++;wheelRotation=0;save();renderAll();return;}
   startCareer();return;
  }
- if(state.run.buildIndex<BUILD_STAGES.length-1){state.run.buildIndex++;wheelRotation=0;renderAll();save();return;}
+ if(state.run.buildIndex<BUILD_STAGES.length-1){state.run.buildIndex++;wheelRotation=0;save();renderAll();return;}
  beginStatRolls();
 }
 
@@ -1766,7 +1767,7 @@ function quickBuild(){
  state.run.buildIndex=BUILD_STAGES.length-1;state.run.statIndex=ATTRS.length-1;
  startCareer();clickSound();
 }
-function newRun(force=false){const progressed=Object.keys(state.run.selections).length||state.run.career;if(progressed&&!force&&!confirm('Start a new player? The current unarchived career will be replaced.'))return;state.run=defaultRun();wheelRotation=0;renderAll();save();clickSound();}
+function newRun(force=false){const progressed=Object.keys(state.run.selections).length||state.run.career;if(progressed&&!force&&!confirm('Start a new player? The current unarchived career will be replaced.'))return;state.run=defaultRun();wheelRotation=0;save();renderAll();clickSound();}
 function archiveCareer(){
  const c=state.run.career;if(!c?.complete)return;state.archive.unshift({id:state.run.id,name:state.run.name,overall:overall(),status:c.finalStatus,eliminated:!!c.eliminated,reason:c.finalReason||null,bid:c.bid,goals:c.totals.goals,assists:c.totals.assists,defActions:(c.totals.tackles||0)+(c.totals.interceptions||0)+(c.totals.blocks||0)+(c.totals.clearances||0)+(c.totals.recoveries||0),club:state.run.selections.nelClub?.name||null,savedAt:Date.now()});save();renderArchive();toast(state.run.name+' archived.');newRun(true);
 }
