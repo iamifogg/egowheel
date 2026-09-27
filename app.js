@@ -556,7 +556,6 @@ function resolveTrainingOutcome(outcome){
   careerLog(action.name+': '+outcome.name+'.');
  }
  c.trainingKey=action.key;c.trainingResult=outcome.name;c.prepared=true;
- state.run.pendingTraining=null;
 }
 function applyTraining(key){
  const c=state.run.career;if(!c||c.prepared||c.report)return;
@@ -718,7 +717,7 @@ function renderPlans(){
 function renderMatchReport(r,f){
  if(r.type==='challenge'){$('#matchReport').innerHTML='<span class="result-eyebrow">'+esc(r.result)+'</span><div class="scoreline"><strong>'+r.challengeScore+'/100</strong></div><p>'+esc(r.moments.join(' '))+'</p><div class="performance-line"><span>RATING <b>'+r.rating.toFixed(1)+'</b></span><span>ENERGY <b>'+Math.round(state.run.energy)+'</b></span></div>';return;}
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
- $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
+ $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="performance-line"><span>PERFORMANCE <b>'+esc(r.performanceTier||'—')+'</b></span><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
 }
 function renderCareerLog(){const c=state.run.career;$('#careerLog').innerHTML=(c?.log||[]).slice(0,8).map(x=>'<div>'+esc(x)+'</div>').join('')||'<div>No career events yet.</div>';}
 
@@ -783,7 +782,8 @@ function spinCurrent(){
 }
 function nextBuild(){
  const mode=state.run.mode,stage=currentWheelStage();if(!state.run.selections[stage.key])return;
- if(mode==='trainingSpin'||mode==='matchSpin'){state.run.mode='career';wheelRotation=0;renderAll();save();return;}
+ if(mode==='trainingSpin'){state.run.pendingTraining=null;state.run.mode='career';wheelRotation=0;renderAll();save();return;}
+ if(mode==='matchSpin'){state.run.mode='career';wheelRotation=0;renderAll();save();return;}
  if(mode==='nelSpin'){enterNEL();return;}
  if(mode==='statSpin'){
   if(state.run.statIndex<ATTRS.length-1){state.run.statIndex++;wheelRotation=0;renderAll();save();return;}
