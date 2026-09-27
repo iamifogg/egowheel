@@ -392,7 +392,12 @@ function wheelLabelSize(span){return span>=100?22:span>=55?18:span>=32?15:span>=
 function renderWheel(){
  const stage=currentWheelStage(),layout=layoutFor(stage),g=$('#wheelGroup'),labels=$('#wheelLabels');
  $('#stageChapter').textContent=stage.chapter;$('#stageName').textContent=stage.name;$('#stagePrompt').textContent=stage.prompt;
- $('#stageCount').textContent=state.run.mode==='nelSpin'?'NEL':' '+(state.run.buildIndex+1)+' / '+BUILD_STAGES.length;
+ const mode=state.run.mode;
+ if(mode==='statSpin')$('#stageCount').textContent='STAT '+((state.run.statIndex||0)+1)+' / '+ATTRS.length;
+ else if(mode==='trainingSpin')$('#stageCount').textContent='TRAINING';
+ else if(mode==='matchSpin')$('#stageCount').textContent='MATCH';
+ else if(mode==='nelSpin')$('#stageCount').textContent='NEL';
+ else $('#stageCount').textContent=(state.run.buildIndex+1)+' / '+BUILD_STAGES.length;
  $('#stageMode').textContent=stage.mode==='equal'?layout.length+' equal outcomes':'Weighted outcomes';
  g.innerHTML='';labels.innerHTML='';
  const selected=state.run.selections[stage.key]?.name;
@@ -400,59 +405,57 @@ function renderWheel(){
 
  layout.forEach((row,i)=>{
    const p=document.createElementNS('http://www.w3.org/2000/svg','path');
-   p.setAttribute('d',annularPath(row.start,row.end));
-   p.setAttribute('fill',sliceColor(row.opt,i,stage.mode));
-   p.setAttribute('class','wheel-slice');
+   p.setAttribute('d',annularPath(row.start,row.end));p.setAttribute('fill',sliceColor(row.opt,i,stage.mode));p.setAttribute('class','wheel-slice');
    if(row.opt.name===selected)p.style.filter='brightness(1.35) saturate(1.25) drop-shadow(0 0 5px #62d7ff)';
    g.appendChild(p);
 
    const span=row.end-row.start;
    if(span>=4.5){
-     const screenAngle=(row.mid+normalized)%360;
-     const a=(screenAngle-90)*Math.PI/180;
-     const radius=span>=70?148:span>=35?151:span>=18?154:158;
-     const x=260+radius*Math.cos(a), y=260+radius*Math.sin(a);
-
-     const badge=document.createElementNS('http://www.w3.org/2000/svg','g');
-     badge.setAttribute('class','wheel-badge');
-
-     const label=wheelLabelText(row.opt,span).toUpperCase();
-     const fs=span>=55?18:span>=30?16:span>=18?13:10;
-     const boxW=Math.max(48,Math.min(span>=55?112:94,label.length*(fs*.66)+22));
-     const boxH=fs+18;
-
-     const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
-     rect.setAttribute('x',x-boxW/2);rect.setAttribute('y',y-boxH/2);
-     rect.setAttribute('width',boxW);rect.setAttribute('height',boxH);
-     rect.setAttribute('rx',Math.min(12,boxH/2));
-     rect.setAttribute('class','wheel-label-badge-bg');
-     badge.appendChild(rect);
-
-     const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-     t.setAttribute('x',x);t.setAttribute('y',y+.5);
-     t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');
-     t.setAttribute('class','wheel-label overlay-label');
-     t.setAttribute('font-size',fs);
-     t.textContent=label;
-     badge.appendChild(t);
-     labels.appendChild(badge);
+     const screenAngle=(row.mid+normalized)%360,a=(screenAngle-90)*Math.PI/180,radius=span>=70?148:span>=35?151:span>=18?154:158;
+     const x=260+radius*Math.cos(a),y=260+radius*Math.sin(a);
+     const badge=document.createElementNS('http://www.w3.org/2000/svg','g');badge.setAttribute('class','wheel-badge');
+     const label=wheelLabelText(row.opt,span).toUpperCase(),fs=span>=55?18:span>=30?16:span>=18?13:10,boxW=Math.max(48,Math.min(span>=55?112:94,label.length*(fs*.66)+22)),boxH=fs+18;
+     const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',x-boxW/2);rect.setAttribute('y',y-boxH/2);rect.setAttribute('width',boxW);rect.setAttribute('height',boxH);rect.setAttribute('rx',Math.min(12,boxH/2));rect.setAttribute('class','wheel-label-badge-bg');badge.appendChild(rect);
+     const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',x);t.setAttribute('y',y+.5);t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');t.setAttribute('class','wheel-label overlay-label');t.setAttribute('font-size',fs);t.textContent=label;badge.appendChild(t);labels.appendChild(badge);
    }
  });
 
- g.style.transformOrigin='260px 260px';
- g.style.transform='rotate('+wheelRotation+'deg)';
- labels.style.transformOrigin='260px 260px';
- labels.style.transition='none';
- labels.style.transform='rotate(0deg)';
- labels.style.opacity='1';
+ g.style.transformOrigin='260px 260px';g.style.transform='rotate('+wheelRotation+'deg)';
+ labels.style.transformOrigin='260px 260px';labels.style.transition='none';labels.style.transform='rotate(0deg)';labels.style.opacity='1';
 
- const picked=state.run.selections[stage.key];
- $('#nextBtn').disabled=!picked;
- $('#nextBtn').textContent=state.run.mode==='nelSpin'?'Enter Neo Egoist League':(state.run.buildIndex===BUILD_STAGES.length-1?'Enter Blue Lock':'Next Build Stage');
+ const picked=state.run.selections[stage.key];$('#nextBtn').disabled=!picked;
+ if(mode==='statSpin')$('#nextBtn').textContent=(state.run.statIndex>=ATTRS.length-1?'Enter Blue Lock':'Next Attribute');
+ else if(mode==='trainingSpin')$('#nextBtn').textContent='Return to Match Prep';
+ else if(mode==='matchSpin')$('#nextBtn').textContent='View Match Report';
+ else if(mode==='nelSpin')$('#nextBtn').textContent='Enter Neo Egoist League';
+ else $('#nextBtn').textContent=state.run.buildIndex===BUILD_STAGES.length-1?'Roll Starting Stats':'Next Build Stage';
  renderBuildStrip();
 }
-function renderBuildStrip(){if(state.run.mode==='nelSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">NEL Club Selection</span>';return;}$('#stageStrip').innerHTML=BUILD_STAGES.map((s,i)=>'<button class="stage-pill '+(state.run.selections[s.key]?'done ':'')+(i===state.run.buildIndex?'current':'')+'" data-build="'+i+'" type="button">'+(i+1)+'. '+esc(s.name)+'</button>').join('');}
-function renderSpinResult(){const stage=currentWheelStage(),v=state.run.selections[stage.key];if(!v){$('#spinResult').innerHTML='<span class="result-eyebrow">PLAYER CREATION</span><strong>Spin the current wheel.</strong><p>These choices directly alter the attributes used by the match engine.</p>';return;}const rare=stage.mode==='rarity'?'<span class="result-rarity r-'+v.rarity+'">'+RARITY_LABELS[v.rarity]+' · '+fmtPct(probability(stage,v))+'</span>':'<span class="result-rarity r-rare">'+fmtPct(probability(stage,v))+'</span>';$('#spinResult').innerHTML='<span class="result-eyebrow">'+esc(stage.chapter)+'</span><strong>'+esc(v.name)+'</strong><p>'+esc(v.desc)+'</p>'+rare;}
+function renderBuildStrip(){
+ const mode=state.run.mode;
+ if(mode==='nelSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">NEL Club Selection</span>';return;}
+ if(mode==='trainingSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Training Outcome</span>';return;}
+ if(mode==='matchSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Match Performance</span>';return;}
+ if(mode==='statSpin'){
+  $('#stageStrip').innerHTML=ATTRS.map(([k,label],i)=>'<span class="stage-pill '+(state.run.selections['stat_'+k]?'done ':'')+(i===state.run.statIndex?'current':'')+'">'+(i+1)+'. '+esc(label)+'</span>').join('');
+  return;
+ }
+ $('#stageStrip').innerHTML=BUILD_STAGES.map((s,i)=>'<button class="stage-pill '+(state.run.selections[s.key]?'done ':'')+(i===state.run.buildIndex?'current':'')+'" data-build="'+i+'" type="button">'+(i+1)+'. '+esc(s.name)+'</button>').join('');
+}
+function renderSpinResult(){
+ const stage=currentWheelStage(),v=state.run.selections[stage.key],mode=state.run.mode;
+ if(!v){
+  const copy=mode==='statSpin'?'Spin to set this exact starting attribute.':mode==='trainingSpin'?'You chose the training type. Now spin to see how the session actually goes.':mode==='matchSpin'?'Your stats and opponent set the odds. Spin to determine your performance tier.':'Spin the current wheel.';
+  $('#spinResult').innerHTML='<span class="result-eyebrow">'+esc(stage.chapter)+'</span><strong>'+esc(copy)+'</strong><p>'+esc(stage.prompt)+'</p>';return;
+ }
+ let extra='';
+ if(v.meta?.bonusText)extra='<p><strong>Bonus:</strong> '+esc(v.meta.bonusText)+'</p>';
+ if(mode==='statSpin')extra='<p>This is your raw starting '+esc(stage.name.replace(' Rating','').toLowerCase())+' before archetype, physique and weapon bonuses.</p>';
+ if(mode==='trainingSpin')extra='<p>The result has been applied to this training block.</p>';
+ if(mode==='matchSpin')extra='<p>This performance tier drives the goals, assists, defensive actions and rating generated for the fixture.</p>';
+ const rare=stage.mode==='rarity'?'<span class="result-rarity r-'+v.rarity+'">'+RARITY_LABELS[v.rarity]+' · '+fmtPct(probability(stage,v))+'</span>':'<span class="result-rarity r-rare">'+fmtPct(probability(stage,v))+'</span>';
+ $('#spinResult').innerHTML='<span class="result-eyebrow">'+esc(stage.chapter)+'</span><strong>'+esc(v.name)+'</strong><p>'+esc(v.desc)+'</p>'+extra+rare;
+}
 
 function setupDerived(){
  const effects={};ATTR_KEYS.forEach(k=>effects[k]=0);
