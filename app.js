@@ -511,21 +511,52 @@ function startCareer(){
 function currentFixture(){return state.run.career?.fixtures[state.run.career.fixtureIndex]||null;}
 function careerLog(msg){const c=state.run.career;if(!c)return;c.log.unshift(msg);c.log=c.log.slice(0,20);}
 
-function trainingEvent(action){
- const risk=action.risk||0,roll=Math.random();
- if(roll<risk*.22){state.run.fitness=clamp(state.run.fitness-int(8,15),20,100);state.run.injury={name:'Minor knock',matches:1,penalty:6};careerLog('A minor knock interrupted training. Fitness dropped.');return'Minor knock: fitness reduced and the next match is affected.';}
- if(roll<risk*.45){const k=pick(['control','technique','stamina','confidence']);if(k==='confidence'){state.run.confidence=clamp(state.run.confidence-8,0,100);}else changeStat(k,-1);careerLog('A poor session created a small regression.');return'Poor session: a small attribute/confidence setback.';}
- if(roll<risk+.12){const k=pick(['vision','reactions','ego','technique']);changeStat(k,2);state.run.confidence=clamp(state.run.confidence+5,0,100);careerLog('Training breakthrough: '+k+' jumped.');return'Breakthrough: extra growth and confidence.';}
- if(roll<risk+.24){state.run.energy=clamp(state.run.energy-7,0,100);careerLog('You overtrained and carried extra fatigue.');return'Overtraining: extra energy loss.';}
- return'Normal session: the planned gains landed.';
+function trainingAffinity(actionKey){
+ return gameplayBonuses().training[actionKey]||0;
+}
+function resolveTrainingOutcome(outcome){
+ const c=state.run.career,action=TRAINING_ACTIONS.find(x=>x.key===state.run.pendingTraining);
+ if(!c||!action||!outcome)return;
+ state.run.lastChanges={};
+ const meta=outcome.meta||{},affinity=trainingAffinity(action.key),mult=(meta.mult??1)*(1+affinity);
+ if(action.key==='rest'){
+  const energyGain=Math.round(24*mult),fitnessGain=Math.round(16*mult);
+  state.run.energy=clamp(state.run.energy+energyGain,0,100);
+  state.run.fitness=clamp(state.run.fitness+fitnessGain,20,100);
+  state.run.confidence=clamp(state.run.confidence+(meta.confidence||0),0,100);
+  if(meta.extraStat)changeStat(meta.extraStat,1);
+  careerLog(action.name+': '+outcome.name+' (+'+energyGain+' energy, +'+fitnessGain+' fitness).');
+ }else{
+  state.run.energy=clamp(state.run.energy-action.cost,0,100);
+  if(meta.injury){
+   state.run.fitness=clamp(state.run.fitness-12,20,100);
+   state.run.injury={name:Math.random()<.3?'Muscle strain':'Training knock',matches:Math.random()<.3?2:1,penalty:Math.random()<.3?10:6};
+  }else{
+   Object.entries(action.effects).forEach(([k,v])=>{
+    const amount=mult<0?-Math.max(1,Math.round(Math.abs(v*mult))):Math.round(v*mult);
+    if(amount)changeStat(k,amount);
+   });
+   if(meta.extra){
+    const pool=Object.keys(action.effects).filter(k=>ATTR_KEYS.includes(k));
+    if(pool.length)changeStat(pick(pool),meta.awakening?3:2);
+   }
+  }
+  state.run.confidence=clamp(state.run.confidence+(meta.confidence||0),0,100);
+  if(outcome.name==='Disaster Session'||outcome.name==='Poor Session')state.run.form=clamp(state.run.form-1,-3,3);
+  if(outcome.name==='Breakthrough'||outcome.name==='Ego Awakening')state.run.form=clamp(state.run.form+1,-3,3);
+  careerLog(action.name+': '+outcome.name+'.');
+ }
+ c.trainingKey=action.key;c.trainingResult=outcome.name;c.prepared=true;
+ state.run.pendingTraining=null;
 }
 function applyTraining(key){
- const c=state.run.career;if(!c||c.prepared||c.report)return;const a=TRAINING_ACTIONS.find(x=>x.key===key);if(!a)return;
- state.run.lastChanges={};
- if(a.key==='rest'){state.run.energy=clamp(state.run.energy+24,0,100);state.run.fitness=clamp(state.run.fitness+16,0,100);state.run.confidence=clamp(state.run.confidence+2,0,100);careerLog('Rest and recovery before '+currentFixture().opponent+'.');}
- else{state.run.energy=clamp(state.run.energy-a.cost,0,100);Object.entries(a.effects).forEach(([k,v])=>changeStat(k,v));trainingEvent(a);}
- if(a.key==='ego'){if(Math.random()<.42){changeStat(pick(['finishing','vision','dribbling','offBall']),2);state.run.confidence=clamp(state.run.confidence+8,0,100);}else{state.run.confidence=clamp(state.run.confidence-6,0,100);state.run.form=clamp(state.run.form-1,-3,3);}}
- c.trainingKey=key;c.prepared=true;save();renderAll();
+ const c=state.run.career;if(!c||c.prepared||c.report)return;
+ const action=TRAINING_ACTIONS.find(x=>x.key===key);if(!action)return;
+ state.run.pendingTraining=key;
+ delete state.run.selections.trainingOutcome;
+ state.run.mode='trainingSpin';
+ wheelRotation=0;
+ renderAll();save();clickSound();
 }
 function choosePlan(key){const c=state.run.career;if(!c||c.report)return;if(!MATCH_PLANS.some(x=>x.key===key))return;c.planKey=key;save();renderCareer();clickSound();}
 
