@@ -737,7 +737,7 @@ function trainingOutcomeStage(){
  if(action.key==='rest'){
   return{key:'trainingOutcome',chapter:'TRAINING RESULT',name:'Rest & Recovery',prompt:'How effective is the recovery block?',mode:'weights',options:[
    weighted('Sluggish Recovery','You recover, but nowhere near as much as hoped.',12,{},'SLUGGISH',{mult:.45,confidence:-2}),
-   weighted('Normal Recovery','A routine recovery block restores useful energy.',46-affinity*8,{},'NORMAL',{mult:1}),
+   weighted('Normal Recovery','A routine recovery block restores useful fitness.',46-affinity*8,{},'NORMAL',{mult:1}),
    weighted('Good Recovery','You come back fresher than expected.',28+affinity*6,{},'GOOD',{mult:1.35,confidence:2}),
    weighted('Full Reset','Body and mind respond exceptionally well.',11+affinity*4,{},'FULL',{mult:1.75,confidence:5}),
    weighted('Mental Breakthrough','Rest creates clarity as well as recovery.',3+affinity*3,{},'BREAKTHROUGH',{mult:1.9,confidence:8,extraStat:'ego'})
@@ -1411,7 +1411,7 @@ function beginStatRolls(){
 function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
- state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,prepPhase:'event',trainingKey:null,trainingResult:null,planKey:'balanced',history:[],recentRatings:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,postNelStarted:false,proClub:null,trophies:[],complete:false,eliminated:false,finalStatus:null,finalReason:null};
+ state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,prepPhase:'event',trainingKey:null,trainingResult:null,planKey:'balanced',history:[],recentRatings:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,aerialDuels:0,yellowCards:0,redCards:0,setPieceGoals:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,postNelStarted:false,proClub:null,trophies:[],complete:false,eliminated:false,finalStatus:null,finalReason:null};
  state.run.energy=100;state.run.potentialBonus=state.run.potentialBonus||0;state.run.learnedWeapons=state.run.learnedWeapons||[];state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
  save();renderAll();toast('Blue Lock career started.');
 }
@@ -1595,7 +1595,7 @@ function contributionRating(a,result,profile=positionProfile(),oppGoals=null){
  const defScale=clamp(.74+profile.defense*.44,.84,1.62);
  const attackScale=clamp(.78+profile.shots*.24,.8,1.08);
  const createScale=clamp(.82+profile.creation*.18,.88,1.08);
- const positive=
+ const positive=(a.bonusRating||0)+
   (a.goals||0)*1.02*attackScale+
   (a.assists||0)*.78*createScale+
   (a.keyPasses||0)*.09*createScale+
@@ -1806,7 +1806,7 @@ function applyPostMatch(rep,fixture){
  if(rep.type==='match'){
   const defActions=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
   t.apps++;t.goals+=rep.goals;t.assists+=rep.assists;t.shots+=rep.shots;t.keyPasses+=rep.keyPasses;t.dribbles+=rep.dribbles;
-  t.tackles+=rep.tackles;t.interceptions+=rep.interceptions;t.blocks+=rep.blocks||0;t.clearances+=rep.clearances||0;t.recoveries+=rep.recoveries||0;t.ratingTotal+=rep.rating;
+  t.tackles+=rep.tackles;t.interceptions+=rep.interceptions;t.blocks+=rep.blocks||0;t.clearances+=rep.clearances||0;t.recoveries+=rep.recoveries||0;t.aerialDuels=(t.aerialDuels||0)+(rep.aerialDuels||0);t.yellowCards=(t.yellowCards||0)+(rep.yellowCards||0);t.redCards=(t.redCards||0)+(rep.redCards||0);t.setPieceGoals=(t.setPieceGoals||0)+(rep.setPieceGoals||0);t.ratingTotal+=rep.rating;
   if(fixture.stage==='Neo Egoist League'){t.nelApps++;t.nelGoals+=rep.goals;t.nelAssists+=rep.assists;t.nelDefActions+=defActions;t.nelRatingTotal+=rep.rating;}
   if(fixture.stage==='Third Selection'){c.thirdSelection=c.thirdSelection||{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0};c.thirdSelection.apps++;c.thirdSelection.ratingTotal+=rep.rating;c.thirdSelection.goals+=rep.goals;c.thirdSelection.assists+=rep.assists;c.thirdSelection.defActions+=defActions;}
   if(fixture.stage==='First Selection'){if(rep.result==='WIN')c.firstSelectionPoints+=3;else if(rep.result==='DRAW')c.firstSelectionPoints+=1;}
@@ -1977,7 +1977,7 @@ function completeCareer(){
  else if(ov>=89||avg>=7.35)status='Elite Professional';
  else if(ov>=84)status='Top-Flight Professional';
  c.complete=true;c.eliminated=false;c.finalStatus=status;
- c.finalReason='Your extended career ends after '+c.totals.apps+' appearances with '+trophies+' major trophy'+(trophies===1?'':'ies')+' and a peak OVR of '+ov+'.';
+ c.finalReason='Your extended career ends after '+c.totals.apps+' appearances with '+trophies+' major '+(trophies===1?'trophy':'trophies')+' and a peak OVR of '+ov+'.';
  state.run.mode='complete';careerLog('Final career status: '+status+'.');save();renderAll();toast('Career complete: '+status);
 }
 
@@ -2107,7 +2107,7 @@ function renderPlayer(){
 }
 function renderProfile(){
  const c=state.run.career,s=currentStats(),hist=c?.history||[],tot=c?.totals||{apps:0,goals:0,assists:0,ratingTotal:0};
- $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">CURRENT EGOIST</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">OVR '+overall(s)+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Defensive actions: '+((tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0))+'<br>Average rating: '+(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—')+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Trophies: '+esc((c?.trophies||[]).join(' · ')||'—')+'<br>Rival: '+esc(c?.rival||'—')+'</p></div><div class="profile-block"><span class="kicker">LEARNED WEAPONS</span><h3>'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)).join(' · '):'None yet')+'</h3><p class="profile-sub">'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)+' — '+esc(w.source||'evolved')).join('<br>'):'Learn from elite players or trigger breakthroughs to add permanent weapons.')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
+ $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">CURRENT EGOIST</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">OVR '+overall(s)+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Defensive actions: '+((tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0))+'<br>Aerial duels: '+(tot.aerialDuels||0)+' · Set-piece goals: '+(tot.setPieceGoals||0)+'<br>Cards: '+(tot.yellowCards||0)+'Y / '+(tot.redCards||0)+'R<br>Average rating: '+(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—')+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Trophies: '+esc((c?.trophies||[]).join(' · ')||'—')+'<br>Rival: '+esc(c?.rival||'—')+'</p></div><div class="profile-block"><span class="kicker">LEARNED WEAPONS</span><h3>'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)).join(' · '):'None yet')+'</h3><p class="profile-sub">'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)+' — '+esc(w.source||'evolved')).join('<br>'):'Learn from elite players or trigger breakthroughs to add permanent weapons.')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
 }
 function renderArchive(){
  const g=$('#archiveGrid');if(!state.archive.length){g.innerHTML='<div class="empty-state">No completed careers yet.</div>';return;}
@@ -2204,7 +2204,8 @@ function nextBuild(){
  if(mode==='breakthroughSpin'){
   const p=state.run.pendingMatch;if(!p)return;
   const resume=p.resumeAfterBreakthrough||'next';p.resumeAfterBreakthrough=null;
-  if(resume==='finalize'){finalizeContributionMatch();state.run.mode='career';wheelRotation=0;save();renderAll();return;}
+  const currentLast=(p.targetSpins||6)-1;
+  if(resume==='finalize'&&(p.spinIndex||0)>=currentLast){finalizeContributionMatch();state.run.mode='career';wheelRotation=0;save();renderAll();return;}
   p.spinIndex++;state.run.mode='contributionSpin';wheelRotation=0;save();renderAll();return;
  }
  if(mode==='survivalSpin'){
