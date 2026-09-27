@@ -1051,19 +1051,62 @@ function beginStatRolls(){
 function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
- state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,trainingKey:null,trainingResult:null,planKey:'balanced',history:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
+ state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,prepPhase:'event',trainingKey:null,trainingResult:null,planKey:'balanced',history:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
  state.run.energy=100;state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
  save();renderAll();toast('Blue Lock career started.');
 }
 function currentFixture(){return state.run.career?.fixtures[state.run.career.fixtureIndex]||null;}
 function careerLog(msg){const c=state.run.career;if(!c)return;c.log.unshift(msg);c.log=c.log.slice(0,20);}
 
+const PREP_PHASE={EVENT:'event',TRAINING:'training',FOLLOWUP:'followup',READY:'ready'};
+function setPrepPhase(c,phase){
+ if(!c)return;
+ c.prepPhase=phase;
+ c.prepared=phase===PREP_PHASE.READY;
+ c.trainingAvailable=phase===PREP_PHASE.TRAINING;
+ c.betweenDone=phase===PREP_PHASE.READY;
+}
+function completePrepEvent(c){
+ if(!c)return;
+ setPrepPhase(c,PREP_PHASE.READY);
+ state.run.pendingBetweenFollowup=null;
+}
+function prepFollowupMode(kind){
+ return({learn:'learnSpin',positionExperiment:'positionExperimentSpin',injury:'injuryEventSpin',ego:'egoEventSpin',weapon:'weaponEventSpin'})[kind]||null;
+}
+function repairPrepState(){
+ const c=state.run.career;if(!c||c.complete||c.report)return;
+ // Recover old v12/v11 combinations into one deterministic phase.
+ if(!c.prepPhase){
+  if(c.prepared||c.betweenDone)c.prepPhase=PREP_PHASE.READY;
+  else if(c.trainingAvailable)c.prepPhase=PREP_PHASE.TRAINING;
+  else if(state.run.pendingBetweenFollowup)c.prepPhase=PREP_PHASE.FOLLOWUP;
+  else c.prepPhase=PREP_PHASE.EVENT;
+ }
+ // A resolved follow-up must always be able to return to the match.
+ const followModes=['learnSpin','positionExperimentSpin','egoEventSpin','weaponEventSpin','injuryEventSpin'];
+ if(followModes.includes(state.run.mode)){
+  const stage=currentWheelStage();
+  if(stage&&state.run.selections[stage.key]){
+   if(state.run.mode!=='injuryEventSpin'||!state.run.pendingInjuryElimination)completePrepEvent(c);
+  }
+ }
+ // If an old save is sitting in career with a finished event, repair it to READY.
+ if(state.run.mode==='career'&&c.betweenEvent&&!c.trainingAvailable&&!state.run.pendingBetweenFollowup&&c.prepPhase!==PREP_PHASE.READY){
+  completePrepEvent(c);
+ }
+ setPrepPhase(c,c.prepPhase);
+}
 function resetMatchPreparation(c){
  if(!c)return;
- c.prepared=false;c.betweenDone=false;c.betweenEvent=null;c.trainingAvailable=false;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;c.temporaryPosition=null;
+ c.betweenEvent=null;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;c.temporaryPosition=null;
+ state.run.pendingBetweenFollowup=null;
+ setPrepPhase(c,PREP_PHASE.EVENT);
 }
 function startBetweenEvent(){
- const c=state.run.career;if(!c||c.report||c.prepared||c.trainingAvailable)return;
+ const c=state.run.career;if(!c||c.report)return;
+ repairPrepState();
+ if(c.prepPhase!==PREP_PHASE.EVENT)return;
  delete state.run.selections.betweenGame;
  state.run.mode='betweenSpin';wheelRotation=0;renderAll();save();clickSound();
 }
@@ -1080,11 +1123,13 @@ function resolveBetweenGameOutcome(outcome){
  c.betweenEvent=outcome.name;
  const meta=outcome.meta||{};
  if(meta.kind==='direct'){
-  applyDirectBetween(meta);c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;careerLog('Between games: '+outcome.name+'.');
+  applyDirectBetween(meta);completePrepEvent(c);careerLog('Between games: '+outcome.name+'.');
  }else if(meta.kind==='training'){
-  c.trainingAvailable=true;c.betweenDone=false;c.prepared=false;careerLog('Between games: a focused training block opens.');
+  setPrepPhase(c,PREP_PHASE.TRAINING);careerLog('Between games: a focused training block opens.');
  }else{
-  state.run.pendingBetweenFollowup=meta.kind;c.betweenDone=false;c.prepared=false;careerLog('Between games: '+outcome.name+'.');
+  state.run.pendingBetweenFollowup=meta.kind;
+  setPrepPhase(c,PREP_PHASE.FOLLOWUP);
+  careerLog('Between games: '+outcome.name+'.');
  }
 }
 function resolvePositionExperiment(outcome){
@@ -1101,14 +1146,14 @@ function resolvePositionExperiment(outcome){
  }[role]||{vision:1};
  Object.entries(gains).forEach(([k,v])=>changeStat(k,v));
  state.run.confidence=clamp(state.run.confidence+1,0,100);
- c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;
+ completePrepEvent(c);
  careerLog('Position experiment: trialled at '+role+' for the next fixture.');
 }
 function resolveLearningOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
  state.run.lastChanges={};Object.entries(outcome.meta?.learnStats||{}).forEach(([k,v])=>changeStat(k,v));
  state.run.confidence=clamp(state.run.confidence+3,0,100);
- c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;
+ completePrepEvent(c);
  careerLog('Learned from '+outcome.name+': '+outcome.desc);
 }
 function resolveInjuryEventOutcome(outcome){
@@ -1116,15 +1161,15 @@ function resolveInjuryEventOutcome(outcome){
  const m=outcome.meta||{};state.run.fitness=clamp(state.run.fitness+(m.fitness||0),20,100);state.run.confidence=clamp(state.run.confidence+(m.confidence||0),0,100);
  if(m.eliminate){state.run.pendingInjuryElimination=outcome.name;careerLog('Training injury: medical withdrawal is being considered.');return;}
  if(m.matches>0)state.run.injury={name:outcome.name,matches:m.matches,penalty:m.penalty||0};
- c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;careerLog('Training injury outcome: '+outcome.name+'.');
+ completePrepEvent(c);careerLog('Training injury outcome: '+outcome.name+'.');
 }
 function resolveEgoEventOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
- applyDirectBetween(outcome.meta||{});c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;careerLog('Ego event: '+outcome.name+'.');
+ applyDirectBetween(outcome.meta||{});completePrepEvent(c);careerLog('Ego event: '+outcome.name+'.');
 }
 function resolveWeaponEventOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
- applyDirectBetween(outcome.meta||{});c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;careerLog('Weapon development: '+outcome.name+'.');
+ applyDirectBetween(outcome.meta||{});completePrepEvent(c);careerLog('Weapon development: '+outcome.name+'.');
 }
 function resolveContributionOutcome(outcome){
  const p=state.run.pendingMatch;if(!p||!outcome)return;
@@ -1196,10 +1241,10 @@ function resolveTrainingOutcome(outcome){
   if(outcome.name==='Breakthrough'||outcome.name==='Ego Awakening')state.run.form=clamp(state.run.form+1,-3,3);
   careerLog(action.name+': '+outcome.name+'.');
  }
- c.trainingKey=action.key;c.trainingResult=outcome.name;c.prepared=true;c.betweenDone=true;c.trainingAvailable=false;
+ c.trainingKey=action.key;c.trainingResult=outcome.name;completePrepEvent(c);
 }
 function applyTraining(key){
- const c=state.run.career;if(!c||c.prepared||c.report||!c.trainingAvailable)return;
+ const c=state.run.career;if(!c||c.report)return;repairPrepState();if(c.prepPhase!==PREP_PHASE.TRAINING)return;
  const action=TRAINING_ACTIONS.find(x=>x.key===key);if(!action)return;
  state.run.pendingTraining=key;
  delete state.run.selections.trainingOutcome;
@@ -1207,7 +1252,7 @@ function applyTraining(key){
  wheelRotation=0;
  renderAll();save();clickSound();
 }
-function choosePlan(key){const c=state.run.career;if(!c||c.report)return;if(!MATCH_PLANS.some(x=>x.key===key))return;c.planKey=key;save();renderCareer();clickSound();}
+function choosePlan(key){const c=state.run.career;if(!c||c.report)return;repairPrepState();if(c.prepPhase!==PREP_PHASE.READY)return;if(!MATCH_PLANS.some(x=>x.key===key))return;c.planKey=key;save();renderCareer();clickSound();}
 
 function binomial(n,p){let x=0;for(let i=0;i<n;i++)if(Math.random()<p)x++;return x;}
 function poisson(lambda){let L=Math.exp(-lambda),k=0,p=1;do{k++;p*=Math.random();}while(p>L&&k<12);return k-1;}
@@ -1334,7 +1379,7 @@ function resolveMatchOutcome(outcome){
  state.run.pendingMatch=null;
 }
 function playFixture(){
- const c=state.run.career,fixture=currentFixture();if(!c||!fixture||!c.prepared||c.report)return;
+ const c=state.run.career,fixture=currentFixture();if(!c||!fixture||c.report)return;repairPrepState();if(c.prepPhase!==PREP_PHASE.READY)return;
  if(fixture.type==='challenge'){
   state.run.pendingMatch={fixtureId:fixture.id};
   delete state.run.selections.challengeOutcome;
@@ -1455,35 +1500,38 @@ function renderCareer(){
  $('#awayTeam').textContent=fixture.opponent;$('#awayStars').textContent=(fixture.stars||[]).slice(0,4).join(' · ');$('#fixtureStageTag').textContent=fixture.stage;$('#fixtureVenue').textContent=fixture.venue;
  renderCondition();renderTraining();renderPlans();
  const inj=$('#injuryNotice');if(state.run.injury){inj.hidden=false;inj.textContent=state.run.injury.name+' — '+state.run.injury.matches+' fixture(s) remaining; effective attributes are reduced.';}else inj.hidden=true;
- $('#playMatchBtn').disabled=!c.prepared;
+ repairPrepState();$('#playMatchBtn').disabled=c.prepPhase!==PREP_PHASE.READY;
  $('#playMatchBtn').textContent=fixture.type==='challenge'?'Spin 100 Goal Challenge':'Begin Contribution Spins';
  $('#matchReport').hidden=!c.report;$('#advanceFixtureBtn').hidden=!c.report;
  if(c.report)renderMatchReport(c.report,fixture);
  renderCareerLog();
 }
 function renderTraining(){
- const c=state.run.career;
+ const c=state.run.career;repairPrepState();
+ const phase=c.prepPhase||PREP_PHASE.EVENT;
  const eventPanel=$('#betweenEventPanel'),trainingPanel=$('#trainingChoicePanel'),planPanel=$('#matchPlanPanel');
- const waiting=!c.betweenEvent&&!c.prepared&&!c.trainingAvailable;
- eventPanel.hidden=!waiting;
- trainingPanel.hidden=!c.trainingAvailable;
- planPanel.hidden=!c.prepared;
- if(waiting){
+ eventPanel.hidden=phase!==PREP_PHASE.EVENT;
+ trainingPanel.hidden=phase!==PREP_PHASE.TRAINING;
+ planPanel.hidden=phase!==PREP_PHASE.READY;
+ if(phase===PREP_PHASE.EVENT){
   $('#prepHeading').textContent='See what happens before the match';
   $('#prepStatus').textContent='Event not spun';
-  $('#betweenEventText').textContent='Spin first. The result can create training, learning, recovery, injury, tactical growth, an ego event or a completely uneventful week.';
- }else if(c.trainingAvailable){
+  $('#betweenEventText').textContent='Spin first. The result can create training, learning, recovery, injury, tactical growth, an ego event or something stranger.';
+ }else if(phase===PREP_PHASE.TRAINING){
   $('#prepHeading').textContent='Training opportunity';
   $('#prepStatus').textContent=c.betweenEvent||'Training';
+ }else if(phase===PREP_PHASE.FOLLOWUP){
+  $('#prepHeading').textContent='Resolve the event';
+  $('#prepStatus').textContent=c.betweenEvent||'Follow-up required';
  }else{
-  $('#prepHeading').textContent='Between-game event resolved';
-  $('#prepStatus').textContent=c.betweenEvent||c.trainingResult||'Prepared';
+  $('#prepHeading').textContent='Ready for the fixture';
+  $('#prepStatus').textContent=c.trainingResult||c.betweenEvent||'Prepared';
  }
- $('#trainingActions').innerHTML=TRAINING_ACTIONS.map(a=>'<button type="button" class="training-action '+(c.trainingKey===a.key?'selected':'')+'" data-train="'+a.key+'" '+(!c.trainingAvailable?'disabled':'')+'><strong>'+esc(a.name)+'</strong><span>'+esc(a.desc)+'</span><em>'+(a.cost<0?'Recovery focus':'Costs '+a.cost+' energy · quality is spun')+'</em></button>').join('');
+ $('#trainingActions').innerHTML=TRAINING_ACTIONS.map(a=>'<button type="button" class="training-action '+(c.trainingKey===a.key?'selected':'')+'" data-train="'+a.key+'" '+(phase!==PREP_PHASE.TRAINING?'disabled':'')+'><strong>'+esc(a.name)+'</strong><span>'+esc(a.desc)+'</span><em>'+(a.cost<0?'Recovery focus':'Costs '+a.cost+' energy · quality is spun')+'</em></button>').join('');
 }
 function renderPlans(){
  const c=state.run.career;
- $('#matchPlans').innerHTML=MATCH_PLANS.map(p=>'<button type="button" class="plan-button '+(c.planKey===p.key?'selected':'')+'" data-plan="'+p.key+'" '+(!c.prepared||c.report?'disabled':'')+'><strong>'+esc(p.name)+'</strong><span>'+esc(p.desc)+'</span></button>').join('');
+ repairPrepState();const ready=c.prepPhase===PREP_PHASE.READY;$('#matchPlans').innerHTML=MATCH_PLANS.map(p=>'<button type="button" class="plan-button '+(c.planKey===p.key?'selected':'')+'" data-plan="'+p.key+'" '+(!ready||c.report?'disabled':'')+'><strong>'+esc(p.name)+'</strong><span>'+esc(p.desc)+'</span></button>').join('');
 }
 function renderMatchReport(r,f){
  if(r.type==='challenge'){
@@ -1528,6 +1576,7 @@ function recordHistory(){
 
 function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.classList.toggle('active',x.id===v));$$('.nav-button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));}
 function renderAll(){
+ repairPrepState();
  const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','challengeSpin','survivalSpin','nelSpin'].includes(state.run.mode);
  $('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
  renderCareer();renderPlayer();renderProfile();renderArchive();renderView();syncAudio();
@@ -1577,7 +1626,7 @@ function nextBuild(){
   state.run.mode='career';wheelRotation=0;renderAll();save();return;
  }
  if(mode==='learnSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin'){
-  state.run.pendingBetweenFollowup=null;state.run.mode='career';wheelRotation=0;renderAll();save();return;
+  completePrepEvent(state.run.career);state.run.mode='career';wheelRotation=0;renderAll();save();return;
  }
  if(mode==='injuryEventSpin'){
   if(state.run.pendingInjuryElimination){
@@ -1585,7 +1634,7 @@ function nextBuild(){
    endRun('MEDICALLY WITHDRAWN','A '+why.toLowerCase()+' ends your Blue Lock run before the next fixture.');
    return;
   }
-  state.run.pendingBetweenFollowup=null;state.run.mode='career';wheelRotation=0;renderAll();save();return;
+  completePrepEvent(state.run.career);state.run.mode='career';wheelRotation=0;renderAll();save();return;
  }
  if(mode==='trainingSpin'){state.run.pendingTraining=null;state.run.mode='career';wheelRotation=0;renderAll();save();return;}
  if(mode==='challengeSpin'){state.run.mode='career';wheelRotation=0;renderAll();save();return;}
