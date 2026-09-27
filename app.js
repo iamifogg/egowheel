@@ -950,10 +950,12 @@ function contributionMomentCount(){
  return clamp(count,6,7);
 }
 function emptyMatchContribution(){
- return{goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,mistakes:0,bigMisses:0,bonusRating:0,ratingPenalty:0,labels:[]};
+ return{goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,aerialDuels:0,yellowCards:0,redCards:0,setPieceGoals:0,oppBonusGoals:0,mistakes:0,bigMisses:0,bonusRating:0,ratingPenalty:0,labels:[]};
 }
 function contributionStage(){
- const fixture=currentFixture(),p=state.run.pendingMatch||{},idx=p.spinIndex||0,s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{};
+ const fixture=currentFixture(),p=state.run.pendingMatch||{},idx=p.spinIndex||0,s=effectiveStats(),prof=positionProfile();
+ const baseBonus=gameplayBonuses().match||{},temp=state.run.career?.tempMatchBonus||{},bonus={...baseBonus};
+ Object.entries(temp).forEach(([k,v])=>bonus[k]=(bonus[k]||0)+v);
  const fit=(state.run.fitness??100),stam=s.stamina||60,fitnessBoost=(fit-75)*.035+(stam-60)*.012;
  const formBoost=state.run.form*1.8+(state.run.confidence-50)*.05+fitnessBoost;
  const attack=(s.finishing+s.offBall+s.reactions+s.shotPower)/4;
@@ -962,29 +964,97 @@ function contributionStage(){
  const defend=(s.defense+s.reactions+s.physical+s.vision)/4;
  const safe=Math.max(0,overall(s)-fixture.strength+formBoost);
  const bad=Math.max(2,18-safe*.22-(s.reactions+s.control)/28);
+ const role=activePositionName(),arch=state.run.selections.archetype?.name||'',heightFactor=heightAerialFactor();
+ const defenderSetPiece=['Centre Back','Ball-Playing Centre Back','Stopper','Sweeper'].includes(role)?1.6:isDefensiveRole()?1.2:1;
+ const specialistSetPiece=['Set-Piece Centre-Back','Set-Piece Threat','Aerial Enforcer','Aerial Centre-Back'].includes(arch)?1.8:1;
+ const aerialThreat=clamp(((s.physical+s.reactions+s.finishing)/210)*heightFactor*defenderSetPiece*specialistSetPiece,.35,2.8);
+ const yellowAlready=(p.contributions?.yellowCards||0)>0;
+ const pressureEgo=state.run.selections.egoStyle?.name||'';
+ const importance=fixture?.importance||1;
+ const pressureBoost=['Pressure Junkie','Limit Breaker','Apex Mentality'].includes(pressureEgo)?Math.max(0,importance-1)*.7:0;
  const opts=[
-  weighted('Sent Off','A reckless or desperate action gets you removed from the match.',Math.max(.5,1.8-(s.reactions+s.defense)/180+Math.max(0,-state.run.form)*.35),{},'RED CARD',{contrib:{sentOff:1,mistakes:1,ratingPenalty:1.25}}),
-  weighted('Forced Off Injured','Your body gives way and your match ends early.',Math.max(.4,1+(55-state.run.fitness)*.035+(45-state.run.energy)*.02),{},'INJURED',{contrib:{injured:1,ratingPenalty:.8}}),
-  weighted('Major Error','A bad decision creates a dangerous moment for the opponent.',Math.max(1,bad*.45),{},'ERROR',{contrib:{mistakes:1,ratingPenalty:.7}}),
-  weighted('Lose Important Duel','You are beaten in a meaningful individual contest.',Math.max(2,bad*.8),{},'LOST DUEL',{contrib:{mistakes:1,ratingPenalty:.28}}),
-  weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(1,9+prof.shots*5-attack*.07),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,ratingPenalty:.18}}),
-  weighted('Quiet Phase','The match moves around you without a decisive contribution.',12,{},'QUIET',{contrib:{}}),
+  weighted('Straight Red Card','A reckless challenge or confrontation gets you sent off immediately.',Math.max(.25,1.05-(s.reactions+s.defense)/220+Math.max(0,-state.run.form)*.2),{},'RED',{contrib:{sentOff:1,redCards:1,mistakes:1,ratingPenalty:1.4}}),
+  weighted('Second Yellow','Already booked, you mistime another challenge and are sent off.',yellowAlready?Math.max(.25,1.15-(s.reactions+s.defense)/240):.01,{},'2ND YELLOW',{contrib:{yellowCards:1,secondYellow:1,ratingPenalty:.65}}),
+  weighted('Yellow Card','You stop a dangerous phase illegally and go into the book.',Math.max(1.2,3.7-(s.reactions+s.defense)/90),{},'YELLOW',{contrib:{yellowCards:1,ratingPenalty:.1}}),
+  weighted('Tactical Foul','You deliberately kill a transition before it becomes a clear chance.',Math.max(1.2,2.8+prof.defense*.5),{},'TACTICAL FOUL',{contrib:{yellowCards:1,recoveries:1,bonusRating:.04,ratingPenalty:.08}}),
+  weighted('Forced Off Injured','Your body gives way and your match ends early.',Math.max(.35,.8+(58-state.run.fitness)*.03+(60-s.stamina)*.012),{},'INJURED',{contrib:{injured:1,ratingPenalty:.8}}),
+  weighted('Major Error','A bad decision creates a dangerous moment for the opponent.',Math.max(.8,bad*.38),{},'ERROR',{contrib:{mistakes:1,ratingPenalty:.7}}),
+  weighted('Own Goal','A desperate defensive action goes horribly wrong.',Math.max(.08,(80-s.reactions)*.015*prof.defense),{},'OWN GOAL',{contrib:{mistakes:1,oppBonusGoals:1,ratingPenalty:1.05}}),
+  weighted('Lose Important Duel','You are beaten in a meaningful individual contest.',Math.max(1.7,bad*.7),{},'LOST DUEL',{contrib:{mistakes:1,ratingPenalty:.28}}),
+  weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(.8,8+prof.shots*5-attack*.07),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,ratingPenalty:.18}}),
+  weighted('Quiet Phase','The match moves around you without a decisive contribution.',10,{},'QUIET',{contrib:{}}),
   weighted('Shot on Target','You create a credible attempt without scoring.',Math.max(2,6+attack*.08*prof.shots+(bonus.shots||0)*2),{},'SHOT',{contrib:{shots:1,bonusRating:.04}}),
-  weighted('Goal','You finish a decisive chance.',Math.max(.8,attack*.095*prof.shots+(bonus.goalP||0)*90+formBoost*.4),{},'GOAL',{contrib:{goals:1,shots:1,bonusRating:1.05}}),
-  weighted('Brace Moment','You punish the opponent twice in the same spell.',Math.max(.15,(attack-62)*.025*prof.shots+(bonus.goalP||0)*18+Math.max(0,formBoost)*.08),{},'BRACE',{contrib:{goals:2,shots:2,bonusRating:2.05}}),
+  weighted('Goal','You finish a decisive chance.',Math.max(.8,attack*.095*prof.shots+(bonus.goalP||0)*90+formBoost*.4+pressureBoost),{},'GOAL',{contrib:{goals:1,shots:1,bonusRating:1.05}}),
+  weighted('Brace Moment','You punish the opponent twice in the same spell.',Math.max(.12,(attack-62)*.025*prof.shots+(bonus.goalP||0)*18+Math.max(0,formBoost)*.08),{},'BRACE',{contrib:{goals:2,shots:2,bonusRating:2.05}}),
+  weighted('Corner Header Won','You attack a corner aggressively and win first contact.',Math.max(.3,2.8*aerialThreat+(bonus.aerial||0)*2),{},'CORNER HEADER',{contrib:{shots:1,aerialDuels:1,bonusRating:.16}}),
+  weighted('Header Goal From Corner','You rise above the defence and score from a corner.',Math.max(.06,.55*aerialThreat+(bonus.corner||0)*1.2),{},'HEADER GOAL',{contrib:{goals:1,shots:1,aerialDuels:1,setPieceGoals:1,bonusRating:1.18}}),
+  weighted('Aerial Duel Won','You dominate a high ball and control the next phase.',Math.max(.8,3.8*heightFactor*(s.physical/75)*prof.defense),{},'AERIAL WIN',{contrib:{aerialDuels:1,clearances:isDefensiveRole()?1:0,bonusRating:.12}}),
   weighted('Assist','You create the final pass for a goal.',Math.max(.8,create*.075*prof.creation+(bonus.assistP||0)*85),{},'ASSIST',{contrib:{assists:1,keyPasses:1,bonusRating:.7}}),
   weighted('Key Pass','You create a chance that someone else fails to finish.',Math.max(2,create*.1*prof.creation+(bonus.keyPasses||0)*2),{},'KEY PASS',{contrib:{keyPasses:1,bonusRating:.12}}),
+  weighted('Cross Creates Chance','Your delivery beats the first defender and finds a dangerous runner.',Math.max(1.1,(s.passing+s.vision)/35*prof.creation),{},'CROSS',{contrib:{keyPasses:1,bonusRating:.12}}),
+  weighted('Switch of Play','A long pass moves the entire defensive block and opens the weak side.',Math.max(.8,(s.passing+s.vision)/42*prof.creation),{},'SWITCH',{contrib:{keyPasses:1,bonusRating:.09}}),
   weighted('Successful Take-On','You beat an opponent and carry the attack forward.',Math.max(2,carry*.09*prof.carry+(bonus.dribbles||0)*2),{},'DRIBBLE',{contrib:{dribbles:1,bonusRating:.1}}),
+  weighted('Progressive Carry','You carry through pressure and advance the team into a better zone.',Math.max(1.1,carry*.065*prof.carry),{},'CARRY',{contrib:{dribbles:1,keyPasses:1,bonusRating:.16}}),
+  weighted('Foul Won','You protect the ball or beat a man and force the opponent to foul you.',Math.max(.8,(s.control+s.physical+s.dribbling)/70),{},'FOUL WON',{contrib:{bonusRating:.07}}),
   weighted('Tackle Won','You stop an opponent cleanly and win possession.',Math.max(1,defend*.085*prof.defense+(bonus.defense||0)*1.7),{},'TACKLE',{contrib:{tackles:1,bonusRating:.11}}),
   weighted('Interception','You read the pass before it reaches danger.',Math.max(1,(s.vision+s.reactions+s.defense)/36*prof.defense+(bonus.defense||0)*1.5),{},'INTERCEPT',{contrib:{interceptions:1,bonusRating:.13}}),
   weighted('Shot Block','You get between the ball and goal in time.',Math.max(.7,defend*.05*prof.defense+(bonus.blocks||0)*2.2),{},'BLOCK',{contrib:{blocks:1,bonusRating:.18}}),
-  weighted('Dominant Clearance','You own a dangerous aerial or box situation.',Math.max(.7,defend*.045*prof.defense*heightAerialFactor()+(bonus.clearances||0)*2),{},'CLEAR',{contrib:{clearances:1,bonusRating:.1}}),
+  weighted('Goal-Line Clearance','You recover behind the goalkeeper and prevent a certain goal.',Math.max(.15,(defend-55)*.035*prof.defense),{},'GOAL-LINE',{contrib:{clearances:1,blocks:1,bonusRating:.5}}),
+  weighted('Dominant Clearance','You own a dangerous aerial or box situation.',Math.max(.7,defend*.045*prof.defense*heightFactor+(bonus.clearances||0)*2),{},'CLEAR',{contrib:{clearances:1,bonusRating:.1}}),
   weighted('Ball Recovery','You regain possession and reset the phase.',Math.max(1,(s.stamina+s.reactions+s.vision)/42*prof.defense),{},'RECOVERY',{contrib:{recoveries:1,bonusRating:.08}}),
+  weighted('Press Forces Error','Your pressure forces a bad touch and creates an immediate transition.',Math.max(.6,(s.stamina+s.defense+s.reactions)/48*(role==='Pressing Forward'?1.4:1)),{},'PRESS WIN',{contrib:{recoveries:1,keyPasses:1,bonusRating:.2}}),
   weighted('Last-Man Stop','You erase a chance that looked certain to become a shot.',Math.max(.2,(defend-55)*.025*prof.defense+(bonus.blocks||0)*.8),{},'LAST MAN',{contrib:{tackles:1,blocks:1,bonusRating:.42}}),
   weighted('Turnover to Chance','You win the ball and immediately create a dangerous attack.',Math.max(.2,(defend+create-105)*.035*Math.min(1.4,prof.defense)),{},'TURNOVER',{contrib:{interceptions:1,keyPasses:1,bonusRating:.32}})
  ];
  const total=p.targetSpins||contributionMomentCount();
- return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:'Match Moment '+(idx+1)+' / '+total,prompt:'Your stats, form, role, weapons and opponent change every slice. Spin the action you actually contribute.',mode:'weights',options:opts};
+ return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:'Match Moment '+(idx+1)+' / '+total,prompt:'Role, height, fitness, form, weapons, cards and opponent all change the wheel. Spin what you actually do.',mode:'weights',options:opts};
+}
+
+function breakthroughChance(){
+ const p=state.run.pendingMatch,fixture=currentFixture(),s=currentStats();if(!p||p.breakthroughUsed||p.breakthroughPending)return 0;
+ let chance=.022+Math.max(0,(fixture?.strength||70)-overall())*.0014+Math.max(0,-state.run.form)*.009+(s.ego-50)*.00035;
+ const ego=state.run.selections.egoStyle?.name||'';
+ if(['Limit Breaker','Devourer','Puzzle Solver','Pressure Junkie','Transcendent Ego'].includes(ego))chance+=.025;
+ if((fixture?.importance||1)>=1.7)chance+=.012;
+ return clamp(chance,.015,.11);
+}
+function breakthroughStatPool(){
+ if(isDefensiveRole())return['defense','vision','reactions','physical','stamina','passing'];
+ if(isMidfieldRole())return['vision','passing','control','reactions','stamina','technique'];
+ return['finishing','offBall','reactions','dribbling','control','technique','ego'];
+}
+function breakthroughStage(){
+ const ego=state.run.selections.egoStyle?.name||'',devour=['Devourer','Collector','Limit Breaker'].includes(ego)?1.5:1;
+ return{key:'matchBreakthrough',chapter:'MID-MATCH BREAKTHROUGH',name:'Your Game Evolves',prompt:'Pressure has opened a new solution. Spin what kind of evolution occurs.',mode:'weights',options:[
+  weighted('Flash of Insight','One pattern suddenly becomes obvious and immediately usable.',34,{},'INSIGHT',{points:5,potential:0}),
+  weighted('Adaptation','You alter your approach to solve what the opponent has been doing.',28,{},'ADAPT',{points:7,potential:1}),
+  weighted('Weapon Evolution','Your existing weapon gains a new application under match pressure.',18*devour,{},'EVOLVE',{points:8,potential:1,evolveWeapon:true}),
+  weighted('Flow State','Challenge and ability align and your decisions accelerate.',13,{},'FLOW',{points:10,potential:2,form:1,extraMoment:1}),
+  weighted('Ego Mutation','Your understanding of what kind of player you are changes mid-match.',5*devour,{},'MUTATE',{points:13,potential:3,ego:3,extraMoment:1}),
+  weighted('Transcendent Breakthrough','The match permanently raises the level you can imagine reaching.',2*devour,{},'TRANSCEND',{points:16,potential:4,ego:4,extraMoment:2})
+ ]};
+}
+function evolveCurrentWeapon(){
+ const base=state.run.selections.primaryWeapon;if(!base)return null;
+ const name='Evolved '+base.name,list=learnedWeapons(),existing=list.find(w=>w.name===name);if(existing)return existing;
+ const bm=base.meta?.match||{};
+ const match={};Object.entries(bm).forEach(([k,v])=>match[k]=v*1.35);
+ if(!Object.keys(match).length)match.performance=.07;
+ const w={name,desc:'A mid-match evolution of '+base.name+'.',source:'Mid-match breakthrough',meta:{match}};
+ list.push(w);return w;
+}
+function resolveBreakthroughOutcome(outcome){
+ const p=state.run.pendingMatch;if(!p||!outcome)return;
+ const pool=breakthroughStatPool(),points=outcome.meta?.points||5;
+ state.run.lastChanges={};
+ for(let i=0;i<points;i++)changeStat(pick(pool),1);
+ if(outcome.meta?.ego)changeStat('ego',outcome.meta.ego);
+ if(outcome.meta?.potential)raisePotential(outcome.meta.potential);
+ if(outcome.meta?.form)state.run.form=clamp(state.run.form+outcome.meta.form,-3,3);
+ if(outcome.meta?.extraMoment)p.targetSpins=clamp((p.targetSpins||6)+outcome.meta.extraMoment,6,9);
+ const evolved=outcome.meta?.evolveWeapon?evolveCurrentWeapon():null;
+ p.breakthroughUsed=true;
+ careerLog('Mid-match breakthrough: '+outcome.name+(evolved?' · '+evolved.name:'')+'.');
 }
 function challengeEffectiveStats(){
  const s=currentStats(),condition=clamp(.90+state.run.energy/1000+state.run.fitness/1200+(state.run.confidence-50)/1000+state.run.form*.0125,.82,1.08),inj=state.run.injury?.penalty||0,out={};
@@ -1042,6 +1112,7 @@ function currentWheelStage(){
  if(state.run.mode==='egoEventSpin')return egoEventStage();
  if(state.run.mode==='weaponEventSpin')return weaponEventStage();
  if(state.run.mode==='contributionSpin')return contributionStage();
+ if(state.run.mode==='breakthroughSpin')return breakthroughStage();
  if(state.run.mode==='challengeSpin')return challengeStage();
  if(state.run.mode==='survivalSpin')return secondSelectionSurvivalStage();
  return BUILD_STAGES[state.run.buildIndex];
@@ -1094,6 +1165,7 @@ function renderWheel(){
  else if(mode==='egoEventSpin')$('#stageCount').textContent='EGO';
  else if(mode==='weaponEventSpin')$('#stageCount').textContent='WEAPON';
  else if(mode==='contributionSpin'){const p=state.run.pendingMatch||{};$('#stageCount').textContent='MOMENT '+((p.spinIndex||0)+1)+' / '+(p.targetSpins||6);}
+ else if(mode==='breakthroughSpin')$('#stageCount').textContent='BREAKTHROUGH';
  else if(mode==='challengeSpin')$('#stageCount').textContent='100 GOALS';
  else if(mode==='survivalSpin')$('#stageCount').textContent='SURVIVAL';
  else if(mode==='nelSpin')$('#stageCount').textContent='NEL';
@@ -1132,7 +1204,8 @@ function renderWheel(){
  else if(mode==='learnSpin')$('#nextBtn').textContent='Spin Learning Result';
  else if(mode==='learningRewardSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin')$('#nextBtn').textContent='Return to Match Plan';
  else if(mode==='injuryEventSpin')$('#nextBtn').textContent=picked?.meta?.eliminate?'Accept Medical Withdrawal':'Return to Match Plan';
- else if(mode==='contributionSpin'){const p=state.run.pendingMatch||{},last=(p.targetSpins||6)-1;$('#nextBtn').textContent=(p.endedEarly?'Resolve Match':((p.spinIndex||0)<last?'Next Match Moment':'Resolve Match'));}
+ else if(mode==='contributionSpin'){const p=state.run.pendingMatch||{},last=(p.targetSpins||6)-1;$('#nextBtn').textContent=p.breakthroughPending?'Spin Breakthrough':(p.endedEarly?'Resolve Match':((p.spinIndex||0)<last?'Next Match Moment':'Resolve Match'));}
+ else if(mode==='breakthroughSpin')$('#nextBtn').textContent='Return to Match';
  else if(mode==='challengeSpin')$('#nextBtn').textContent='View Challenge Result';
  else if(mode==='survivalSpin')$('#nextBtn').textContent=(picked?.meta?.survive?'Continue Second Selection':'Accept Elimination');
  else if(mode==='nelSpin')$('#nextBtn').textContent='Enter Neo Egoist League';
@@ -1150,6 +1223,7 @@ function renderBuildStrip(){
  if(mode==='injuryEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Injury Severity</span>';return;}
  if(mode==='egoEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Ego Response</span>';return;}
  if(mode==='weaponEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Weapon Discovery</span>';return;}
+ if(mode==='breakthroughSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">MID-MATCH EVOLUTION</span>';return;}
  if(mode==='contributionSpin'){
   const n=(state.run.pendingMatch?.spinIndex||0)+1;
   const total=state.run.pendingMatch?.targetSpins||6;
@@ -1177,6 +1251,7 @@ function renderSpinResult(){
   else if(mode==='egoEventSpin')copy='Spin whether pressure breaks, stabilises or evolves your ego.';
   else if(mode==='weaponEventSpin')copy='Spin whether the idea becomes a usable weapon detail.';
   else if(mode==='contributionSpin')copy='Spin the action you actually contribute in this phase of the match.';
+  else if(mode==='breakthroughSpin')copy='Pressure has triggered an evolution. Spin what changes inside the match.';
   else if(mode==='challengeSpin')copy='One spin decides your 100 Goal Challenge score.';
   $('#spinResult').innerHTML='<span class="result-eyebrow">'+esc(stage.chapter)+'</span><strong>'+esc(copy)+'</strong><p>'+esc(stage.prompt)+'</p>';return;
  }
@@ -1411,9 +1486,11 @@ function resolveWeaponEventOutcome(outcome){
 function resolveContributionOutcome(outcome){
  const p=state.run.pendingMatch;if(!p||!outcome)return;
  const target=p.contributions||(p.contributions=emptyMatchContribution()),add=outcome.meta?.contrib||{};
- for(const [k,v] of Object.entries(add)){if(k==='labels')continue;target[k]=(target[k]||0)+v;}
+ for(const [k,v] of Object.entries(add)){if(k==='labels'||k==='secondYellow')continue;target[k]=(target[k]||0)+v;}
  target.labels.push(outcome.name);
+ if(add.secondYellow||(target.yellowCards||0)>=2){target.sentOff=1;target.redCards=(target.redCards||0)+1;p.endedEarly=true;}
  if(add.sentOff||add.injured)p.endedEarly=true;
+ if(!p.endedEarly&&!p.breakthroughUsed&&!p.breakthroughPending&&Math.random()<breakthroughChance())p.breakthroughPending=true;
 }
 function cleanSheetRatingBonus(oppGoals,profile=positionProfile()){
  if(oppGoals!==0)return 0;
@@ -1438,7 +1515,8 @@ function contributionRating(a,result,profile=positionProfile(),oppGoals=null){
   (a.interceptions||0)*.19*defScale+
   (a.blocks||0)*.25*defScale+
   (a.clearances||0)*.14*defScale+
-  (a.recoveries||0)*.11*defScale;
+  (a.recoveries||0)*.11*defScale+
+  (a.aerialDuels||0)*.09*clamp(.8+profile.defense*.25,.85,1.3);
  const penalty=(a.ratingPenalty||0)+(a.sentOff?1.1:0)+(a.injured?.35:0);
  const resultAdj=result==='WIN'?.20:result==='LOSS'?-.14:0;
  const cleanSheet=oppGoals===null?0:cleanSheetRatingBonus(oppGoals,profile);
@@ -1468,13 +1546,13 @@ function finalizeContributionMatch(){
  const defActions=(a.tackles||0)+(a.interceptions||0)+(a.blocks||0)+(a.clearances||0)+(a.recoveries||0);
  const defensiveHelp=((s.defense+s.reactions+s.stamina)/3)*prof.defense+defActions*5-(a.mistakes||0)*8;
  const oppLambda=clamp(.72+(fixture.strength-62)/34-defensiveHelp/310-(bonus.oppDefense||0),.1,3.8);
- const oppGoals=poisson(oppLambda);
+ const oppGoals=poisson(oppLambda)+(a.oppBonusGoals||0);
  const result=teamGoals>oppGoals?'WIN':teamGoals<oppGoals?'LOSS':'DRAW';
  const rating=contributionRating(a,result,prof,oppGoals);
  const minutes=a.sentOff?int(18,70):a.injured?int(12,65):(state.run.injury?int(55,82):90);
  if(a.sentOff){state.run.confidence=clamp(state.run.confidence-8,0,100);state.run.form=clamp(state.run.form-1,-3,3);}
  if(a.injured){state.run.injury={name:'Match injury',matches:2,penalty:10};state.run.fitness=clamp(state.run.fitness-14,20,100);}
- const rep={type:'match',passed:true,minutes,cleanSheet:oppGoals===0,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
+ const rep={type:'match',passed:true,minutes,cleanSheet:oppGoals===0,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,aerialDuels:a.aerialDuels||0,yellowCards:a.yellowCards||0,redCards:a.redCards||0,setPieceGoals:a.setPieceGoals||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
  rep.moments=matchMoments(rep,fixture);rep.moments.unshift('Contribution spins: '+rep.contributionLabels.join(' · ')+'.');
  c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();
  state.run.pendingMatch=null;
@@ -1554,8 +1632,12 @@ function effectiveStats(){
 }
 function matchMoments(rep,fixture){
  const m=[],defActions=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
- const meaningful=(rep.goals||0)+(rep.assists||0)+(rep.keyPasses||0)+(rep.dribbles||0)+defActions;
+ const meaningful=(rep.goals||0)+(rep.assists||0)+(rep.keyPasses||0)+(rep.dribbles||0)+defActions+(rep.aerialDuels||0);
  if(rep.cleanSheet&&isDefensiveRole())m.push('You help preserve a clean sheet from your defensive role.');
+ if(rep.setPieceGoals)m.push('You score '+rep.setPieceGoals+' goal'+(rep.setPieceGoals===1?'':'s')+' from set-piece situations.');
+ if(rep.aerialDuels>=2)m.push('You win '+rep.aerialDuels+' important aerial duels.');
+ if(rep.yellowCards)m.push('You receive '+rep.yellowCards+' yellow card'+(rep.yellowCards===1?'':'s')+'.');
+ if(rep.redCards)m.push('Your match ends with a red card.');
  if(rep.goals===1)m.push('You score once against '+fixture.opponent+'.');
  if(rep.goals>1)m.push('You score '+rep.goals+' goals and become the centre of the match.');
  if(rep.assists===1)m.push('You create one goal for a teammate.');
@@ -1887,7 +1969,7 @@ function renderMatchReport(r,f){
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
  const defTotal=(r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0);
  const spins=(r.contributionLabels||[]).map(x=>'<span class="contribution-chip">'+esc(x)+'</span>').join('');
- $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
+ $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>AERIAL <b>'+(r.aerialDuels||0)+'</b></span><span>YC <b>'+(r.yellowCards||0)+'</b></span><span>RC <b>'+(r.redCards||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
 }
 function renderCareerLog(){const c=state.run.career;$('#careerLog').innerHTML=(c?.log||[]).slice(0,8).map(x=>'<div>'+esc(x)+'</div>').join('')||'<div>No career events yet.</div>';}
 
@@ -1924,7 +2006,7 @@ function recordHistory(){
 function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.classList.toggle('active',x.id===v));$$('.nav-button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));}
 function renderAll(){
  repairPrepState();
- const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','learningRewardSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','challengeSpin','survivalSpin','nelSpin'].includes(state.run.mode);
+ const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','learningRewardSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','breakthroughSpin','challengeSpin','survivalSpin','nelSpin'].includes(state.run.mode);
  $('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
  renderCareer();renderPlayer();renderProfile();renderArchive();renderView();syncAudio();
  $('#quickBuildBtn').hidden=state.run.mode!=='build';
@@ -1953,6 +2035,7 @@ function spinCurrent(){
   if(mode==='egoEventSpin')resolveEgoEventOutcome(chosen.opt);
   if(mode==='weaponEventSpin')resolveWeaponEventOutcome(chosen.opt);
   if(mode==='contributionSpin')resolveContributionOutcome(chosen.opt);
+  if(mode==='breakthroughSpin')resolveBreakthroughOutcome(chosen.opt);
   if(mode==='challengeSpin')resolveChallengeOutcome(chosen.opt);
   if(mode==='survivalSpin')resolveSurvivalOutcome(chosen.opt);
   spinning=false;
@@ -1990,13 +2073,24 @@ function nextBuild(){
  if(mode==='trainingSpin'){state.run.pendingTraining=null;state.run.mode='career';wheelRotation=0;save();renderAll();return;}
  if(mode==='challengeSpin'){state.run.mode='career';wheelRotation=0;save();renderAll();return;}
  if(mode==='contributionSpin'){
-  const p=state.run.pendingMatch;
-  if(!p)return;
+  const p=state.run.pendingMatch;if(!p)return;
   const lastIndex=(p.targetSpins||6)-1;
+  if(p.breakthroughPending){
+   p.breakthroughPending=false;
+   p.resumeAfterBreakthrough=(p.endedEarly||(p.spinIndex||0)>=lastIndex)?'finalize':'next';
+   delete state.run.selections.matchBreakthrough;
+   state.run.mode='breakthroughSpin';wheelRotation=0;save();renderAll();return;
+  }
   if(!p.endedEarly&&(p.spinIndex||0)<lastIndex){
    p.spinIndex++;wheelRotation=0;save();renderAll();return;
   }
   finalizeContributionMatch();state.run.mode='career';wheelRotation=0;save();renderAll();return;
+ }
+ if(mode==='breakthroughSpin'){
+  const p=state.run.pendingMatch;if(!p)return;
+  const resume=p.resumeAfterBreakthrough||'next';p.resumeAfterBreakthrough=null;
+  if(resume==='finalize'){finalizeContributionMatch();state.run.mode='career';wheelRotation=0;save();renderAll();return;}
+  p.spinIndex++;state.run.mode='contributionSpin';wheelRotation=0;save();renderAll();return;
  }
  if(mode==='survivalSpin'){
   const result=state.run.pendingSurvivalResult;
