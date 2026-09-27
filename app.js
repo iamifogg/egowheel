@@ -825,6 +825,67 @@ const LEARNING_PLAYERS=[
  {name:'Don Lorenzo',short:'LORENZO',desc:'Duel defending with ball-carrying confidence.',stats:{defense:2,dribbling:1,control:1}}
 ];
 
+const LEARNED_WEAPON_LIBRARY={
+ 'Yoichi Isagi':{name:'Spatial Scanning',desc:'Continuous scanning improves off-ball reads and chance creation.',meta:{match:{keyPasses:.45,performance:.06},training:{film:.18}}},
+ 'Rin Itoshi':{name:'Precision Route',desc:'Cleaner technical execution improves decisive attacking actions.',meta:{match:{goalP:.014,keyPasses:.25},training:{finishing:.12,passing:.12}}},
+ 'Meguru Bachira':{name:'Monster Dribble',desc:'Creative 1v1 rhythm gives you more take-on opportunities.',meta:{match:{dribbles:.65,dribbleP:.025},training:{duels:.2}}},
+ 'Seishiro Nagi':{name:'Dead Touch',desc:'Elite first-contact control stabilises difficult attacking moments.',meta:{match:{performance:.06,shots:.12},training:{duels:.14}}},
+ 'Reo Mikage':{name:'Chameleon Fragment',desc:'Adaptability slightly improves several kinds of contribution.',meta:{match:{performance:.05,keyPasses:.2,defense:.2},training:{film:.1,passing:.1,duels:.1}}},
+ 'Shoei Barou':{name:'Predator Charge',desc:'Aggressive goal-hunting increases shooting involvement and conversion.',meta:{match:{shots:.35,goalP:.015},training:{finishing:.18}}},
+ 'Hyoma Chigiri':{name:'Red-Line Burst',desc:'Explosive separation improves carries and attacking runs.',meta:{match:{dribbles:.35,shots:.18},training:{speed:.2}}},
+ 'Rensuke Kunigami':{name:'Power Finish',desc:'Physical striking makes shooting windows more dangerous.',meta:{match:{goalP:.014,shots:.2},training:{gym:.15,finishing:.12}}},
+ 'Oliver Aiku':{name:'Defensive Reading',desc:'You identify danger earlier and convert reads into interventions.',meta:{match:{defense:.85,blocks:.3,performance:.05},training:{shape:.2,defduels:.15}}},
+ 'Ikki Niko':{name:'Interception Vision',desc:'Passing lanes become easier to read before they fully open.',meta:{match:{defense:.7,recoveries:.35,performance:.04},training:{film:.2}}},
+ 'Tabito Karasu':{name:'Targeted Duel',desc:'You become better at identifying and exploiting one opponent weakness.',meta:{match:{defense:.45,dribbles:.25,performance:.05},training:{duels:.16,defduels:.16}}},
+ 'Yo Hiori':{name:'Threaded Pass',desc:'Progressive passes create higher-quality chances through pressure.',meta:{match:{keyPasses:.7,assistP:.018},training:{passing:.2}}},
+ 'Jyubei Aryu':{name:'Long-Reach Aerials',desc:'Reach and timing increase aerial defending and set-piece threat.',meta:{match:{clearances:.6,shots:.14},training:{aerial:.2}}},
+ 'Gin Gagamaru':{name:'Instinctive Reaction',desc:'Unorthodox reflexes help in broken, unpredictable phases.',meta:{match:{blocks:.25,recoveries:.3,performance:.04},training:{shape:.12}}},
+ 'Michael Kaiser':{name:'Impact Strike',desc:'A brutally clean strike increases high-value shooting outcomes.',meta:{match:{goalP:.02,shots:.28},training:{finishing:.2}}},
+ 'Don Lorenzo':{name:'Zombie Carry',desc:'You defend physically and still carry through pressure after regains.',meta:{match:{defense:.55,dribbles:.45,performance:.05},training:{defduels:.12,duels:.12}}}
+};
+
+function learningRewardStage(){
+ const player=state.run.pendingLearningPlayer||state.run.selections.learningPlayer;
+ const ego=state.run.selections.egoStyle?.name||'';
+ let weaponWeight=4,perfectWeight=1.2,deepWeight=24,breakWeight=11;
+ if(['Devourer','Collector'].includes(ego)){weaponWeight+=5;perfectWeight+=1.8;}
+ if(ego==='Disciple'){deepWeight+=8;breakWeight+=5;}
+ if(state.run.selections.primaryWeapon?.name==='Chameleon Technique'){weaponWeight+=3;perfectWeight+=1;}
+ return{key:'learningReward',chapter:'LEARNING RESULT',name:'What Do You Take From '+(player?.name||'Them')+'?',prompt:'The same lesson can become a small detail, a major evolution, or even a stolen weapon.',mode:'weights',options:[
+  weighted('Surface Detail','You pick up one useful detail, but it does not transform your game.',18,{},'DETAIL',{scale:.75,confidence:1}),
+  weighted('Useful Lesson','The idea becomes a reliable part of your game.',38,{},'LESSON',{scale:1.45,confidence:3}),
+  weighted('Deep Assimilation','You understand why the technique works, not just what it looks like.',deepWeight,{},'DEEP',{scale:2.1,confidence:5,potential:1}),
+  weighted('Breakthrough Lesson','The lesson changes how you solve similar situations.',breakWeight,{},'BREAK',{scale:2.8,confidence:7,potential:2}),
+  weighted('Steal Their Weapon','You successfully adapt a fragment of their signature weapon into your own game.',weaponWeight,{},'WEAPON',{scale:1.65,confidence:8,weapon:true,potential:1}),
+  weighted('Perfect Devouring','You absorb the concept at an exceptional level and permanently expand your ceiling.',perfectWeight,{},'DEVOUR',{scale:3.3,confidence:12,weapon:true,potential:3})
+ ]};
+}
+
+function addLearnedWeapon(playerName){
+ const weapon=LEARNED_WEAPON_LIBRARY[playerName];if(!weapon)return null;
+ const list=learnedWeapons(),existing=list.find(w=>w.name===weapon.name);
+ if(existing)return existing;
+ const copy={name:weapon.name,desc:weapon.desc,source:playerName,meta:JSON.parse(JSON.stringify(weapon.meta||{}))};
+ list.push(copy);return copy;
+}
+
+function resolveLearningRewardOutcome(outcome){
+ const c=state.run.career,player=state.run.pendingLearningPlayer||state.run.selections.learningPlayer;
+ if(!c||!player||!outcome)return;
+ state.run.lastChanges={};
+ const scale=outcome.meta?.scale||1,base=player.meta?.learnStats||{};
+ Object.entries(base).forEach(([k,v])=>changeStat(k,Math.max(1,Math.round(v*scale))));
+ if(outcome.meta?.potential)raisePotential(outcome.meta.potential);
+ let weapon=null;
+ if(outcome.meta?.weapon)weapon=addLearnedWeapon(player.name);
+ state.run.confidence=clamp(state.run.confidence+(outcome.meta?.confidence||0),0,100);
+ const detail=(weapon?'New weapon: '+weapon.name+'. ':'')+(outcome.desc||'');
+ setPrepResolution(c,c.betweenEvent,player.name+' → '+outcome.name,detail);
+ completePrepEvent(c);
+ careerLog('Learning: '+player.name+' → '+outcome.name+(weapon?' · learned '+weapon.name:'')+'.');
+ state.run.pendingLearningPlayer=null;
+}
+
 function betweenGameStage(){
  return{key:'betweenGame',chapter:'BETWEEN GAMES',name:'What Happens This Week?',prompt:'You do not choose the opportunity. Spin to see what Blue Lock gives you before the next match.',mode:'weights',options:BETWEEN_GAME_OUTCOMES};
 }
@@ -975,6 +1036,7 @@ function currentWheelStage(){
  if(state.run.mode==='trainingSpin')return trainingOutcomeStage();
  if(state.run.mode==='betweenSpin')return betweenGameStage();
  if(state.run.mode==='learnSpin')return learningStage();
+ if(state.run.mode==='learningRewardSpin')return learningRewardStage();
  if(state.run.mode==='positionExperimentSpin')return positionExperimentStage();
  if(state.run.mode==='injuryEventSpin')return injuryEventStage();
  if(state.run.mode==='egoEventSpin')return egoEventStage();
@@ -1026,6 +1088,7 @@ function renderWheel(){
  else if(mode==='trainingSpin')$('#stageCount').textContent='TRAINING';
  else if(mode==='betweenSpin')$('#stageCount').textContent='BETWEEN';
  else if(mode==='learnSpin')$('#stageCount').textContent='LEARN';
+ else if(mode==='learningRewardSpin')$('#stageCount').textContent='LESSON';
  else if(mode==='positionExperimentSpin')$('#stageCount').textContent='POSITION';
  else if(mode==='injuryEventSpin')$('#stageCount').textContent='INJURY';
  else if(mode==='egoEventSpin')$('#stageCount').textContent='EGO';
@@ -1066,7 +1129,8 @@ function renderWheel(){
    const kind=picked?.meta?.kind;
    $('#nextBtn').textContent=kind==='training'?'Choose Training Focus':kind==='learn'?'Spin Who You Learn From':kind==='positionExperiment'?'Spin Temporary Position':kind==='injury'?'Spin Injury Severity':kind==='ego'?'Resolve Ego Test':kind==='weapon'?'Explore Weapon Development':'Continue to Match Plan';
  }
- else if(mode==='learnSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin')$('#nextBtn').textContent='Return to Match Plan';
+ else if(mode==='learnSpin')$('#nextBtn').textContent='Spin Learning Result';
+ else if(mode==='learningRewardSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin')$('#nextBtn').textContent='Return to Match Plan';
  else if(mode==='injuryEventSpin')$('#nextBtn').textContent=picked?.meta?.eliminate?'Accept Medical Withdrawal':'Return to Match Plan';
  else if(mode==='contributionSpin'){const p=state.run.pendingMatch||{},last=(p.targetSpins||6)-1;$('#nextBtn').textContent=(p.endedEarly?'Resolve Match':((p.spinIndex||0)<last?'Next Match Moment':'Resolve Match'));}
  else if(mode==='challengeSpin')$('#nextBtn').textContent='View Challenge Result';
@@ -1081,6 +1145,7 @@ function renderBuildStrip(){
  if(mode==='trainingSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Training Quality</span>';return;}
  if(mode==='betweenSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Between-Game Event</span>';return;}
  if(mode==='learnSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Learn From Player</span>';return;}
+ if(mode==='learningRewardSpin'){$('#stageStrip').innerHTML='<span class="stage-pill done">Choose Player</span><span class="stage-pill current">Learning Result</span>';return;}
  if(mode==='positionExperimentSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Temporary Position</span>';return;}
  if(mode==='injuryEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Injury Severity</span>';return;}
  if(mode==='egoEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Ego Response</span>';return;}
@@ -1106,6 +1171,7 @@ function renderSpinResult(){
   else if(mode==='trainingSpin')copy='The training focus is chosen. Spin how well the session actually goes.';
   else if(mode==='betweenSpin')copy='Spin what actually happens between these two fixtures.';
   else if(mode==='learnSpin')copy='Spin which player leaves something behind in your game.';
+  else if(mode==='learningRewardSpin')copy='Spin how much of the lesson actually becomes part of your game.';
   else if(mode==='positionExperimentSpin')copy='Spin the role the staff make you play in the next fixture.';
   else if(mode==='injuryEventSpin')copy='Spin how serious the injury actually is.';
   else if(mode==='egoEventSpin')copy='Spin whether pressure breaks, stabilises or evolves your ego.';
@@ -1247,7 +1313,7 @@ function repairPrepState(){
   else c.prepPhase=PREP_PHASE.EVENT;
  }
  // A resolved follow-up must always be able to return to the match.
- const followModes=['learnSpin','positionExperimentSpin','egoEventSpin','weaponEventSpin','injuryEventSpin'];
+ const followModes=['learnSpin','learningRewardSpin','positionExperimentSpin','egoEventSpin','weaponEventSpin','injuryEventSpin'];
  if(followModes.includes(state.run.mode)){
   const stage=currentWheelStage();
   if(stage&&state.run.selections[stage.key]){
@@ -1324,11 +1390,8 @@ function resolvePositionExperiment(outcome){
 }
 function resolveLearningOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
- state.run.lastChanges={};Object.entries(outcome.meta?.learnStats||{}).forEach(([k,v])=>changeStat(k,v));
- state.run.confidence=clamp(state.run.confidence+3,0,100);
- setPrepResolution(c,c.betweenEvent,outcome.name,outcome.desc||'');
- completePrepEvent(c);
- careerLog('Learned from '+outcome.name+': '+outcome.desc);
+ state.run.pendingLearningPlayer=outcome;
+ careerLog('Learning opportunity: '+outcome.name+' becomes your model.');
 }
 function resolveInjuryEventOutcome(outcome){
  const c=state.run.career;if(!c||!outcome)return;
@@ -1847,7 +1910,7 @@ function renderPlayer(){
 }
 function renderProfile(){
  const c=state.run.career,s=currentStats(),hist=c?.history||[],tot=c?.totals||{apps:0,goals:0,assists:0,ratingTotal:0};
- $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">CURRENT EGOIST</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">OVR '+overall(s)+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Defensive actions: '+((tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0))+'<br>Average rating: '+(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—')+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Rival: '+esc(c?.rival||'—')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
+ $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">CURRENT EGOIST</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">OVR '+overall(s)+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Defensive actions: '+((tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0))+'<br>Average rating: '+(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—')+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Rival: '+esc(c?.rival||'—')+'</p></div><div class="profile-block"><span class="kicker">LEARNED WEAPONS</span><h3>'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)).join(' · '):'None yet')+'</h3><p class="profile-sub">'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)+' — '+esc(w.source||'evolved')).join('<br>'):'Learn from elite players or trigger breakthroughs to add permanent weapons.')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
 }
 function renderArchive(){
  const g=$('#archiveGrid');if(!state.archive.length){g.innerHTML='<div class="empty-state">No completed careers yet.</div>';return;}
@@ -1861,7 +1924,7 @@ function recordHistory(){
 function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.classList.toggle('active',x.id===v));$$('.nav-button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));}
 function renderAll(){
  repairPrepState();
- const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','challengeSpin','survivalSpin','nelSpin'].includes(state.run.mode);
+ const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','learningRewardSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','challengeSpin','survivalSpin','nelSpin'].includes(state.run.mode);
  $('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
  renderCareer();renderPlayer();renderProfile();renderArchive();renderView();syncAudio();
  $('#quickBuildBtn').hidden=state.run.mode!=='build';
@@ -1884,6 +1947,7 @@ function spinCurrent(){
   if(mode==='trainingSpin')resolveTrainingOutcome(chosen.opt);
   if(mode==='betweenSpin')resolveBetweenGameOutcome(chosen.opt);
   if(mode==='learnSpin')resolveLearningOutcome(chosen.opt);
+  if(mode==='learningRewardSpin')resolveLearningRewardOutcome(chosen.opt);
   if(mode==='positionExperimentSpin')resolvePositionExperiment(chosen.opt);
   if(mode==='injuryEventSpin')resolveInjuryEventOutcome(chosen.opt);
   if(mode==='egoEventSpin')resolveEgoEventOutcome(chosen.opt);
@@ -1909,7 +1973,10 @@ function nextBuild(){
   if(kind==='weapon'){state.run.mode='weaponEventSpin';delete state.run.selections.weaponEvent;wheelRotation=0;save();renderAll();return;}
   state.run.mode='career';wheelRotation=0;save();renderAll();return;
  }
- if(mode==='learnSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin'){
+ if(mode==='learnSpin'){
+  state.run.mode='learningRewardSpin';delete state.run.selections.learningReward;wheelRotation=0;save();renderAll();return;
+ }
+ if(mode==='learningRewardSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin'){
   completePrepEvent(state.run.career);state.run.mode='career';wheelRotation=0;save();renderAll();return;
  }
  if(mode==='injuryEventSpin'){
