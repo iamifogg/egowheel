@@ -1386,22 +1386,22 @@ function postNelFixtures(club){
   {id:'pro2',stage:'Professional League',type:'match',team:club,opponent:'Royale Madrid',stars:['Sae Itoshi','Leonardo Luna'],strength:96,teamStrength:clubStrength,venue:'Professional League — European Showcase',importance:1.65},
   {id:'pro3',stage:'Professional League',type:'match',team:club,opponent:'Berserk Dortmund',stars:['Ryusei Shidou'],strength:94,teamStrength:clubStrength,venue:'Professional League — Derby Night',importance:1.6},
   {id:'pro4',stage:'Professional League',type:'match',team:club,opponent:'London Red',stars:['Adam Blake'],strength:95,teamStrength:clubStrength,venue:'Professional League — Title Run-In',importance:1.7,final:true,competition:'Professional League'},
-  {id:'ccqf',stage:'Champions Cup',type:'match',team:club,opponent:'Torino Ubers',stars:['Don Lorenzo','Oliver Aiku'],strength:97,teamStrength:clubStrength,venue:'Champions Cup Quarter-Final',importance:1.8},
-  {id:'ccsf',stage:'Champions Cup',type:'match',team:club,opponent:'Paris X Gen Elite',stars:['Julian Loki','Rin Itoshi'],strength:99,teamStrength:clubStrength,venue:'Champions Cup Semi-Final',importance:1.9},
-  {id:'ccf',stage:'Champions Cup',type:'match',team:club,opponent:'World Select XI',stars:['Julian Loki','Leonardo Luna','Michael Kaiser'],strength:101,teamStrength:clubStrength,venue:'Champions Cup Final',importance:2.0,final:true,competition:'Champions Cup'},
+  {id:'ccqf',stage:'Champions Cup',type:'match',competition:'Champions Cup',knockout:true,team:club,opponent:'Torino Ubers',stars:['Don Lorenzo','Oliver Aiku'],strength:97,teamStrength:clubStrength,venue:'Champions Cup Quarter-Final',importance:1.8},
+  {id:'ccsf',stage:'Champions Cup',type:'match',competition:'Champions Cup',knockout:true,team:club,opponent:'Paris X Gen Elite',stars:['Julian Loki','Rin Itoshi'],strength:99,teamStrength:clubStrength,venue:'Champions Cup Semi-Final',importance:1.9},
+  {id:'ccf',stage:'Champions Cup',type:'match',competition:'Champions Cup',knockout:true,team:club,opponent:'World Select XI',stars:['Julian Loki','Leonardo Luna','Michael Kaiser'],strength:101,teamStrength:clubStrength,venue:'Champions Cup Final',importance:2.0,final:true,},
   {id:'u20wc1',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'Germany U-20',stars:['Michael Kaiser'],strength:96,teamStrength:95,venue:'U-20 World Cup Group Stage',importance:1.75},
   {id:'u20wc2',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'England U-20',stars:['Adam Blake'],strength:95,teamStrength:95,venue:'U-20 World Cup Group Stage',importance:1.75},
-  {id:'u20wcqf',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'Argentina U-20',stars:['Pablo Cavasoz'],strength:97,teamStrength:95,venue:'U-20 World Cup Quarter-Final',importance:1.9},
-  {id:'u20wcsf',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'France U-20',stars:['Julian Loki'],strength:99,teamStrength:95,venue:'U-20 World Cup Semi-Final',importance:2.0},
-  {id:'u20wcf',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'Spain U-20',stars:['Leonardo Luna'],strength:100,teamStrength:95,venue:'U-20 World Cup Final',importance:2.1,final:true,competition:'U-20 World Cup'},
+  {id:'u20wcqf',stage:'U-20 World Cup',type:'match',competition:'U-20 World Cup',knockout:true,team:'Japan U-20',opponent:'Argentina U-20',stars:['Pablo Cavasoz'],strength:97,teamStrength:95,venue:'U-20 World Cup Quarter-Final',importance:1.9},
+  {id:'u20wcsf',stage:'U-20 World Cup',type:'match',competition:'U-20 World Cup',knockout:true,team:'Japan U-20',opponent:'France U-20',stars:['Julian Loki'],strength:99,teamStrength:95,venue:'U-20 World Cup Semi-Final',importance:2.0},
+  {id:'u20wcf',stage:'U-20 World Cup',type:'match',competition:'U-20 World Cup',knockout:true,team:'Japan U-20',opponent:'Spain U-20',stars:['Leonardo Luna'],strength:100,teamStrength:95,venue:'U-20 World Cup Final',importance:2.1,final:true,},
   {id:'elite1',stage:'Elite Club Season',type:'match',team:club,opponent:'Royale Madrid',stars:['Sae Itoshi','Leonardo Luna'],strength:100,teamStrength:Math.max(clubStrength,96),venue:'Elite Club Season — Matchday 1',importance:1.75},
   {id:'elite2',stage:'Elite Club Season',type:'match',team:club,opponent:'Paris X Gen Elite',stars:['Julian Loki','Rin Itoshi','Ryusei Shidou'],strength:101,teamStrength:Math.max(clubStrength,96),venue:'Elite Club Season — Matchday 2',importance:1.8},
   {id:'elite3',stage:'Elite Club Season',type:'match',team:club,opponent:'World Select XI',stars:['Michael Kaiser','Don Lorenzo','Julian Loki'],strength:102,teamStrength:Math.max(clubStrength,96),venue:'Elite Club Season — Championship Match',importance:1.95,final:true,competition:'Elite Club Season'},
   {id:'wc1',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Germany',stars:['Michael Kaiser'],strength:99,teamStrength:98,venue:'Senior World Cup Group Stage',importance:1.9},
   {id:'wc2',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Brazil',stars:['Dada Silva'],strength:100,teamStrength:98,venue:'Senior World Cup Group Stage',importance:1.95},
-  {id:'wcqf',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Spain',stars:['Leonardo Luna'],strength:101,teamStrength:98,venue:'Senior World Cup Quarter-Final',importance:2.0},
-  {id:'wcsf',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'France',stars:['Julian Loki'],strength:103,teamStrength:98,venue:'Senior World Cup Semi-Final',importance:2.1},
-  {id:'wcf',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'World Champions',stars:['Julian Loki','Leonardo Luna','Adam Blake'],strength:104,teamStrength:98,venue:'Senior World Cup Final',importance:2.2,final:true,competition:'Senior World Cup'}
+  {id:'wcqf',stage:'Senior World Cup',type:'match',competition:'Senior World Cup',knockout:true,team:'Japan',opponent:'Spain',stars:['Leonardo Luna'],strength:101,teamStrength:98,venue:'Senior World Cup Quarter-Final',importance:2.0},
+  {id:'wcsf',stage:'Senior World Cup',type:'match',competition:'Senior World Cup',knockout:true,team:'Japan',opponent:'France',stars:['Julian Loki'],strength:103,teamStrength:98,venue:'Senior World Cup Semi-Final',importance:2.1},
+  {id:'wcf',stage:'Senior World Cup',type:'match',competition:'Senior World Cup',knockout:true,team:'Japan',opponent:'World Champions',stars:['Julian Loki','Leonardo Luna','Adam Blake'],strength:104,teamStrength:98,venue:'Senior World Cup Final',importance:2.2,final:true,}
  ];
 }
 
@@ -1931,6 +1931,17 @@ function advanceFixture(){
  if(fixture.final&&fixture.competition&&rep.result==='WIN'){
   c.trophies=c.trophies||[];
   if(!c.trophies.includes(fixture.competition)){c.trophies.push(fixture.competition);careerLog('Trophy won: '+fixture.competition+'.');}
+ }
+ if(fixture.knockout&&rep.result==='LOSS'){
+  careerLog('Eliminated from '+fixture.competition+' at '+fixture.venue+'.');
+  if(state.run.injury){state.run.injury.matches--;if(state.run.injury.matches<=0){careerLog('You are fully fit again.');state.run.injury=null;}}
+  const recoveryStamina=currentStats().stamina||60;state.run.fitness=clamp(state.run.fitness+Math.round(5+recoveryStamina/24),20,100);
+  let nextIndex=c.fixtureIndex+1;
+  while(nextIndex<c.fixtures.length&&c.fixtures[nextIndex].competition===fixture.competition)nextIndex++;
+  c.fixtureIndex=nextIndex;resetMatchPreparation(c);
+  if(c.fixtureIndex>=c.fixtures.length){completeCareer();return;}
+  save();renderAll();toast('Eliminated from '+fixture.competition+'. Career continues.');
+  return;
  }
   if(state.run.injury){state.run.injury.matches--;if(state.run.injury.matches<=0){careerLog('You are fully fit again.');state.run.injury=null;}}
  const recoveryStamina=currentStats().stamina||60;state.run.fitness=clamp(state.run.fitness+Math.round(5+recoveryStamina/24),20,100);
