@@ -4,7 +4,7 @@
 const STORAGE_KEY='egowheel.save.v7';
 const AUDIO_KEY='egowheel.audio.v1';
 const VERSION=7;
-const BUILD_ID='v18';
+const BUILD_ID='v19';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -872,6 +872,13 @@ function weaponEventStage(){
  ];
  return{key:'weaponEvent',chapter:'WEAPON DEVELOPMENT',name:'What Do You Discover?',prompt:'The inspiration only matters if it becomes something usable.',mode:'weights',options:opts};
 }
+function contributionMomentCount(){
+ const s=effectiveStats(),role=activePositionName();
+ let count=6;
+ if(s.stamina>=86)count++;
+ if(['Pressing Forward','Central Midfielder','Defensive Midfielder','Left Wing-Back','Right Wing-Back'].includes(role)&&s.stamina>=74)count=Math.max(count,7);
+ return clamp(count,6,7);
+}
 function emptyMatchContribution(){
  return{goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,mistakes:0,bigMisses:0,bonusRating:0,ratingPenalty:0,labels:[]};
 }
@@ -890,7 +897,7 @@ function contributionStage(){
   weighted('Major Error','A bad decision creates a dangerous moment for the opponent.',Math.max(1,bad*.45),{},'ERROR',{contrib:{mistakes:1,ratingPenalty:.7}}),
   weighted('Lose Important Duel','You are beaten in a meaningful individual contest.',Math.max(2,bad*.8),{},'LOST DUEL',{contrib:{mistakes:1,ratingPenalty:.28}}),
   weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(1,9+prof.shots*5-attack*.07),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,ratingPenalty:.18}}),
-  weighted('Quiet Phase','The match moves around you without a decisive contribution.',16,{},'QUIET',{contrib:{}}),
+  weighted('Quiet Phase','The match moves around you without a decisive contribution.',12,{},'QUIET',{contrib:{}}),
   weighted('Shot on Target','You create a credible attempt without scoring.',Math.max(2,6+attack*.08*prof.shots+(bonus.shots||0)*2),{},'SHOT',{contrib:{shots:1,bonusRating:.04}}),
   weighted('Goal','You finish a decisive chance.',Math.max(.8,attack*.095*prof.shots+(bonus.goalP||0)*90+formBoost*.4),{},'GOAL',{contrib:{goals:1,shots:1,bonusRating:1.05}}),
   weighted('Brace Moment','You punish the opponent twice in the same spell.',Math.max(.15,(attack-62)*.025*prof.shots+(bonus.goalP||0)*18+Math.max(0,formBoost)*.08),{},'BRACE',{contrib:{goals:2,shots:2,bonusRating:2.05}}),
@@ -905,7 +912,8 @@ function contributionStage(){
   weighted('Last-Man Stop','You erase a chance that looked certain to become a shot.',Math.max(.2,(defend-55)*.025*prof.defense+(bonus.blocks||0)*.8),{},'LAST MAN',{contrib:{tackles:1,blocks:1,bonusRating:.42}}),
   weighted('Turnover to Chance','You win the ball and immediately create a dangerous attack.',Math.max(.2,(defend+create-105)*.035*Math.min(1.4,prof.defense)),{},'TURNOVER',{contrib:{interceptions:1,keyPasses:1,bonusRating:.32}})
  ];
- return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:'Match Moment '+(idx+1)+' / 4',prompt:'Your stats, form, role, weapons and opponent change every slice. Spin the action you actually contribute.',mode:'weights',options:opts};
+ const total=p.targetSpins||contributionMomentCount();
+ return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:'Match Moment '+(idx+1)+' / '+total,prompt:'Your stats, form, role, weapons and opponent change every slice. Spin the action you actually contribute.',mode:'weights',options:opts};
 }
 function challengeEffectiveStats(){
  const s=currentStats(),condition=clamp(.90+state.run.energy/1000+state.run.fitness/1200+(state.run.confidence-50)/1000+state.run.form*.0125,.82,1.08),inj=state.run.injury?.penalty||0,out={};
@@ -1012,7 +1020,7 @@ function renderWheel(){
  else if(mode==='injuryEventSpin')$('#stageCount').textContent='INJURY';
  else if(mode==='egoEventSpin')$('#stageCount').textContent='EGO';
  else if(mode==='weaponEventSpin')$('#stageCount').textContent='WEAPON';
- else if(mode==='contributionSpin')$('#stageCount').textContent='MOMENT '+(((state.run.pendingMatch?.spinIndex)||0)+1)+' / 4';
+ else if(mode==='contributionSpin'){const p=state.run.pendingMatch||{};$('#stageCount').textContent='MOMENT '+((p.spinIndex||0)+1)+' / '+(p.targetSpins||6);}
  else if(mode==='challengeSpin')$('#stageCount').textContent='100 GOALS';
  else if(mode==='survivalSpin')$('#stageCount').textContent='SURVIVAL';
  else if(mode==='nelSpin')$('#stageCount').textContent='NEL';
@@ -1050,7 +1058,7 @@ function renderWheel(){
  }
  else if(mode==='learnSpin'||mode==='positionExperimentSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin')$('#nextBtn').textContent='Return to Match Plan';
  else if(mode==='injuryEventSpin')$('#nextBtn').textContent=picked?.meta?.eliminate?'Accept Medical Withdrawal':'Return to Match Plan';
- else if(mode==='contributionSpin')$('#nextBtn').textContent=(state.run.pendingMatch?.endedEarly?'Resolve Match':((state.run.pendingMatch?.spinIndex||0)<3?'Next Match Moment':'Resolve Match'));
+ else if(mode==='contributionSpin'){const p=state.run.pendingMatch||{},last=(p.targetSpins||6)-1;$('#nextBtn').textContent=(p.endedEarly?'Resolve Match':((p.spinIndex||0)<last?'Next Match Moment':'Resolve Match'));}
  else if(mode==='challengeSpin')$('#nextBtn').textContent='View Challenge Result';
  else if(mode==='survivalSpin')$('#nextBtn').textContent=(picked?.meta?.survive?'Continue Second Selection':'Accept Elimination');
  else if(mode==='nelSpin')$('#nextBtn').textContent='Enter Neo Egoist League';
@@ -1069,7 +1077,8 @@ function renderBuildStrip(){
  if(mode==='weaponEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Weapon Discovery</span>';return;}
  if(mode==='contributionSpin'){
   const n=(state.run.pendingMatch?.spinIndex||0)+1;
-  $('#stageStrip').innerHTML=[1,2,3,4].map(i=>'<span class="stage-pill '+(i<n?'done ':'')+(i===n?'current':'')+'">Moment '+i+'</span>').join('');return;
+  const total=state.run.pendingMatch?.targetSpins||6;
+  $('#stageStrip').innerHTML=Array.from({length:total},(_,j)=>j+1).map(i=>'<span class="stage-pill '+(i<n?'done ':'')+(i===n?'current':'')+'">Moment '+i+'</span>').join('');return;
  }
  if(mode==='challengeSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">100 Goal Challenge</span>';return;}
  if(mode==='survivalSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Selection Survival</span>';return;}
@@ -1100,7 +1109,7 @@ function renderSpinResult(){
  if(mode==='statSpin')extra='<p>This is your raw starting '+esc(stage.name.replace(' Rating','').toLowerCase())+' before archetype, height, physique and weapon bonuses.</p>';
  if(mode==='trainingSpin')extra='<p>The quality result is applied to the training focus you chose.</p>';
  if(mode==='betweenSpin')extra='<p>This event determines what kind of preparation, setback or opportunity you get before the fixture.</p>';
- if(mode==='contributionSpin')extra='<p>This action is now locked into the match. You have four contribution spins in total.</p>';
+ if(mode==='contributionSpin')extra='<p>This action is now locked into the match. This match has '+(state.run.pendingMatch?.targetSpins||6)+' contribution spins in total.</p>';
  if(mode==='challengeSpin')extra='<p>'+((v.meta?.score||0)>=100?'This clears the gate.':'Below 100 means elimination if you continue.')+'</p>';
  const rare=stage.mode==='rarity'?'<span class="result-rarity r-'+v.rarity+'">'+RARITY_LABELS[v.rarity]+' · '+fmtPct(probability(stage,v))+'</span>':'<span class="result-rarity r-rare">'+fmtPct(probability(stage,v))+'</span>';
  $('#spinResult').innerHTML='<span class="result-eyebrow">'+esc(stage.chapter)+'</span><strong>'+esc(v.name)+'</strong><p>'+esc(v.desc)+'</p>'+extra+rare;
@@ -1320,23 +1329,34 @@ function resolveContributionOutcome(outcome){
  target.labels.push(outcome.name);
  if(add.sentOff||add.injured)p.endedEarly=true;
 }
-function contributionRating(a,result,profile=positionProfile()){
- const defScale=clamp(.72+profile.defense*.42,.82,1.58);
+function cleanSheetRatingBonus(oppGoals,profile=positionProfile()){
+ if(oppGoals!==0)return 0;
+ const role=activePositionName();
+ if(['Centre Back','Ball-Playing Centre Back','Stopper','Sweeper'].includes(role))return .62;
+ if(role==='Defensive Midfielder')return .46;
+ if(['Left Back','Right Back','Left Wing-Back','Right Wing-Back'].includes(role))return .38;
+ if(role==='Central Midfielder')return .16;
+ if(role==='Pressing Forward')return .08;
+ return 0;
+}
+function contributionRating(a,result,profile=positionProfile(),oppGoals=null){
+ const defScale=clamp(.74+profile.defense*.44,.84,1.62);
  const attackScale=clamp(.78+profile.shots*.24,.8,1.08);
  const createScale=clamp(.82+profile.creation*.18,.88,1.08);
  const positive=
   (a.goals||0)*1.02*attackScale+
   (a.assists||0)*.78*createScale+
-  (a.keyPasses||0)*.085*createScale+
-  (a.dribbles||0)*.065*clamp(.8+profile.carry*.18,.85,1.08)+
-  (a.tackles||0)*.115*defScale+
-  (a.interceptions||0)*.14*defScale+
-  (a.blocks||0)*.19*defScale+
-  (a.clearances||0)*.10*defScale+
-  (a.recoveries||0)*.085*defScale;
+  (a.keyPasses||0)*.09*createScale+
+  (a.dribbles||0)*.07*clamp(.8+profile.carry*.18,.85,1.08)+
+  (a.tackles||0)*.15*defScale+
+  (a.interceptions||0)*.19*defScale+
+  (a.blocks||0)*.25*defScale+
+  (a.clearances||0)*.14*defScale+
+  (a.recoveries||0)*.11*defScale;
  const penalty=(a.ratingPenalty||0)+(a.sentOff?1.1:0)+(a.injured?.35:0);
  const resultAdj=result==='WIN'?.20:result==='LOSS'?-.14:0;
- return clamp(6+positive-penalty+resultAdj,3.2,10);
+ const cleanSheet=oppGoals===null?0:cleanSheetRatingBonus(oppGoals,profile);
+ return clamp(6+positive+cleanSheet-penalty+resultAdj,3.2,10);
 }
 function updateRollingForm(c,rep){
  if(!c||rep.type!=='match')return;
@@ -1364,11 +1384,11 @@ function finalizeContributionMatch(){
  const oppLambda=clamp(.72+(fixture.strength-62)/34-defensiveHelp/310-(bonus.oppDefense||0),.1,3.8);
  const oppGoals=poisson(oppLambda);
  const result=teamGoals>oppGoals?'WIN':teamGoals<oppGoals?'LOSS':'DRAW';
- const rating=contributionRating(a,result,prof);
+ const rating=contributionRating(a,result,prof,oppGoals);
  const minutes=a.sentOff?int(18,70):a.injured?int(12,65):(state.run.injury?int(55,82):90);
  if(a.sentOff){state.run.confidence=clamp(state.run.confidence-8,0,100);state.run.form=clamp(state.run.form-1,-3,3);}
  if(a.injured){state.run.injury={name:'Match injury',matches:2,penalty:10};state.run.fitness=clamp(state.run.fitness-14,20,100);}
- const rep={type:'match',passed:true,minutes,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
+ const rep={type:'match',passed:true,minutes,cleanSheet:oppGoals===0,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
  rep.moments=matchMoments(rep,fixture);rep.moments.unshift('Contribution spins: '+rep.contributionLabels.join(' · ')+'.');
  c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();
  state.run.pendingMatch=null;
@@ -1437,20 +1457,24 @@ function effectiveStats(){
 }
 function matchMoments(rep,fixture){
  const m=[],defActions=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
+ const meaningful=(rep.goals||0)+(rep.assists||0)+(rep.keyPasses||0)+(rep.dribbles||0)+defActions;
+ if(rep.cleanSheet&&isDefensiveRole())m.push('You help preserve a clean sheet from your defensive role.');
  if(rep.goals===1)m.push('You score once against '+fixture.opponent+'.');
  if(rep.goals>1)m.push('You score '+rep.goals+' goals and become the centre of the match.');
  if(rep.assists===1)m.push('You create one goal for a teammate.');
  if(rep.assists>1)m.push('You supply '+rep.assists+' assists.');
+ if(rep.keyPasses>=2)m.push('You create '+rep.keyPasses+' dangerous chances with key passes.');
  if(rep.dribbles>=4)m.push('You repeatedly beat opponents in possession ('+rep.dribbles+' successful carries/dribbles).');
- if(rep.tackles>=3)m.push('You win '+rep.tackles+' tackles and repeatedly kill attacks at source.');
- if(rep.interceptions>=3)m.push('You read '+rep.interceptions+' passing lanes before they can become chances.');
- if(rep.blocks>=2)m.push('You make '+rep.blocks+' decisive blocks inside dangerous phases.');
- if(rep.clearances>=4)m.push('You dominate the box with '+rep.clearances+' clearances.');
- if(rep.recoveries>=4)m.push('You recover possession '+rep.recoveries+' times and restart the attack.');
- if(defActions>=7)m.push('Your defensive output becomes one of the match’s defining features ('+defActions+' actions).');
+ if(rep.tackles>=2)m.push('You win '+rep.tackles+' tackles and repeatedly kill attacks at source.');
+ if(rep.interceptions>=2)m.push('You read '+rep.interceptions+' passing lanes before they can become chances.');
+ if(rep.blocks>=1)m.push('You make '+rep.blocks+' important shot block'+(rep.blocks===1?'':'s')+'.');
+ if(rep.clearances>=2)m.push('You deal with '+rep.clearances+' dangerous balls through clearances.');
+ if(rep.recoveries>=3)m.push('You recover possession '+rep.recoveries+' times and restart the attack.');
+ if(defActions>=5)m.push('Your defensive output becomes one of the match’s defining features ('+defActions+' actions).');
  if(rep.rating>=8.5&&fixture.stars?.length)m.push('Your duel with '+pick(fixture.stars)+' becomes one of the match’s defining battles.');
  if(rep.rating<6&&fixture.stars?.length)m.push(pick(fixture.stars)+' repeatedly exposes the gap between your current level and the next one.');
- if(!m.length)m.push('You play a relatively quiet match without a decisive individual moment.');
+ if(!m.length&&meaningful===0)m.push('You play a relatively quiet match without a decisive individual moment.');
+ else if(!m.length)m.push('You contribute useful work across the match without one dominant headline moment.');
  return m;
 }
 function simulateChallenge(fixture,tier){
@@ -1563,8 +1587,9 @@ function playFixture(){
   delete state.run.selections.challengeOutcome;
   state.run.mode='challengeSpin';
  }else{
-  state.run.pendingMatch={fixtureId:fixture.id,spinIndex:0,contributions:emptyMatchContribution()};
-  for(let i=0;i<4;i++)delete state.run.selections['contribution_'+i];
+  const targetSpins=contributionMomentCount();
+  state.run.pendingMatch={fixtureId:fixture.id,spinIndex:0,targetSpins,contributions:emptyMatchContribution()};
+  for(let i=0;i<8;i++)delete state.run.selections['contribution_'+i];
   state.run.mode='contributionSpin';
  }
  wheelRotation=0;save();renderAll();clickSound();
@@ -1861,7 +1886,8 @@ function nextBuild(){
  if(mode==='contributionSpin'){
   const p=state.run.pendingMatch;
   if(!p)return;
-  if(!p.endedEarly&&(p.spinIndex||0)<3){
+  const lastIndex=(p.targetSpins||6)-1;
+  if(!p.endedEarly&&(p.spinIndex||0)<lastIndex){
    p.spinIndex++;wheelRotation=0;save();renderAll();return;
   }
   finalizeContributionMatch();state.run.mode='career';wheelRotation=0;save();renderAll();return;
