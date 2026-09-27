@@ -1,9 +1,9 @@
 (() => {
 'use strict';
 
-const STORAGE_KEY='egowheel.save.v5';
+const STORAGE_KEY='egowheel.save.v6';
 const AUDIO_KEY='egowheel.audio.v1';
-const VERSION=5;
+const VERSION=6;
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -139,6 +139,26 @@ const BUILD_STAGES=[
 
 
 
+
+const HEIGHT_STAGE={key:'height',chapter:'PLAYER CREATION',name:'Height',prompt:'How tall is your player?',mode:'weights',options:[
+ weighted('160 cm','Very short for elite football; sharp centre of gravity but contact is a challenge.',.6,{acceleration:3,control:2,physical:-4},'160',{heightCm:160}),
+ weighted('163 cm','Low centre of gravity and explosive movement.',1.1,{acceleration:3,dribbling:1,physical:-3},'163',{heightCm:163}),
+ weighted('166 cm','Compact and agile.',2,{acceleration:2,control:1,physical:-2},'166',{heightCm:166}),
+ weighted('169 cm','Quick-footed and difficult to knock cleanly off balance.',3.5,{acceleration:2,control:1,physical:-1},'169',{heightCm:169}),
+ weighted('172 cm','Below average height with useful agility.',6,{acceleration:1,control:1},'172',{heightCm:172}),
+ weighted('175 cm','A balanced smaller frame.',9,{acceleration:1},'175',{heightCm:175}),
+ weighted('178 cm','Balanced proportions with few obvious trade-offs.',13,{},'178',{heightCm:178}),
+ weighted('181 cm','Close to the centre of the distribution.',16,{},'181',{heightCm:181}),
+ weighted('184 cm','A little taller without sacrificing much mobility.',16,{physical:1},'184',{heightCm:184}),
+ weighted('187 cm','Good reach and contact profile.',13,{physical:2,reactions:1},'187',{heightCm:187}),
+ weighted('190 cm','Tall enough to influence aerial play significantly.',9,{physical:3,defense:1,acceleration:-1},'190',{heightCm:190}),
+ weighted('193 cm','A powerful tall frame with major aerial upside.',6,{physical:4,defense:1,acceleration:-1},'193',{heightCm:193}),
+ weighted('196 cm','Exceptional reach and presence.',3.5,{physical:5,defense:2,speed:-1,acceleration:-1},'196',{heightCm:196}),
+ weighted('199 cm','Extremely tall even among professionals.',1.8,{physical:6,defense:2,speed:-2,acceleration:-2},'199',{heightCm:199}),
+ weighted('202 cm','A freakishly tall football frame.',.7,{physical:7,defense:3,speed:-2,acceleration:-3},'202',{heightCm:202})
+]};
+BUILD_STAGES.splice(3,0,HEIGHT_STAGE);
+
 const positionStage=BUILD_STAGES.find(s=>s.key==='position');
 positionStage.options.push(
  option('Central Midfielder','You connect phases, progress possession and arrive where the game needs you.','common',{passing:4,vision:4,stamina:3,control:2},'CM'),
@@ -191,6 +211,23 @@ const ARCHETYPE_STAGE={key:'archetype',chapter:'PLAYER ARCHETYPE',name:'Player A
  option('Destroyer Six','You solve midfield problems through pressure, contact and repeat duels.','common',{defense:7,physical:5,stamina:5},'DESTROYER 6',{bonusText:'+ tackles and duel volume',match:{defense:1.8,performance:.04},training:{press:.3,gym:.2}}),
  option('Press-Bait Technician','You invite pressure, escape it, and break the opponent shape.','common',{control:6,passing:5,vision:4,physical:2},'PRESS BAIT',{bonusText:'+ progression and performance under pressure',match:{keyPasses:.55,dribbles:.35,performance:.09},training:{duels:.18,passing:.22}}),
  option('Defensive Commander','You organise the line, read danger and make teammates defend better.','common',{defense:6,vision:6,ego:4,reactions:3},'COMMANDER',{bonusText:'+ opponent suppression and defensive rating',match:{defense:1,oppDefense:.11,performance:.08},training:{film:.3,ego:.15}})
+,
+ option('Regista','You orchestrate from deep and turn possession into territory.','common',{passing:6,vision:6,control:3},'REGISTA',{bonusText:'+ deep creation and stable performance',match:{keyPasses:.9,performance:.08},training:{passing:.28,film:.22}}),
+ option('Box-to-Box Engine','You want to be involved in every phase rather than own only one zone.','common',{stamina:7,defense:3,passing:3,offBall:3},'B2B',{bonusText:'+ mixed attacking and defensive volume',match:{defense:.7,keyPasses:.35,dribbles:.25,performance:.06},training:{speed:.12,press:.18,passing:.12}}),
+ option('Deep-Lying Playmaker','You create from behind pressure instead of between the lines.','common',{passing:6,vision:7,technique:3},'DLP',{bonusText:'+ progression and key passes from deep',match:{keyPasses:1,performance:.07},training:{passing:.3,film:.2}}),
+ option('Half-Space Creator','You live between full-back and centre-back and manufacture overloads.','common',{vision:5,passing:5,offBall:4,control:2},'HALF SPACE',{bonusText:'+ chance creation and late box involvement',match:{keyPasses:.8,shots:.25,assistP:.025},training:{film:.16,passing:.2}}),
+ option('Inverted Full-Back','You leave the touchline and become an extra midfielder in possession.','common',{defense:4,passing:5,vision:5,control:3},'INVERTED',{bonusText:'+ build-up creation with defensive value',match:{defense:.7,keyPasses:.65,performance:.06},training:{passing:.2,film:.18}}),
+ option('Overlap Specialist','Your timing outside the winger turns width into a repeated threat.','common',{stamina:5,speed:4,passing:4,offBall:3},'OVERLAP',{bonusText:'+ wide creation and repeated runs',match:{keyPasses:.6,dribbles:.3,performance:.04},training:{speed:.18,passing:.16}}),
+ option('Underlap Specialist','You attack the inside channel from a nominally wide starting point.','common',{offBall:5,passing:4,acceleration:3,vision:3},'UNDERLAP',{bonusText:'+ late runs and cutback creation',match:{shots:.25,keyPasses:.55},training:{film:.15,speed:.12}}),
+ option('Set-Piece Threat','Corners and free kicks create a second scoring identity.','common',{physical:4,finishing:3,technique:4},'SET PIECE',{bonusText:'+ occasional extra shot/assist value',match:{shots:.25,goalP:.012,assistP:.012},training:{finishing:.1,gym:.12}}),
+ option('Raumdeuter','You contribute by appearing where structure has briefly failed.','common',{offBall:7,vision:4,reactions:4},'SPACE FINDER',{bonusText:'+ involvement without needing dribble volume',match:{shots:.45,keyPasses:.25,performance:.05},training:{film:.25}}),
+ option('Press-Bait Eight','You invite midfield pressure to open the next line.','common',{control:6,passing:5,physical:3,vision:4},'PRESS BAIT 8',{bonusText:'+ press resistance and progression',match:{keyPasses:.55,dribbles:.4,performance:.08},training:{duels:.2,passing:.2}}),
+ option('Counterpress Eight','Losing possession is simply the start of your next action.','common',{stamina:6,defense:5,reactions:4,passing:2},'COUNTERPRESS',{bonusText:'+ recoveries and transition creation',match:{defense:1,recoveries:.8,keyPasses:.25},training:{press:.28}}),
+ option('One-Touch Connector','You keep attacks moving before the defence can lock onto you.','common',{passing:6,control:5,reactions:3},'ONE TOUCH',{bonusText:'+ combinations and assist chains',match:{keyPasses:.65,assistP:.025,mateGoals:.04},training:{passing:.24}}),
+ option('Tempo Breaker','You deliberately change the speed of the game to disorganise opponents.','common',{vision:5,control:5,technique:4,ego:2},'TEMPO BREAK',{bonusText:'+ stable contribution and creation',match:{performance:.08,keyPasses:.45},training:{film:.18,passing:.15}}),
+ option('Duel Monster','You actively seek physical and technical 1v1s because repeated wins tilt matches.','common',{physical:5,defense:4,dribbling:4,ego:3},'DUEL MONSTER',{bonusText:'+ both attacking and defensive duel volume',match:{defense:.8,dribbles:.6,performance:.05},training:{duels:.25,gym:.15}}),
+ option('Playmaking Libero','You defend deep but want the first progressive action after every regain.','common',{defense:5,vision:6,passing:6,control:3},'PLAY LIBERO',{bonusText:'+ interceptions into immediate progression',match:{defense:1,keyPasses:.7,performance:.08},training:{film:.22,passing:.25}}),
+ option('Utility Egoist','Your value is being able to solve a different role every match.','common',{vision:3,reactions:3,stamina:3,technique:3,ego:3},'UTILITY',{bonusText:'+ broad match and training consistency',match:{performance:.08,defense:.35,keyPasses:.25,dribbles:.2},training:{finishing:.06,duels:.06,speed:.06,gym:.06,film:.06,passing:.06,press:.06,defduels:.06,aerial:.06,shape:.06}})
 ]};
 BUILD_STAGES.splice(1,0,ARCHETYPE_STAGE);
 
@@ -349,6 +386,8 @@ const POSITION_MATCH_PROFILE={
  'Sweeper':{shots:.14,defense:1.8,creation:.95,carry:.55}
 };
 
+function playerHeight(){return state.run.selections.height?.meta?.heightCm||181;}
+function heightAerialFactor(){return clamp(1+(playerHeight()-181)/45,.78,1.48);}
 function positionProfile(){
  const name=state.run.selections.position?.name||'Centre Forward';
  return POSITION_MATCH_PROFILE[name]||POSITION_MATCH_PROFILE['Centre Forward'];
