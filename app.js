@@ -465,7 +465,11 @@ function setupDerived(){
 function potentialMeta(){return state.run.selections.potential?.meta||{growth:1,ceiling:87};}
 function currentStats(){
  const setup=setupDerived(),stats={};const ceil=potentialMeta().ceiling||87;
- ATTR_KEYS.forEach(k=>stats[k]=clamp(Math.round((state.run.baseStats[k]||50)+(setup[k]||0)+(state.run.development[k]||0)),20,Math.max(ceil,k==='ego'?99:ceil)));
+ ATTR_KEYS.forEach(k=>{
+  const starting=(state.run.baseStats[k]||50)+(setup[k]||0);
+  const cap=Math.max(starting,ceil,k==='ego'?99:ceil);
+  stats[k]=clamp(Math.round(starting+(state.run.development[k]||0)),20,cap);
+ });
  return stats;
 }
 function overall(stats=currentStats()){
