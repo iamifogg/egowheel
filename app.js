@@ -874,7 +874,18 @@ const LEARNING_PLAYERS=[
  {name:'Jyubei Aryu',short:'ARYU',desc:'Reach, aerial play and awkward-angle defending.',stats:{physical:2,defense:1,reactions:1}},
  {name:'Gin Gagamaru',short:'GAGAMARU',desc:'Reflexes and unconventional body control.',stats:{reactions:2,physical:1,technique:1}},
  {name:'Michael Kaiser',short:'KAISER',desc:'Elite shot execution and controlling attacking space.',stats:{finishing:2,offBall:1,ego:1}},
- {name:'Don Lorenzo',short:'LORENZO',desc:'Duel defending with ball-carrying confidence.',stats:{defense:2,dribbling:1,control:1}}
+ {name:'Don Lorenzo',short:'LORENZO',desc:'Duel defending with ball-carrying confidence.',stats:{defense:2,dribbling:1,control:1}},
+ {name:'Ryusei Shidou',short:'SHIDOU',desc:'Violent penalty-box instinct and finishing from unstable body positions.',stats:{finishing:2,reactions:1,ego:1}},
+ {name:'Eita Otoya',short:'OTOYA',desc:'Blind-side movement and disappearing from a defender’s reference points.',stats:{offBall:2,acceleration:1,reactions:1}},
+ {name:'Kenyu Yukimiya',short:'YUKIMIYA',desc:'Isolation dribbling and creating your own shooting lane.',stats:{dribbling:2,technique:1,ego:1}},
+ {name:'Aoshi Tokimitsu',short:'TOKIMITSU',desc:'Explosive physicality, endurance and contact strength.',stats:{physical:2,stamina:2}},
+ {name:'Jingo Raichi',short:'RAICHI',desc:'Relentless man-marking, stamina and ugly defensive work.',stats:{defense:2,stamina:1,physical:1}},
+ {name:'Ranze Kurona',short:'KURONA',desc:'Fast support angles and one-touch combination movement.',stats:{passing:1,offBall:1,control:1,reactions:1}},
+ {name:'Shuto Sendou',short:'SENDOU',desc:'Penalty-box timing and conventional attacking movement.',stats:{offBall:2,finishing:1,reactions:1}},
+ {name:'Sae Itoshi',short:'SAE',desc:'World-class passing weight, tempo control and technical precision.',stats:{passing:2,vision:2}},
+ {name:'Julian Loki',short:'LOKI',desc:'Explosive acceleration and decision-making at extreme speed.',stats:{speed:2,acceleration:2}},
+ {name:'Zantetsu Tsurugi',short:'ZANTETSU',desc:'Direct explosive running and acceleration mechanics.',stats:{acceleration:2,speed:1,offBall:1}}
+
 ];
 
 const LEARNED_WEAPON_LIBRARY={
@@ -893,7 +904,18 @@ const LEARNED_WEAPON_LIBRARY={
  'Jyubei Aryu':{name:'Long-Reach Aerials',desc:'Reach and timing increase aerial defending and set-piece threat.',meta:{match:{clearances:.6,shots:.14},training:{aerial:.2}}},
  'Gin Gagamaru':{name:'Instinctive Reaction',desc:'Unorthodox reflexes help in broken, unpredictable phases.',meta:{match:{blocks:.25,recoveries:.3,performance:.04},training:{shape:.12}}},
  'Michael Kaiser':{name:'Impact Strike',desc:'A brutally clean strike increases high-value shooting outcomes.',meta:{match:{goalP:.02,shots:.28},training:{finishing:.2}}},
- 'Don Lorenzo':{name:'Zombie Carry',desc:'You defend physically and still carry through pressure after regains.',meta:{match:{defense:.55,dribbles:.45,performance:.05},training:{defduels:.12,duels:.12}}}
+ 'Don Lorenzo':{name:'Zombie Carry',desc:'You defend physically and still carry through pressure after regains.',meta:{match:{defense:.55,dribbles:.45,performance:.05},training:{defduels:.12,duels:.12}}},
+ 'Ryusei Shidou':{name:'Impossible-Angle Finish',desc:'You can attack goal from unstable body positions others would abandon.',meta:{match:{goalP:.018,shots:.24},training:{finishing:.18}}},
+ 'Eita Otoya':{name:'Blind-Side Vanish',desc:'Movement off a marker’s shoulder creates extra off-ball involvement.',meta:{match:{shots:.15,keyPasses:.18,performance:.04},training:{film:.16}}},
+ 'Kenyu Yukimiya':{name:'Street Duel',desc:'Isolation dribbling becomes a reliable route to manufacture your own chance.',meta:{match:{dribbles:.5,shots:.15},training:{duels:.2}}},
+ 'Aoshi Tokimitsu':{name:'Anxious Engine',desc:'Nervous energy converts into relentless physical output.',meta:{match:{defense:.3,recoveries:.45,performance:.03},training:{gym:.16,press:.14}}},
+ 'Jingo Raichi':{name:'Sexy Football Marking',desc:'Obsessive man-marking improves defensive involvement and suppression.',meta:{match:{defense:.75,oppDefense:.045},training:{defduels:.2,press:.16}}},
+ 'Ranze Kurona':{name:'Planet Hotline',desc:'Quick support angles make combinations and third-man actions more frequent.',meta:{match:{keyPasses:.4,mateGoals:.035,performance:.035},training:{passing:.18}}},
+ 'Shuto Sendou':{name:'Box Timing',desc:'Conventional but sharp penalty-area movement increases useful shooting positions.',meta:{match:{shots:.25,goalP:.009},training:{film:.12,finishing:.12}}},
+ 'Sae Itoshi':{name:'World-Class Delivery',desc:'Passing weight and timing create dangerous chances from difficult zones.',meta:{match:{keyPasses:.85,assistP:.022,performance:.06},training:{passing:.24}}},
+ 'Julian Loki':{name:'Godspeed Burst',desc:'Extreme acceleration turns tiny gaps into immediate separation.',meta:{match:{dribbles:.45,shots:.22,performance:.055},training:{speed:.25}}},
+ 'Zantetsu Tsurugi':{name:'Left-Lane Explosion',desc:'Direct acceleration becomes a repeatable way to beat the first defender.',meta:{match:{dribbles:.32,shots:.12},training:{speed:.2}}}
+
 };
 
 function learningRewardStage(){
