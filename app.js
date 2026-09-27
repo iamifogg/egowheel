@@ -196,7 +196,7 @@ const ARCHETYPE_STAGE={key:'archetype',chapter:'PLAYER ARCHETYPE',name:'Player A
  option('Adaptive Solver','Reads what is failing and rebuilds their own game around it.','common',{vision:4,reactions:4,ego:3},'ADAPT',{bonusText:'+ better training and match-performance odds',match:{performance:.1},training:{finishing:.12,duels:.12,speed:.12,gym:.12,film:.12,passing:.12,press:.12,ego:.12}}),
  option('Two-Footed Killer','Creates shooting angles defenders normally remove.','common',{weakFoot:8,finishing:3,technique:2},'TWO-FOOT',{bonusText:'+ conversion and weak-side reliability',match:{goalP:.025},training:{finishing:.18}}),
  option('Defensive Forward','Can erase a build-up lane before becoming the first attacker.','common',{defense:6,stamina:4,physical:2},'DEF FWD',{bonusText:'+ tackles, interceptions and opponent suppression',match:{defense:1.5,oppDefense:.08},training:{press:.3}}),
- option('Transition Monster','Can attack, recover and attack again without disappearing from the game.','common',{stamina:6,speed:3,reactions:3},'TRANSITION',{bonusText:'+ involvement stays high when energy drops',match:{performance:.06,energyShield:.08},training:{speed:.15,press:.2}}),
+ option('Transition Monster','Can attack, recover and attack again without disappearing from the game.','common',{stamina:6,speed:3,reactions:3},'TRANSITION',{bonusText:'+ involvement stays high when fitness drops',match:{performance:.06,energyShield:.08},training:{speed:.15,press:.2}}),
  option('Tempo Controller','Knows when a match needs acceleration and when it needs one extra touch.','common',{vision:5,passing:4,control:3},'TEMPO',{bonusText:'+ stable performance and creation',match:{performance:.07,keyPasses:.6},training:{film:.2,passing:.2}}),
  option('Clutch Specialist','Ordinary phases can be quiet, but decisive moments sharpen the ego.','common',{ego:5,reactions:4,finishing:2},'CLUTCH',{bonusText:'+ stronger odds in important fixtures',match:{clutch:.13},training:{ego:.25}})
 ,
@@ -560,22 +560,22 @@ const MATCH_PLANS=[
  {key:'poacher',name:'Goal Hunter',desc:'Sacrifice some creation to attack scoring positions constantly.',mods:{finishing:6,offBall:6,ego:3,passing:-3}},
  {key:'creator',name:'Creator',desc:'Drop into pockets and prioritise chances for others.',mods:{vision:7,passing:7,offBall:2,finishing:-2}},
  {key:'dribbler',name:'Isolation',desc:'Seek 1v1s and destabilise the defensive line yourself.',mods:{dribbling:8,control:5,ego:2,stamina:-2}},
- {key:'pressing',name:'Predatory Press',desc:'Hunt turnovers and accept the energy cost.',mods:{defense:8,stamina:5,reactions:4},extraEnergy:7}
+ {key:'pressing',name:'Predatory Press',desc:'Hunt turnovers and accept the physical load.',mods:{defense:8,stamina:5,reactions:4},extraLoad:7}
 ,
- {key:'lockdown',name:'Lockdown',desc:'Prioritise duels, marking and denying the opponent’s strongest attacker.',mods:{defense:10,physical:5,reactions:4,passing:-2},extraEnergy:5},
- {key:'sweeper',name:'Sweep & Read',desc:'Protect space behind the line and hunt interceptions rather than diving into duels.',mods:{defense:7,vision:8,reactions:6,speed:2},extraEnergy:3},
+ {key:'lockdown',name:'Lockdown',desc:'Prioritise duels, marking and denying the opponent’s strongest attacker.',mods:{defense:10,physical:5,reactions:4,passing:-2},extraLoad:5},
+ {key:'sweeper',name:'Sweep & Read',desc:'Protect space behind the line and hunt interceptions rather than diving into duels.',mods:{defense:7,vision:8,reactions:6,speed:2},extraLoad:3},
  {key:'progressor',name:'Play Through Pressure',desc:'Defend your zone, then take responsibility for progressing possession.',mods:{passing:8,vision:6,control:5,defense:3}},
- {key:'overlap',name:'Aggressive Overlap',desc:'Attack the flank repeatedly and accept the recovery burden.',mods:{speed:6,stamina:7,passing:5,dribbling:3,defense:-2},extraEnergy:7},
+ {key:'overlap',name:'Aggressive Overlap',desc:'Attack the flank repeatedly and accept the recovery burden.',mods:{speed:6,stamina:7,passing:5,dribbling:3,defense:-2},extraLoad:7},
  {key:'anchor',name:'Anchor',desc:'Stay central, screen the defence and make the game pass around you.',mods:{defense:9,vision:6,stamina:5,physical:3,offBall:-2}}
 ];
 
 MATCH_PLANS.push(
- {key:'setpiece',name:'Set-Piece Target',desc:'Attack dead balls aggressively and accept fewer open-play touches.',mods:{physical:6,reactions:5,finishing:4,offBall:-2},extraEnergy:2},
+ {key:'setpiece',name:'Set-Piece Target',desc:'Attack dead balls aggressively and accept fewer open-play touches.',mods:{physical:6,reactions:5,finishing:4,offBall:-2},extraLoad:2},
  {key:'aerialcontrol',name:'Aerial Control',desc:'Prioritise first contact on long balls, crosses and clearances.',mods:{physical:7,reactions:5,defense:4,speed:-2}},
- {key:'frontfoot',name:'Step Out',desc:'Defend aggressively in front of the receiver and hunt interceptions.',mods:{defense:7,acceleration:4,reactions:5,vision:2},extraEnergy:3},
+ {key:'frontfoot',name:'Step Out',desc:'Defend aggressively in front of the receiver and hunt interceptions.',mods:{defense:7,acceleration:4,reactions:5,vision:2},extraLoad:3},
  {key:'counter',name:'Counter-Attack',desc:'Hold shape until the regain, then attack space immediately.',mods:{speed:6,acceleration:5,offBall:4,passing:2}},
  {key:'tempo',name:'Control Tempo',desc:'Slow the match down, own possession and choose when it accelerates.',mods:{passing:7,vision:7,control:5,stamina:-1}},
- {key:'markstar',name:'Erase Their Star',desc:'Sacrifice some freedom to track the opposition’s main threat.',mods:{defense:9,reactions:5,physical:4,offBall:-3},extraEnergy:3},
+ {key:'markstar',name:'Erase Their Star',desc:'Sacrifice some freedom to track the opposition’s main threat.',mods:{defense:9,reactions:5,physical:4,offBall:-3},extraLoad:3},
  {key:'laterunner',name:'Late Arrival',desc:'Stay outside the first attack and arrive after defenders have committed.',mods:{offBall:7,reactions:5,finishing:3,defense:-2}},
  {key:'chaos',name:'Break Structure',desc:'Play aggressively and unpredictably, increasing both upside and risk.',mods:{ego:7,dribbling:5,acceleration:4,defense:-3}}
 );
@@ -760,7 +760,7 @@ function trainingOutcomeStage(){
 function matchPerformanceStage(){
  const fixture=currentFixture(),bonus=gameplayBonuses().match||{},stats=currentStats(),ov=overall(stats);
  const importance=fixture?.importance||1,underdog=fixture?Math.max(0,fixture.strength-ov):0;
- const edge=(fixture?ov-fixture.strength:0)+(state.run.energy-60)*.08+(state.run.confidence-50)*.07+state.run.form*2.2+(bonus.performance||0)*45+(bonus.clutch||0)*30*Math.max(0,importance-1)+(bonus.underdog||0)*underdog*.55;
+ const edge=(fixture?ov-fixture.strength:0)+(state.run.fitness-75)*.045+(stats.stamina-60)*.025+(state.run.confidence-50)*.07+state.run.form*2.2+(bonus.performance||0)*45+(bonus.clutch||0)*30*Math.max(0,importance-1)+(bonus.underdog||0)*underdog*.55;
  const tiers=[
   ['Sent Off','A reckless or desperate moment removes you from the match entirely.',1.2,-1.6,.38,3.6,{redCard:true}],
   ['Injury Collapse','Your body gives way during the match and your influence disappears.',1.6,-1.45,.42,4.0,{injury:true}],
@@ -817,14 +817,14 @@ const BETWEEN_GAME_OUTCOMES=[
  weighted('Focused Training Block','You get a proper development window before the next fixture.',27,{},'TRAIN',{kind:'training'}),
  weighted('Learn From a Teammate','A teammate deliberately shows you something from their game.',11,{},'LEARN',{kind:'learn'}),
  weighted('Study an Opponent','You obsess over one player’s habits and steal a useful detail.',8,{},'STUDY',{kind:'learn'}),
- weighted('Recovery Window','The schedule gives your body a rare chance to reset.',10,{},'RECOVER',{kind:'direct',energy:20,fitness:12,confidence:2}),
+ weighted('Recovery Window','The schedule gives your body a rare chance to reset.',10,{},'RECOVER',{kind:'direct',fitness:12,confidence:2}),
  weighted('Tactical Breakthrough','A positioning idea suddenly makes the pitch easier to read.',8,{},'TACTICS',{kind:'direct',stats:{vision:2,reactions:1,defense:1},confidence:3}),
  weighted('Weapon Inspiration','A training moment suggests a new way to use what you already have.',6,{},'WEAPON',{kind:'weapon'}),
  weighted('Ego Test','Something challenges your self-image before the next game.',7,{},'EGO TEST',{kind:'ego'}),
  weighted('Position Experiment','The staff make you work outside your normal comfort zone.',5,{},'EXPERIMENT',{kind:'positionExperiment'}),
- weighted('Overtraining','You push past the useful part of the session and carry fatigue forward.',5,{},'OVERTRAIN',{kind:'direct',energy:-18,fitness:-6,confidence:-2,form:-1}),
+ weighted('Overtraining','You push past the useful part of the session and carry fatigue forward.',5,{},'OVERTRAIN',{kind:'direct',fitness:-6,confidence:-2,form:-1}),
  weighted('Training Injury','A routine session turns into an injury scare.',4.5,{},'INJURY',{kind:'injury'}),
- weighted('Illness','You lose sharpness during the week and cannot prepare normally.',2.5,{},'ILLNESS',{kind:'direct',energy:-16,fitness:-9,confidence:-2}),
+ weighted('Illness','You lose sharpness during the week and cannot prepare normally.',2.5,{},'ILLNESS',{kind:'direct',fitness:-9,confidence:-2}),
  weighted('Confidence Crisis','A bad week gets into your head before the match.',2.5,{},'CRISIS',{kind:'direct',confidence:-11,form:-1}),
  weighted('Unexpected Praise','A senior player or coach singles out something you did well.',4,{},'PRAISE',{kind:'direct',confidence:9,form:1}),
  weighted('Nothing Special','No breakthrough, no disaster. You simply reach the next fixture.',8,{},'QUIET',{kind:'direct'})
@@ -1114,7 +1114,9 @@ function resolveBreakthroughOutcome(outcome){
  careerLog('Mid-match breakthrough: '+outcome.name+(evolved?' · '+evolved.name:'')+'.');
 }
 function challengeEffectiveStats(){
- const s=currentStats(),condition=clamp(.90+state.run.energy/1000+state.run.fitness/1200+(state.run.confidence-50)/1000+state.run.form*.0125,.82,1.08),inj=state.run.injury?.penalty||0,out={};
+ const s=currentStats(),fitness=state.run.fitness??100,stamina=s.stamina||60;
+ const fatigue=Math.max(0,90-fitness)*.0018*clamp(1.18-stamina/190,.65,1);
+ const condition=clamp(1-fatigue+(state.run.confidence-50)/1200+state.run.form*.0125,.84,1.08),inj=state.run.injury?.penalty||0,out={};
  ATTR_KEYS.forEach(k=>out[k]=clamp(s[k]*condition-inj,15,110));
  return out;
 }
@@ -1812,7 +1814,7 @@ function applyPostMatch(rep,fixture){
   if(fixture.stage==='First Selection'){if(rep.result==='WIN')c.firstSelectionPoints+=3;else if(rep.result==='DRAW')c.firstSelectionPoints+=1;}
  }
  if(rep.type==='match'){
-  const stamina=currentStats().stamina||60,planLoad=(MATCH_PLANS.find(x=>x.key===c.planKey)?.extraEnergy||0)*.35,importance=fixture.importance||1;
+  const stamina=currentStats().stamina||60,planLoad=(MATCH_PLANS.find(x=>x.key===c.planKey)?.extraLoad||0)*.35,importance=fixture.importance||1;
   const rawLoad=7+importance*2+planLoad;
   const fitnessLoss=Math.max(2,Math.round(rawLoad*clamp(1.18-stamina/190,.62,1.02)));
   state.run.fitness=clamp(state.run.fitness-fitnessLoss,20,100);
@@ -2213,7 +2215,7 @@ function nextBuild(){
   if(!result)return;
   if(!result.meta?.survive){endRun('ELIMINATED — SECOND SELECTION','Your team lost and the winners chose somebody else. You leave Blue Lock.');return;}
   if(state.run.injury){state.run.injury.matches--;if(state.run.injury.matches<=0)state.run.injury=null;}
-  state.run.energy=clamp(state.run.energy+7,0,100);state.run.fitness=clamp(state.run.fitness+4,20,100);
+  const stamina=currentStats().stamina||60;state.run.fitness=clamp(state.run.fitness+Math.round(4+stamina/30),20,100);
   const career=state.run.career;
   career.fixtureIndex++;resetMatchPreparation(career);
   state.run.pendingSurvival=null;state.run.pendingSurvivalResult=null;state.run.mode='career';wheelRotation=0;
