@@ -850,13 +850,94 @@ function beginStatRolls(){
 function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
- state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,trainingKey:null,planKey:'balanced',history:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
+ state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,trainingKey:null,trainingResult:null,planKey:'balanced',history:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,complete:false,eliminated:false,finalStatus:null,finalReason:null};
  state.run.energy=100;state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
  save();renderAll();toast('Blue Lock career started.');
 }
 function currentFixture(){return state.run.career?.fixtures[state.run.career.fixtureIndex]||null;}
 function careerLog(msg){const c=state.run.career;if(!c)return;c.log.unshift(msg);c.log=c.log.slice(0,20);}
 
+function resetMatchPreparation(c){
+ if(!c)return;
+ c.prepared=false;c.betweenDone=false;c.betweenEvent=null;c.trainingAvailable=false;c.trainingKey=null;c.trainingResult=null;c.planKey='balanced';c.report=null;
+}
+function startBetweenEvent(){
+ const c=state.run.career;if(!c||c.report||c.prepared||c.trainingAvailable)return;
+ delete state.run.selections.betweenGame;
+ state.run.mode='betweenSpin';wheelRotation=0;renderAll();save();clickSound();
+}
+function applyDirectBetween(meta={}){
+ state.run.lastChanges={};
+ Object.entries(meta.stats||{}).forEach(([k,v])=>changeStat(k,v));
+ if(meta.energy)state.run.energy=clamp(state.run.energy+meta.energy,0,100);
+ if(meta.fitness)state.run.fitness=clamp(state.run.fitness+meta.fitness,20,100);
+ if(meta.confidence)state.run.confidence=clamp(state.run.confidence+meta.confidence,0,100);
+ if(meta.form)state.run.form=clamp(state.run.form+meta.form,-3,3);
+}
+function resolveBetweenGameOutcome(outcome){
+ const c=state.run.career;if(!c||!outcome)return;
+ c.betweenEvent=outcome.name;
+ const meta=outcome.meta||{};
+ if(meta.kind==='direct'){
+  applyDirectBetween(meta);c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;careerLog('Between games: '+outcome.name+'.');
+ }else if(meta.kind==='training'){
+  c.trainingAvailable=true;c.betweenDone=false;c.prepared=false;careerLog('Between games: a focused training block opens.');
+ }else{
+  state.run.pendingBetweenFollowup=meta.kind;c.betweenDone=false;c.prepared=false;careerLog('Between games: '+outcome.name+'.');
+ }
+}
+function resolveLearningOutcome(outcome){
+ const c=state.run.career;if(!c||!outcome)return;
+ state.run.lastChanges={};Object.entries(outcome.meta?.learnStats||{}).forEach(([k,v])=>changeStat(k,v));
+ state.run.confidence=clamp(state.run.confidence+3,0,100);
+ c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;
+ careerLog('Learned from '+outcome.name+': '+outcome.desc);
+}
+function resolveInjuryEventOutcome(outcome){
+ const c=state.run.career;if(!c||!outcome)return;
+ const m=outcome.meta||{};state.run.fitness=clamp(state.run.fitness+(m.fitness||0),20,100);state.run.confidence=clamp(state.run.confidence+(m.confidence||0),0,100);
+ if(m.eliminate){state.run.pendingInjuryElimination=outcome.name;careerLog('Training injury: medical withdrawal is being considered.');return;}
+ if(m.matches>0)state.run.injury={name:outcome.name,matches:m.matches,penalty:m.penalty||0};
+ c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;careerLog('Training injury outcome: '+outcome.name+'.');
+}
+function resolveEgoEventOutcome(outcome){
+ const c=state.run.career;if(!c||!outcome)return;
+ applyDirectBetween(outcome.meta||{});c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;careerLog('Ego event: '+outcome.name+'.');
+}
+function resolveWeaponEventOutcome(outcome){
+ const c=state.run.career;if(!c||!outcome)return;
+ applyDirectBetween(outcome.meta||{});c.betweenDone=true;c.prepared=true;c.trainingAvailable=false;careerLog('Weapon development: '+outcome.name+'.');
+}
+function resolveContributionOutcome(outcome){
+ const p=state.run.pendingMatch;if(!p||!outcome)return;
+ const target=p.contributions||(p.contributions=emptyMatchContribution()),add=outcome.meta?.contrib||{};
+ for(const [k,v] of Object.entries(add)){if(k==='labels')continue;target[k]=(target[k]||0)+v;}
+ target.labels.push(outcome.name);
+}
+function finalizeContributionMatch(){
+ const c=state.run.career,fixture=currentFixture(),p=state.run.pendingMatch;if(!c||!fixture||!p)return;
+ const a=p.contributions||emptyMatchContribution(),s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{};
+ const ownStrength=fixture.teamStrength+overall()*.14+state.run.form*1.4;
+ const mateLambda=clamp(.45+(ownStrength-58)/40+(s.passing+s.vision)/520+(bonus.mateGoals||0),.15,3);
+ const teammateGoals=Math.max(a.assists||0,poisson(mateLambda));
+ const teamGoals=(a.goals||0)+teammateGoals;
+ const defActions=(a.tackles||0)+(a.interceptions||0)+(a.blocks||0)+(a.clearances||0)+(a.recoveries||0);
+ const defensiveHelp=((s.defense+s.reactions+s.stamina)/3)*prof.defense+defActions*5-(a.mistakes||0)*8;
+ const oppLambda=clamp(.72+(fixture.strength-62)/34-defensiveHelp/310-(bonus.oppDefense||0),.1,3.8);
+ const oppGoals=poisson(oppLambda);
+ const result=teamGoals>oppGoals?'WIN':teamGoals<oppGoals?'LOSS':'DRAW';
+ const rating=clamp(5.8+(a.bonusRating||0)+(a.keyPasses||0)*.06+(a.dribbles||0)*.05+(result==='WIN'?.22:result==='LOSS'?-.18:0),3.2,10);
+ const rep={type:'match',passed:true,minutes:state.run.injury?int(55,82):90,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
+ rep.moments=matchMoments(rep,fixture);rep.moments.unshift('Contribution spins: '+rep.contributionLabels.join(' · ')+'.');
+ c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();
+ state.run.pendingMatch=null;
+}
+function resolveChallengeOutcome(outcome){
+ const c=state.run.career,fixture=currentFixture();if(!c||!fixture||!outcome)return;
+ const score=outcome.meta?.score||0,passed=score>=100,rating=clamp(4.5+(score-70)*.07,4,9.5);
+ const rep={type:'challenge',passed,challengeScore:score,rating,goals:0,assists:0,shots:score,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,teamGoals:0,oppGoals:0,result:passed?'CLEAR':'FAIL',moments:[passed?'You score '+score+' and clear the 100 Goal Challenge.':'You score '+score+'. The target is 100, so the run is in elimination territory.']};
+ c.report=rep;applyPostMatch(rep,fixture);recordHistory();state.run.pendingMatch=null;
+}
 function trainingAffinity(actionKey){
  return gameplayBonuses().training[actionKey]||0;
 }
@@ -893,10 +974,10 @@ function resolveTrainingOutcome(outcome){
   if(outcome.name==='Breakthrough'||outcome.name==='Ego Awakening')state.run.form=clamp(state.run.form+1,-3,3);
   careerLog(action.name+': '+outcome.name+'.');
  }
- c.trainingKey=action.key;c.trainingResult=outcome.name;c.prepared=true;
+ c.trainingKey=action.key;c.trainingResult=outcome.name;c.prepared=true;c.betweenDone=true;c.trainingAvailable=false;
 }
 function applyTraining(key){
- const c=state.run.career;if(!c||c.prepared||c.report)return;
+ const c=state.run.career;if(!c||c.prepared||c.report||!c.trainingAvailable)return;
  const action=TRAINING_ACTIONS.find(x=>x.key===key);if(!action)return;
  state.run.pendingTraining=key;
  delete state.run.selections.trainingOutcome;
