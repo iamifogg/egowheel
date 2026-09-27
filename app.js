@@ -305,8 +305,53 @@ const POSITION_WEIGHTS={
  'False Nine':{vision:1.7,passing:1.5,control:1.3,offBall:1.2,finishing:1},
  'Attacking Midfielder':{vision:1.8,passing:1.7,technique:1.3,control:1.2},
  'Target Forward':{physical:1.7,shotPower:1.4,finishing:1.4,control:1},
- 'Pressing Forward':{stamina:1.5,defense:1.3,acceleration:1.2,offBall:1.2,finishing:1}
+ 'Pressing Forward':{stamina:1.5,defense:1.3,acceleration:1.2,offBall:1.2,finishing:1},
+ 'Central Midfielder':{passing:1.55,vision:1.45,control:1.25,stamina:1.15,defense:.8,technique:1},
+ 'Defensive Midfielder':{defense:1.8,vision:1.55,passing:1.3,stamina:1.25,physical:1.05,reactions:1},
+ 'Left Back':{defense:1.5,stamina:1.35,speed:1.2,acceleration:1.05,passing:1},
+ 'Right Back':{defense:1.5,stamina:1.35,speed:1.2,acceleration:1.05,passing:1},
+ 'Left Wing-Back':{stamina:1.5,speed:1.3,defense:1.2,passing:1.15,dribbling:.85,acceleration:1},
+ 'Right Wing-Back':{stamina:1.5,speed:1.3,defense:1.2,passing:1.15,dribbling:.85,acceleration:1},
+ 'Centre Back':{defense:2,physical:1.55,reactions:1.3,vision:1.05,stamina:.8},
+ 'Ball-Playing Centre Back':{defense:1.75,passing:1.45,vision:1.45,control:1.05,physical:1},
+ 'Stopper':{defense:2.05,physical:1.7,reactions:1.2,acceleration:.9,ego:.8},
+ 'Sweeper':{defense:1.85,vision:1.65,reactions:1.55,speed:1.05,passing:.85}
 };
+
+const POSITION_MATCH_PROFILE={
+ 'Centre Forward':{shots:1,defense:.45,creation:.7,carry:.7},
+ 'Second Striker':{shots:.9,defense:.55,creation:1,carry:.85},
+ 'Left Wing':{shots:.78,defense:.72,creation:.92,carry:1.2},
+ 'Right Wing':{shots:.78,defense:.72,creation:.92,carry:1.2},
+ 'False Nine':{shots:.72,defense:.62,creation:1.18,carry:.9},
+ 'Attacking Midfielder':{shots:.55,defense:.7,creation:1.3,carry:.85},
+ 'Target Forward':{shots:.92,defense:.68,creation:.65,carry:.5},
+ 'Pressing Forward':{shots:.72,defense:1.05,creation:.72,carry:.72},
+ 'Central Midfielder':{shots:.38,defense:1.08,creation:1.28,carry:.82},
+ 'Defensive Midfielder':{shots:.22,defense:1.55,creation:1.08,carry:.62},
+ 'Left Back':{shots:.25,defense:1.5,creation:.95,carry:.85},
+ 'Right Back':{shots:.25,defense:1.5,creation:.95,carry:.85},
+ 'Left Wing-Back':{shots:.34,defense:1.28,creation:1.08,carry:1},
+ 'Right Wing-Back':{shots:.34,defense:1.28,creation:1.08,carry:1},
+ 'Centre Back':{shots:.12,defense:1.9,creation:.58,carry:.3},
+ 'Ball-Playing Centre Back':{shots:.16,defense:1.7,creation:1.08,carry:.55},
+ 'Stopper':{shots:.1,defense:2.05,creation:.5,carry:.25},
+ 'Sweeper':{shots:.14,defense:1.8,creation:.95,carry:.55}
+};
+
+function positionProfile(){
+ const name=state.run.selections.position?.name||'Centre Forward';
+ return POSITION_MATCH_PROFILE[name]||POSITION_MATCH_PROFILE['Centre Forward'];
+}
+function isDefensiveRole(){
+ const name=state.run.selections.position?.name||'Centre Forward';
+ return ['Defensive Midfielder','Left Back','Right Back','Left Wing-Back','Right Wing-Back','Centre Back','Ball-Playing Centre Back','Stopper','Sweeper'].includes(name);
+}
+function isMidfieldRole(){
+ const name=state.run.selections.position?.name||'Centre Forward';
+ return ['Central Midfielder','Defensive Midfielder','Attacking Midfielder','False Nine'].includes(name);
+}
+
 
 function randomName(){
  const first=['Haruto','Ren','Sora','Kaito','Riku','Yuto','Minato','Akira','Hayate','Shun','Taiga','Itsuki','Rei','Kou','Haru','Toma','Kei','Nao','Ryota','Seiya'];
