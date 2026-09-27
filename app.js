@@ -1052,8 +1052,8 @@ function contributionStage(){
  const importance=fixture?.importance||1;
  const pressureBoost=['Pressure Junkie','Limit Breaker','Apex Mentality'].includes(pressureEgo)?Math.max(0,importance-1)*.7:0;
  const opts=[
-  weighted('Straight Red Card','A reckless challenge or confrontation gets you sent off immediately.',Math.max(.25,1.05-(s.reactions+s.defense)/220+Math.max(0,-state.run.form)*.2),{},'RED',{contrib:{sentOff:1,redCards:1,mistakes:1,ratingPenalty:1.4}}),
-  weighted('Second Yellow','Already booked, you mistime another challenge and are sent off.',yellowAlready?Math.max(.25,1.15-(s.reactions+s.defense)/240):.01,{},'2ND YELLOW',{contrib:{yellowCards:1,secondYellow:1,ratingPenalty:.65}}),
+  weighted('Straight Red Card','A reckless challenge or confrontation gets you sent off immediately.',Math.max(.06,.55-(s.reactions+s.defense)/400+Math.max(0,-state.run.form)*.12),{},'RED',{contrib:{sentOff:1,redCards:1,mistakes:1,ratingPenalty:1.4}}),
+  weighted('Second Yellow','Already booked, you mistime another challenge and are sent off.',yellowAlready?Math.max(.06,.45-(s.reactions+s.defense)/500):.004,{},'2ND YELLOW',{contrib:{yellowCards:1,secondYellow:1,ratingPenalty:.65}}),
   weighted('Yellow Card','You stop a dangerous phase illegally and go into the book.',Math.max(.55,2.5-(s.reactions+s.defense)/130+prof.defense*.35),{},'YELLOW',{contrib:{yellowCards:1,ratingPenalty:.1}}),
   weighted('Tactical Foul','You deliberately kill a transition before it becomes a clear chance.',Math.max(.35,.75+prof.defense*1.05),{},'TACTICAL FOUL',{contrib:{yellowCards:1,recoveries:1,bonusRating:.04,ratingPenalty:.08}}),
   weighted('Forced Off Injured','Your body gives way and your match ends early.',Math.max(.35,.8+(58-state.run.fitness)*.03+(60-s.stamina)*.012),{},'INJURED',{contrib:{injured:1,ratingPenalty:.8}}),
