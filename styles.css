@@ -225,3 +225,32 @@
   .between-event-panel{padding:10px}
   .contribution-chip{font-size:.52rem}
 }
+
+
+/* v15 completed pre-match record */
+.completed-prep-panel{
+  margin:10px 0 12px;
+  padding:12px 13px;
+  border:1px solid #2d8fd0;
+  border-radius:12px;
+  background:
+    linear-gradient(145deg,rgba(10,67,107,.28),rgba(4,11,19,.96));
+  box-shadow:inset 0 0 0 1px rgba(93,210,255,.06),0 0 18px rgba(33,153,224,.08);
+}
+.completed-prep-panel .kicker{
+  display:block;
+  margin-bottom:5px;
+  color:#63d7ff;
+}
+.completed-prep-panel strong{
+  display:block;
+  color:#f4fbff;
+  font-size:.9rem;
+  line-height:1.25;
+}
+.completed-prep-panel p{
+  margin:6px 0 0;
+  color:#9eb1c9;
+  font-size:.65rem;
+  line-height:1.4;
+}
