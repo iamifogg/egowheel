@@ -954,7 +954,7 @@ function renderCareer(){
   $('#fixtureSubtitle').textContent=c.finalReason||('Final bid: ¥'+(c.bid||0)+'m');
   $('#fixtureCount').textContent='FINAL';$('#fixtureType').textContent=eliminated?'ELIMINATED':'ARCHIVE READY';
   $('#prepArea').hidden=true;$('#matchReport').hidden=false;
-  $('#matchReport').innerHTML='<span class="result-eyebrow '+(eliminated?'loss':'win')+'">'+(eliminated?'ELIMINATED':'SURVIVED')+'</span><h3>'+esc(c.finalStatus||'Career Complete')+'</h3><p>'+esc(c.finalReason||'Your Blue Lock run is complete.')+'</p><div class="performance-line"><span>APPS <b>'+c.totals.apps+'</b></span><span>GOALS <b>'+c.totals.goals+'</b></span><span>ASSISTS <b>'+c.totals.assists+'</b></span><span>BID <b>¥'+(c.bid||0)+'m</b></span></div>';
+  $('#matchReport').innerHTML='<span class="result-eyebrow '+(eliminated?'loss':'win')+'">'+(eliminated?'ELIMINATED':'SURVIVED')+'</span><h3>'+esc(c.finalStatus||'Career Complete')+'</h3><p>'+esc(c.finalReason||'Your Blue Lock run is complete.')+'</p><div class="performance-line"><span>APPS <b>'+c.totals.apps+'</b></span><span>GOALS <b>'+c.totals.goals+'</b></span><span>ASSISTS <b>'+c.totals.assists+'</b></span><span>DEF <b>'+((c.totals.tackles||0)+(c.totals.interceptions||0)+(c.totals.blocks||0)+(c.totals.clearances||0)+(c.totals.recoveries||0))+'</b></span><span>BID <b>¥'+(c.bid||0)+'m</b></span></div>';
   $('#advanceFixtureBtn').hidden=true;renderCareerLog();return;
  }
  $('#prepArea').hidden=!!c.report;$('#careerStage').textContent=fixture.stage;$('#fixtureTitle').textContent=fixture.venue;$('#fixtureSubtitle').textContent=fixture.type==='challenge'?'Choose your preparation, then spin your performance in the individual qualification test.':'Choose training and a match plan. Your stats shape the odds, then the wheel decides how well you actually play.';
@@ -983,7 +983,8 @@ function renderPlans(){
 function renderMatchReport(r,f){
  if(r.type==='challenge'){$('#matchReport').innerHTML='<span class="result-eyebrow">'+esc(r.result)+'</span><div class="scoreline"><strong>'+r.challengeScore+'/100</strong></div><p>'+esc(r.moments.join(' '))+'</p><div class="performance-line"><span>RATING <b>'+r.rating.toFixed(1)+'</b></span><span>ENERGY <b>'+Math.round(state.run.energy)+'</b></span></div>';return;}
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
- $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="performance-line"><span>PERFORMANCE <b>'+esc(r.performanceTier||'—')+'</b></span><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
+ const defTotal=(r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0);
+ $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="performance-line"><span>PERFORMANCE <b>'+esc(r.performanceTier||'—')+'</b></span><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
 }
 function renderCareerLog(){const c=state.run.career;$('#careerLog').innerHTML=(c?.log||[]).slice(0,8).map(x=>'<div>'+esc(x)+'</div>').join('')||'<div>No career events yet.</div>';}
 
@@ -991,7 +992,7 @@ function renderPlayer(){
  const stats=currentStats(),ov=overall(stats),c=state.run.career,tot=c?.totals||{apps:0,goals:0,assists:0,ratingTotal:0};
  $('#playerTitle').textContent=state.run.name||'Unnamed Egoist';$('#playerName').value=state.run.name||'';$('#overallBadge').textContent='OVR '+ov;
  $('#identityPosition').textContent=state.run.selections.position?.short||state.run.selections.position?.name||'—';$('#identityFirstTeam').textContent=state.run.selections.firstTeam?.name||'—';$('#identityNel').textContent=state.run.selections.nelClub?.name||'—';$('#identityBid').textContent=c?.bid?'¥'+c.bid+'m':'—';
- $('#totalApps').textContent=tot.apps||0;$('#totalGoals').textContent=tot.goals||0;$('#totalAssists').textContent=tot.assists||0;$('#avgRating').textContent=tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—';
+ $('#totalApps').textContent=tot.apps||0;$('#totalGoals').textContent=tot.goals||0;$('#totalAssists').textContent=tot.assists||0;const totalDef=(tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0);$('#totalDefActions').textContent=totalDef;$('#avgRating').textContent=tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—';
  const archSel=state.run.selections.archetype;
  const primarySel=state.run.selections.primaryWeapon;
  const secondarySel=state.run.selections.secondaryWeapon;
@@ -1006,15 +1007,15 @@ function renderPlayer(){
 }
 function renderProfile(){
  const c=state.run.career,s=currentStats(),hist=c?.history||[],tot=c?.totals||{apps:0,goals:0,assists:0,ratingTotal:0};
- $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">CURRENT EGOIST</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">OVR '+overall(s)+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Average rating: '+(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—')+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Rival: '+esc(c?.rival||'—')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
+ $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">CURRENT EGOIST</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">OVR '+overall(s)+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Defensive actions: '+((tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0))+'<br>Average rating: '+(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—')+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Rival: '+esc(c?.rival||'—')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
 }
 function renderArchive(){
  const g=$('#archiveGrid');if(!state.archive.length){g.innerHTML='<div class="empty-state">No completed careers yet.</div>';return;}
- g.innerHTML=state.archive.map(p=>'<article class="archive-card"><span class="kicker">OVR '+p.overall+'</span><h3>'+esc(p.name)+'</h3><div class="archive-meta">'+esc(p.status)+' · '+(p.club?esc(p.club):'No NEL club')+'<br>¥'+p.bid+'m · '+p.goals+' goals · '+p.assists+' assists</div></article>').join('');
+ g.innerHTML=state.archive.map(p=>'<article class="archive-card"><span class="kicker">OVR '+p.overall+'</span><h3>'+esc(p.name)+'</h3><div class="archive-meta">'+esc(p.status)+' · '+(p.club?esc(p.club):'No NEL club')+'<br>¥'+p.bid+'m · '+p.goals+' goals · '+p.assists+' assists · '+(p.defActions||0)+' defensive actions</div></article>').join('');
 }
 function recordHistory(){
  const c=state.run.career,f=currentFixture(),r=c?.report;if(!c||!f||!r)return;
- c.history.push({stage:f.stage,opponent:f.opponent,summary:r.type==='challenge'?r.result+' '+r.challengeScore+'/100':r.result+' '+r.teamGoals+'–'+r.oppGoals+' · '+r.goals+'G '+r.assists+'A · '+r.rating.toFixed(1)});
+ c.history.push({stage:f.stage,opponent:f.opponent,summary:r.type==='challenge'?r.result+' '+r.challengeScore+'/100':r.result+' '+r.teamGoals+'–'+r.oppGoals+' · '+r.goals+'G '+r.assists+'A · '+((r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0))+' DEF · '+r.rating.toFixed(1)});
 }
 
 function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.classList.toggle('active',x.id===v));$$('.nav-button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));}
@@ -1081,7 +1082,7 @@ function quickBuild(){
 }
 function newRun(force=false){const progressed=Object.keys(state.run.selections).length||state.run.career;if(progressed&&!force&&!confirm('Start a new player? The current unarchived career will be replaced.'))return;state.run=defaultRun();wheelRotation=0;renderAll();save();clickSound();}
 function archiveCareer(){
- const c=state.run.career;if(!c?.complete)return;state.archive.unshift({id:state.run.id,name:state.run.name,overall:overall(),status:c.finalStatus,eliminated:!!c.eliminated,reason:c.finalReason||null,bid:c.bid,goals:c.totals.goals,assists:c.totals.assists,club:state.run.selections.nelClub?.name||null,savedAt:Date.now()});save();renderArchive();toast(state.run.name+' archived.');newRun(true);
+ const c=state.run.career;if(!c?.complete)return;state.archive.unshift({id:state.run.id,name:state.run.name,overall:overall(),status:c.finalStatus,eliminated:!!c.eliminated,reason:c.finalReason||null,bid:c.bid,goals:c.totals.goals,assists:c.totals.assists,defActions:(c.totals.tackles||0)+(c.totals.interceptions||0)+(c.totals.blocks||0)+(c.totals.clearances||0)+(c.totals.recoveries||0),club:state.run.selections.nelClub?.name||null,savedAt:Date.now()});save();renderArchive();toast(state.run.name+' archived.');newRun(true);
 }
 
 function bind(){
