@@ -1216,28 +1216,43 @@ function renderCareer(){
   $('#matchReport').innerHTML='<span class="result-eyebrow '+(eliminated?'loss':'win')+'">'+(eliminated?'ELIMINATED':'SURVIVED')+'</span><h3>'+esc(c.finalStatus||'Career Complete')+'</h3><p>'+esc(c.finalReason||'Your Blue Lock run is complete.')+'</p><div class="performance-line"><span>APPS <b>'+c.totals.apps+'</b></span><span>GOALS <b>'+c.totals.goals+'</b></span><span>ASSISTS <b>'+c.totals.assists+'</b></span><span>DEF <b>'+((c.totals.tackles||0)+(c.totals.interceptions||0)+(c.totals.blocks||0)+(c.totals.clearances||0)+(c.totals.recoveries||0))+'</b></span><span>BID <b>¥'+(c.bid||0)+'m</b></span></div>';
   $('#advanceFixtureBtn').hidden=true;renderCareerLog();return;
  }
- $('#prepArea').hidden=!!c.report;$('#careerStage').textContent=fixture.stage;$('#fixtureTitle').textContent=fixture.venue;$('#fixtureSubtitle').textContent=fixture.type==='challenge'?'Choose your preparation, then spin your performance in the individual qualification test.':'Choose training and a match plan. Your stats shape the odds, then the wheel decides how well you actually play.';
+ $('#prepArea').hidden=!!c.report;
+ $('#careerStage').textContent=fixture.stage;$('#fixtureTitle').textContent=fixture.venue;
+ $('#fixtureSubtitle').textContent=fixture.type==='challenge'?'Resolve the between-game event, choose your plan, then spin the 100-goal result.':'Resolve the between-game event first. Then choose a match plan and spin the actual actions you contribute.';
  $('#fixtureCount').textContent=(c.fixtureIndex+1)+' / '+c.fixtures.length;$('#fixtureType').textContent=fixture.type.toUpperCase();
- $('#homeLabel').textContent=fixture.type==='challenge'?'PLAYER':'YOUR SIDE';$('#homeTeam').textContent=fixture.team;$('#homeStars').textContent=fixture.type==='challenge'?'Beat the target to advance.':'OVR '+overall()+' · '+(state.run.selections.primaryWeapon?.name||'No weapon');
+ $('#homeLabel').textContent=fixture.type==='challenge'?'PLAYER':'YOUR SIDE';$('#homeTeam').textContent=fixture.team;$('#homeStars').textContent=fixture.type==='challenge'?'One attempt. 100 goals required.':'OVR '+overall()+' · '+(state.run.selections.primaryWeapon?.name||'No weapon');
  $('#awayTeam').textContent=fixture.opponent;$('#awayStars').textContent=(fixture.stars||[]).slice(0,4).join(' · ');$('#fixtureStageTag').textContent=fixture.stage;$('#fixtureVenue').textContent=fixture.venue;
  renderCondition();renderTraining();renderPlans();
  const inj=$('#injuryNotice');if(state.run.injury){inj.hidden=false;inj.textContent=state.run.injury.name+' — '+state.run.injury.matches+' fixture(s) remaining; effective attributes are reduced.';}else inj.hidden=true;
- $('#playMatchBtn').disabled=!c.prepared;$('#playMatchBtn').textContent=fixture.type==='challenge'?'Spin Challenge Performance':'Spin Match Performance';
+ $('#playMatchBtn').disabled=!c.prepared;
+ $('#playMatchBtn').textContent=fixture.type==='challenge'?'Spin 100 Goal Challenge':'Begin Contribution Spins';
  $('#matchReport').hidden=!c.report;$('#advanceFixtureBtn').hidden=!c.report;
  if(c.report)renderMatchReport(c.report,fixture);
  renderCareerLog();
 }
-function renderCondition(){
- const vals={energy:state.run.energy,confidence:state.run.confidence,fitness:state.run.fitness};
- ['energy','confidence','fitness'].forEach(k=>{const cap=k[0].toUpperCase()+k.slice(1);$('#'+k+'Value').textContent=Math.round(vals[k]);$('#'+k+'Bar').style.width=clamp(vals[k],0,100)+'%';});
- $('#formValue').textContent=(state.run.form>0?'+':'')+state.run.form;$('#formBar').style.width=((state.run.form+3)/6*100)+'%';
-}
 function renderTraining(){
- const c=state.run.career;$('#prepStatus').textContent=c.prepared?'Result: '+(c.trainingResult||'Complete'):'Choose an action — its quality will be spun';
- $('#trainingActions').innerHTML=TRAINING_ACTIONS.map(a=>'<button type="button" class="training-action '+(c.trainingKey===a.key?'selected':'')+'" data-train="'+a.key+'" '+(c.prepared?'disabled':'')+'><strong>'+esc(a.name)+'</strong><span>'+esc(a.desc)+'</span><em>'+(a.cost<0?'+'+Math.abs(a.cost)+' energy':'-'+a.cost+' energy')+'</em></button>').join('');
+ const c=state.run.career;
+ const eventPanel=$('#betweenEventPanel'),trainingPanel=$('#trainingChoicePanel'),planPanel=$('#matchPlanPanel');
+ const waiting=!c.betweenEvent&&!c.prepared&&!c.trainingAvailable;
+ eventPanel.hidden=!waiting;
+ trainingPanel.hidden=!c.trainingAvailable;
+ planPanel.hidden=!c.prepared;
+ if(waiting){
+  $('#prepHeading').textContent='See what happens before the match';
+  $('#prepStatus').textContent='Event not spun';
+  $('#betweenEventText').textContent='Spin first. The result can create training, learning, recovery, injury, tactical growth, an ego event or a completely uneventful week.';
+ }else if(c.trainingAvailable){
+  $('#prepHeading').textContent='Training opportunity';
+  $('#prepStatus').textContent=c.betweenEvent||'Training';
+ }else{
+  $('#prepHeading').textContent='Between-game event resolved';
+  $('#prepStatus').textContent=c.betweenEvent||c.trainingResult||'Prepared';
+ }
+ $('#trainingActions').innerHTML=TRAINING_ACTIONS.map(a=>'<button type="button" class="training-action '+(c.trainingKey===a.key?'selected':'')+'" data-train="'+a.key+'" '+(!c.trainingAvailable?'disabled':'')+'><strong>'+esc(a.name)+'</strong><span>'+esc(a.desc)+'</span><em>'+(a.cost<0?'Recovery focus':'Costs '+a.cost+' energy · quality is spun')+'</em></button>').join('');
 }
 function renderPlans(){
- const c=state.run.career;$('#matchPlans').innerHTML=MATCH_PLANS.map(p=>'<button type="button" class="plan-button '+(c.planKey===p.key?'selected':'')+'" data-plan="'+p.key+'" '+(c.report?'disabled':'')+'><strong>'+esc(p.name)+'</strong><span>'+esc(p.desc)+'</span></button>').join('');
+ const c=state.run.career;
+ $('#matchPlans').innerHTML=MATCH_PLANS.map(p=>'<button type="button" class="plan-button '+(c.planKey===p.key?'selected':'')+'" data-plan="'+p.key+'" '+(!c.prepared||c.report?'disabled':'')+'><strong>'+esc(p.name)+'</strong><span>'+esc(p.desc)+'</span></button>').join('');
 }
 function renderMatchReport(r,f){
  if(r.type==='challenge'){$('#matchReport').innerHTML='<span class="result-eyebrow">'+esc(r.result)+'</span><div class="scoreline"><strong>'+r.challengeScore+'/100</strong></div><p>'+esc(r.moments.join(' '))+'</p><div class="performance-line"><span>RATING <b>'+r.rating.toFixed(1)+'</b></span><span>ENERGY <b>'+Math.round(state.run.energy)+'</b></span></div>';return;}
