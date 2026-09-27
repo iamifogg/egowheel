@@ -1556,6 +1556,21 @@ function completeCareer(){
  state.run.mode='complete';careerLog('Final status: '+status+' · ¥'+bid+'m bid.');renderAll();save();toast('Career complete: '+status);
 }
 
+function renderCondition(){
+ const energy=clamp(Math.round(state.run.energy??100),0,100);
+ const confidence=clamp(Math.round(state.run.confidence??50),0,100);
+ const form=clamp(Number(state.run.form??0),-3,3);
+ const fitness=clamp(Math.round(state.run.fitness??100),0,100);
+ const formPct=Math.round(((form+3)/6)*100);
+ $('#energyValue').textContent=energy;
+ $('#confidenceValue').textContent=confidence;
+ $('#formValue').textContent=(form>0?'+':'')+form;
+ $('#fitnessValue').textContent=fitness;
+ $('#energyBar').style.width=energy+'%';
+ $('#confidenceBar').style.width=confidence+'%';
+ $('#formBar').style.width=formPct+'%';
+ $('#fitnessBar').style.width=fitness+'%';
+}
 function renderCareer(){
  const show=state.run.mode==='career'||state.run.mode==='complete';
  $('#setupPanel').hidden=show;$('#careerPanel').hidden=!show;
