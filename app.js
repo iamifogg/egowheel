@@ -458,10 +458,40 @@ function gameplayBonuses(){
  }
  return{match,training};
 }
+const STAT_TRADEOFFS={
+ 'Clinical No. 9':{defense:-.045,passing:-.025},'Creative Playmaker':{physical:-.025,shotPower:-.02},'1v1 Destroyer':{defense:-.035,passing:-.02},
+ 'Speed Demon':{physical:-.025,passing:-.02},'Power Striker':{acceleration:-.04,passing:-.035},'Target King':{speed:-.04,acceleration:-.035},
+ 'Long-Range Cannon':{defense:-.025,passing:-.02},'Pressing Demon':{finishing:-.025,technique:-.02},'Lockdown Marker':{finishing:-.05,dribbling:-.025},
+ 'Aerial Enforcer':{acceleration:-.045,dribbling:-.03},'Ball-Playing Defender':{finishing:-.035,acceleration:-.02},'Midfield Anchor':{finishing:-.04,dribbling:-.02},
+ 'Regista':{speed:-.035,finishing:-.025},'Box-to-Box Engine':{finishing:-.02,dribbling:-.015},'Deep-Lying Playmaker':{speed:-.03,physical:-.02},
+ 'Inverted Full-Back':{finishing:-.03,shotPower:-.02},'Set-Piece Threat':{speed:-.025,acceleration:-.025},'Utility Egoist':{},
+ 'The King':{passing:-.045,defense:-.03},'Freedom Seeker':{defense:-.035,passing:-.025},'Puzzle Solver':{physical:-.025,shotPower:-.02},
+ 'Hunter':{passing:-.03},'Showman':{defense:-.045,stamina:-.02},'Challenger':{passing:-.025,control:-.015},'Controller':{acceleration:-.03,finishing:-.02}
+};
+function startingStatBias(statKey){
+ let bias=0;
+ for(const key of ['archetype','egoStyle']){
+  const sel=state.run.selections[key];if(!sel)continue;
+  const eff=Number(sel.effects?.[statKey]||0);
+  bias+=clamp(eff*.008,-.055,.055);
+  bias+=STAT_TRADEOFFS[sel.name]?.[statKey]||0;
+  bias+=Number(sel.meta?.statBias?.[statKey]||0);
+ }
+ const physique=state.run.selections.physique;
+ if(physique){
+  const eff=Number(physique.effects?.[statKey]||0);
+  bias+=clamp(eff*.004,-.025,.025);
+ }
+ return clamp(bias,-.14,.14);
+}
 function makeStatStage(index=state.run.statIndex||0){
- const [statKey,label]=ATTRS[index]||ATTRS[0];
- const opts=START_STAT_TABLE.map(r=>weighted(String(r.value),label+' begins at '+r.value+'.',r.weight,{},String(r.value),{statKey,value:r.value}));
- return{key:'stat_'+statKey,chapter:'STARTING ATTRIBUTES',name:label+' Rating',prompt:'Spin your exact starting '+label.toLowerCase()+' rating.',mode:'weights',options:opts};
+ const [statKey,label]=ATTRS[index]||ATTRS[0],bias=startingStatBias(statKey);
+ const opts=START_STAT_TABLE.map(r=>{
+  const tilt=Math.exp(bias*((r.value-60)/18));
+  return weighted(String(r.value),label+' begins at '+r.value+'.',Math.max(.03,r.weight*tilt),{},String(r.value),{statKey,value:r.value,bias});
+ });
+ const direction=bias>.018?'Your identity slightly favours a higher roll.':bias<-.018?'Your identity slightly favours a lower roll.':'Your identity barely shifts this attribute.';
+ return{key:'stat_'+statKey,chapter:'STARTING ATTRIBUTES',name:label+' Rating',prompt:'Spin your exact starting '+label.toLowerCase()+' rating. '+direction+' The effect is deliberately small.',mode:'weights',options:opts};
 }
 function trainingOutcomeStage(){
  const action=TRAINING_ACTIONS.find(a=>a.key===state.run.pendingTraining)||TRAINING_ACTIONS[0];
