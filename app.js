@@ -729,7 +729,13 @@ function renderWheel(){
  const mode=state.run.mode;
  if(mode==='statSpin')$('#stageCount').textContent='STAT '+((state.run.statIndex||0)+1)+' / '+ATTRS.length;
  else if(mode==='trainingSpin')$('#stageCount').textContent='TRAINING';
- else if(mode==='matchSpin')$('#stageCount').textContent='MATCH';
+ else if(mode==='betweenSpin')$('#stageCount').textContent='BETWEEN';
+ else if(mode==='learnSpin')$('#stageCount').textContent='LEARN';
+ else if(mode==='injuryEventSpin')$('#stageCount').textContent='INJURY';
+ else if(mode==='egoEventSpin')$('#stageCount').textContent='EGO';
+ else if(mode==='weaponEventSpin')$('#stageCount').textContent='WEAPON';
+ else if(mode==='contributionSpin')$('#stageCount').textContent='MOMENT '+(((state.run.pendingMatch?.spinIndex)||0)+1)+' / 4';
+ else if(mode==='challengeSpin')$('#stageCount').textContent='100 GOALS';
  else if(mode==='survivalSpin')$('#stageCount').textContent='SURVIVAL';
  else if(mode==='nelSpin')$('#stageCount').textContent='NEL';
  else $('#stageCount').textContent=(state.run.buildIndex+1)+' / '+BUILD_STAGES.length;
@@ -743,7 +749,6 @@ function renderWheel(){
    p.setAttribute('d',annularPath(row.start,row.end));p.setAttribute('fill',sliceColor(row.opt,i,stage.mode));p.setAttribute('class','wheel-slice');
    if(row.opt.name===selected)p.style.filter='brightness(1.35) saturate(1.25) drop-shadow(0 0 5px #62d7ff)';
    g.appendChild(p);
-
    const span=row.end-row.start;
    if(span>=4.5){
      const screenAngle=(row.mid+normalized)%360,a=(screenAngle-90)*Math.PI/180,radius=span>=70?148:span>=35?151:span>=18?154:158;
@@ -761,7 +766,14 @@ function renderWheel(){
  const picked=state.run.selections[stage.key];$('#nextBtn').disabled=!picked;
  if(mode==='statSpin')$('#nextBtn').textContent=(state.run.statIndex>=ATTRS.length-1?'Enter Blue Lock':'Next Attribute');
  else if(mode==='trainingSpin')$('#nextBtn').textContent='Return to Match Prep';
- else if(mode==='matchSpin')$('#nextBtn').textContent='View Match Report';
+ else if(mode==='betweenSpin'){
+   const kind=picked?.meta?.kind;
+   $('#nextBtn').textContent=kind==='training'?'Choose Training Focus':kind==='learn'?'Spin Who You Learn From':kind==='injury'?'Spin Injury Severity':kind==='ego'?'Resolve Ego Test':kind==='weapon'?'Explore Weapon Development':'Continue to Match Plan';
+ }
+ else if(mode==='learnSpin'||mode==='egoEventSpin'||mode==='weaponEventSpin')$('#nextBtn').textContent='Return to Match Plan';
+ else if(mode==='injuryEventSpin')$('#nextBtn').textContent=picked?.meta?.eliminate?'Accept Medical Withdrawal':'Return to Match Plan';
+ else if(mode==='contributionSpin')$('#nextBtn').textContent=((state.run.pendingMatch?.spinIndex||0)<3?'Next Match Moment':'Resolve Match');
+ else if(mode==='challengeSpin')$('#nextBtn').textContent='View Challenge Result';
  else if(mode==='survivalSpin')$('#nextBtn').textContent=(picked?.meta?.survive?'Continue Second Selection':'Accept Elimination');
  else if(mode==='nelSpin')$('#nextBtn').textContent='Enter Neo Egoist League';
  else $('#nextBtn').textContent=state.run.buildIndex===BUILD_STAGES.length-1?'Roll Starting Stats':'Next Build Stage';
@@ -770,8 +782,17 @@ function renderWheel(){
 function renderBuildStrip(){
  const mode=state.run.mode;
  if(mode==='nelSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">NEL Club Selection</span>';return;}
- if(mode==='trainingSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Training Outcome</span>';return;}
- if(mode==='matchSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Match Performance</span>';return;}
+ if(mode==='trainingSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Training Quality</span>';return;}
+ if(mode==='betweenSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Between-Game Event</span>';return;}
+ if(mode==='learnSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Learn From Player</span>';return;}
+ if(mode==='injuryEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Injury Severity</span>';return;}
+ if(mode==='egoEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Ego Response</span>';return;}
+ if(mode==='weaponEventSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Weapon Discovery</span>';return;}
+ if(mode==='contributionSpin'){
+  const n=(state.run.pendingMatch?.spinIndex||0)+1;
+  $('#stageStrip').innerHTML=[1,2,3,4].map(i=>'<span class="stage-pill '+(i<n?'done ':'')+(i===n?'current':'')+'">Moment '+i+'</span>').join('');return;
+ }
+ if(mode==='challengeSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">100 Goal Challenge</span>';return;}
  if(mode==='survivalSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Selection Survival</span>';return;}
  if(mode==='statSpin'){
   $('#stageStrip').innerHTML=ATTRS.map(([k,label],i)=>'<span class="stage-pill '+(state.run.selections['stat_'+k]?'done ':'')+(i===state.run.statIndex?'current':'')+'">'+(i+1)+'. '+esc(label)+'</span>').join('');
@@ -782,14 +803,25 @@ function renderBuildStrip(){
 function renderSpinResult(){
  const stage=currentWheelStage(),v=state.run.selections[stage.key],mode=state.run.mode;
  if(!v){
-  const copy=mode==='statSpin'?'Spin to set this exact starting attribute.':mode==='trainingSpin'?'You chose the training type. Now spin to see how the session actually goes.':mode==='matchSpin'?'Your stats and opponent set the odds. Spin to determine your performance tier.':'Spin the current wheel.';
+  let copy='Spin the current wheel.';
+  if(mode==='statSpin')copy='Spin to set this exact starting attribute.';
+  else if(mode==='trainingSpin')copy='The training focus is chosen. Spin how well the session actually goes.';
+  else if(mode==='betweenSpin')copy='Spin what actually happens between these two fixtures.';
+  else if(mode==='learnSpin')copy='Spin which player leaves something behind in your game.';
+  else if(mode==='injuryEventSpin')copy='Spin how serious the injury actually is.';
+  else if(mode==='egoEventSpin')copy='Spin whether pressure breaks, stabilises or evolves your ego.';
+  else if(mode==='weaponEventSpin')copy='Spin whether the idea becomes a usable weapon detail.';
+  else if(mode==='contributionSpin')copy='Spin the action you actually contribute in this phase of the match.';
+  else if(mode==='challengeSpin')copy='One spin decides your 100 Goal Challenge score.';
   $('#spinResult').innerHTML='<span class="result-eyebrow">'+esc(stage.chapter)+'</span><strong>'+esc(copy)+'</strong><p>'+esc(stage.prompt)+'</p>';return;
  }
  let extra='';
  if(v.meta?.bonusText)extra='<p><strong>Bonus:</strong> '+esc(v.meta.bonusText)+'</p>';
- if(mode==='statSpin')extra='<p>This is your raw starting '+esc(stage.name.replace(' Rating','').toLowerCase())+' before archetype, physique and weapon bonuses.</p>';
- if(mode==='trainingSpin')extra='<p>The result has been applied to this training block.</p>';
- if(mode==='matchSpin')extra='<p>This performance tier drives the goals, assists, defensive actions and rating generated for the fixture.</p>';
+ if(mode==='statSpin')extra='<p>This is your raw starting '+esc(stage.name.replace(' Rating','').toLowerCase())+' before archetype, height, physique and weapon bonuses.</p>';
+ if(mode==='trainingSpin')extra='<p>The quality result is applied to the training focus you chose.</p>';
+ if(mode==='betweenSpin')extra='<p>This event determines what kind of preparation, setback or opportunity you get before the fixture.</p>';
+ if(mode==='contributionSpin')extra='<p>This action is now locked into the match. You have four contribution spins in total.</p>';
+ if(mode==='challengeSpin')extra='<p>'+((v.meta?.score||0)>=100?'This clears the gate.':'Below 100 means elimination if you continue.')+'</p>';
  const rare=stage.mode==='rarity'?'<span class="result-rarity r-'+v.rarity+'">'+RARITY_LABELS[v.rarity]+' · '+fmtPct(probability(stage,v))+'</span>':'<span class="result-rarity r-rare">'+fmtPct(probability(stage,v))+'</span>';
  $('#spinResult').innerHTML='<span class="result-eyebrow">'+esc(stage.chapter)+'</span><strong>'+esc(v.name)+'</strong><p>'+esc(v.desc)+'</p>'+extra+rare;
 }
