@@ -225,8 +225,13 @@ function annularPath(start,end,inner=73,outer=203){const span=end-start,g=Math.m
 function sliceColor(opt,i,mode){if(mode==='equal'||mode==='weights'){const a=['#0d5ba6','#0a73c9','#17518d','#11406e','#23699f','#135b91','#0b4d80','#1c77ad'];return a[i%a.length];}const base={common:['#526175','#65748a'],uncommon:['#287e46','#36975a'],rare:['#17699f','#2286c6'],epic:['#5e3c91','#754bb3'],legendary:['#9f761b','#c29831'],mythic:['#a72d43','#cf3b55']},a=base[opt.rarity]||base.common;return a[i%a.length];}
 function shortLabel(o){const r={'Centre Forward':'CF','Second Striker':'SS','Left Wing':'LW','Right Wing':'RW','False Nine':'F9','Attacking Midfielder':'AM','Bastard München':'Bastard','Manshine City':'Manshine','FC Barcha':'Barcha','Paris X Gen':'PXG'};const s=r[o.short]||r[o.name]||o.short||o.name;return s.length>17?s.slice(0,16)+'…':s;}
 function wheelLabelText(o,span){
-  if(span>=32)return o.name.replace('Bastard München','Bastard').replace('Manshine City','Manshine').replace('FC Barcha','Barcha').replace('Paris X Gen','PXG');
-  return shortLabel(o);
+  const compact={
+    'Centre Forward':'CF','Second Striker':'SS','Left Wing':'LW','Right Wing':'RW','False Nine':'F9',
+    'Attacking Midfielder':'AM','Target Forward':'TARGET','Pressing Forward':'PRESS',
+    'Right Foot':'RIGHT','Left Foot':'LEFT','Two-Footed':'BOTH',
+    'Bastard München':'BASTARD','Manshine City':'MANSHINE','FC Barcha':'BARCHA','Paris X Gen':'PXG'
+  };
+  return compact[o.name]||compact[o.short]||shortLabel(o);
 }
 function wheelLabelLines(label,span){
   const max=span>=70?14:span>=35?11:span>=18?9:7;
@@ -262,22 +267,29 @@ function renderWheel(){
      const radius=span>=70?148:span>=35?151:span>=18?154:158;
      const x=260+radius*Math.cos(a), y=260+radius*Math.sin(a);
 
+     const badge=document.createElementNS('http://www.w3.org/2000/svg','g');
+     badge.setAttribute('class','wheel-badge');
+
+     const label=wheelLabelText(row.opt,span).toUpperCase();
+     const fs=span>=55?18:span>=30?16:span>=18?13:10;
+     const boxW=Math.max(48,Math.min(span>=55?112:94,label.length*(fs*.66)+22));
+     const boxH=fs+18;
+
+     const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+     rect.setAttribute('x',x-boxW/2);rect.setAttribute('y',y-boxH/2);
+     rect.setAttribute('width',boxW);rect.setAttribute('height',boxH);
+     rect.setAttribute('rx',Math.min(12,boxH/2));
+     rect.setAttribute('class','wheel-label-badge-bg');
+     badge.appendChild(rect);
+
      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
-     t.setAttribute('x',x);t.setAttribute('y',y);
+     t.setAttribute('x',x);t.setAttribute('y',y+.5);
      t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');
      t.setAttribute('class','wheel-label overlay-label');
-     t.setAttribute('font-size',wheelLabelSize(span));
-
-     const label=wheelLabelText(row.opt,span);
-     const lines=wheelLabelLines(label,span);
-     lines.forEach((line,idx)=>{
-       const ts=document.createElementNS('http://www.w3.org/2000/svg','tspan');
-       ts.setAttribute('x',x);
-       ts.setAttribute('dy',idx===0?(lines.length>1?'-.34em':'0'):'1.08em');
-       ts.textContent=line.toUpperCase();
-       t.appendChild(ts);
-     });
-     labels.appendChild(t);
+     t.setAttribute('font-size',fs);
+     t.textContent=label;
+     badge.appendChild(t);
+     labels.appendChild(badge);
    }
  });
 
