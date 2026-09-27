@@ -111,3 +111,21 @@
 @media(max-width:1100px){.run-grid{grid-template-columns:1fr}.player-card{order:2}.plan-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:700px){.career-card{padding:10px}.condition-grid{grid-template-columns:repeat(2,1fr)}.fixture-board{grid-template-columns:1fr 58px 1fr}.fixture-side,.fixture-vs{padding:9px 7px}.fixture-side strong{font-size:.79rem}.fixture-side small{font-size:.55rem}.fixture-vs{min-width:0}.action-grid{grid-template-columns:repeat(2,1fr)}.plan-grid{grid-template-columns:repeat(2,1fr)}.training-action,.plan-button{min-height:92px}.career-totals{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:390px){.action-grid,.plan-grid{grid-template-columns:1fr 1fr}.stats-grid.detailed{grid-template-columns:1fr 1fr}.weapons-panel>div{grid-template-columns:90px minmax(0,1fr)}}
+
+
+/* v4 readable wheel labels */
+#wheelGroup .wheel-label.readable{
+  fill:#fff;
+  font-family:Inter,ui-sans-serif,system-ui,sans-serif;
+  font-weight:1000;
+  letter-spacing:.035em;
+  paint-order:stroke fill;
+  stroke:#03101d;
+  stroke-width:4px;
+  stroke-linejoin:round;
+  pointer-events:none;
+}
+#wheelGroup .wheel-label.readable tspan{dominant-baseline:middle}
+@media(max-width:520px){
+  #wheelGroup .wheel-label.readable{stroke-width:3.6px}
+}
