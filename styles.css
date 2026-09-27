@@ -22,3 +22,41 @@
 #wheelGroup .wheel-label tspan{dominant-baseline:middle}
 .result-rarity,.rarity-chip{white-space:nowrap}
 @media(max-width:520px){#wheelGroup .wheel-label.large{font-size:9px}#wheelGroup .wheel-label.small{font-size:7.2px}#wheelGroup .wheel-label.tiny{font-size:5.8px;stroke-width:2.6px}}
+
+
+/* v3 stat-driven career simulator */
+.run-main{min-width:0;display:grid;gap:14px}
+.career-card{padding:16px;background:radial-gradient(circle at 50% 0,rgba(15,95,178,.14),transparent 34%),linear-gradient(180deg,rgba(12,19,30,.98),rgba(6,9,14,.99))}
+.career-head,.subhead,.stats-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.career-head h2,.subhead h3{margin:2px 0 4px}.career-head p{margin:0;color:var(--muted);font-size:.82rem;line-height:1.4}
+.fixture-count{text-align:right;white-space:nowrap}.fixture-count strong{display:block}.fixture-count span,.small-status{font-size:.58rem;color:var(--blue2);font-weight:900;letter-spacing:.09em}
+.condition-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:12px 0}
+.condition-grid>div{background:#070c13;border:1px solid #17273b;border-radius:9px;padding:8px}
+.condition-grid span{display:block;color:#69819f;font-size:.5rem;font-weight:900;letter-spacing:.09em}.condition-grid strong{font-size:.86rem}
+.condition-grid i{display:block;margin-top:5px;height:4px;background:#101d2c;border-radius:4px;overflow:hidden}.condition-grid i b{display:block;height:100%;background:linear-gradient(90deg,#175ed0,#39c8ff);transition:width .25s}
+.fixture-board{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:10px 0 12px;padding:14px;border:1px solid #1d3854;border-radius:14px;background:linear-gradient(135deg,#07111d,#0b1d31 55%,#07111d)}
+.fixture-side{min-width:0}.fixture-side.away{text-align:right}.fixture-side span{display:block;color:#6e86a5;font-size:.52rem;font-weight:900;letter-spacing:.1em}.fixture-side strong{display:block;margin:3px 0;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fixture-side small{display:block;color:#92a6bf;font-size:.64rem;line-height:1.35}
+.fixture-vs{text-align:center}.fixture-vs span{display:block;color:#5bc9ff;font-size:.48rem;font-weight:900;letter-spacing:.11em}.fixture-vs strong{display:block;font-size:1.3rem;font-style:italic}.fixture-vs small{color:#657b98;font-size:.54rem}
+.career-notice{margin:8px 0;padding:9px 10px;border:1px solid #874b53;border-radius:9px;background:rgba(124,39,53,.18);color:#ffb6c1;font-size:.7rem}
+.prep-area{border-top:1px solid #16263a;padding-top:12px}.plan-head{margin-top:14px}.action-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px}
+.training-action,.plan-button{min-width:0;text-align:left;border:1px solid #1a3047;border-radius:10px;background:#080e16;color:white;padding:9px;cursor:pointer}
+.training-action strong,.plan-button strong{display:block;font-size:.7rem}.training-action span,.plan-button span{display:block;color:#8194ae;font-size:.59rem;line-height:1.3;margin-top:3px}.training-action em{display:block;color:#60cfff;font-style:normal;font-size:.54rem;font-weight:900;margin-top:5px}
+.training-action.selected,.plan-button.selected{border-color:#1598ff;background:#0b2540;box-shadow:inset 0 0 0 1px rgba(54,178,255,.2)}
+.training-action:disabled,.plan-button:disabled{cursor:default}.plan-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:7px 0 10px}.plan-button{text-align:center;padding:8px}.plan-button span{font-size:.53rem}
+.match-report{margin-top:10px;padding:14px;border:1px solid #24527a;border-radius:14px;background:linear-gradient(145deg,#091625,#070c13)}
+.scoreline{text-align:center;padding:7px 0 10px}.scoreline strong{display:block;font-size:2.2rem;letter-spacing:-.05em;font-style:italic}.scoreline small{color:var(--muted)}
+.performance-line{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}.performance-line span{border:1px solid #1c3550;border-radius:999px;padding:4px 7px;color:#8599b3;font-size:.56rem;font-weight:800}.performance-line b{color:white}
+.moment-list{margin-top:10px;border-top:1px solid #15283d;padding-top:7px}.moment-list p{margin:5px 0;color:#a7b6c8;font-size:.69rem;line-height:1.35}.result-eyebrow.win{color:#6ee68d}.result-eyebrow.loss{color:#ff748a}.result-eyebrow.draw{color:#ffd166}
+.career-log-wrap{margin-top:14px;border-top:1px solid #16263a;padding-top:11px}.career-log{display:grid;gap:4px;margin-top:7px}.career-log div{padding:7px 8px;background:#070b11;border-left:2px solid #176bad;color:#8fa4bd;font-size:.62rem;line-height:1.35}
+.career-totals{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:9px}.career-totals div{text-align:center;background:#060a10;border:1px solid #14243a;border-radius:8px;padding:7px 4px}.career-totals span{display:block;color:#687d98;font-size:.48rem;font-weight:900}.career-totals strong{font-size:.8rem}
+.stats-head{margin-top:12px;align-items:center}.stats-head>span:last-child{color:#7389a5;font-size:.55rem}
+.stats-grid.detailed{grid-template-columns:repeat(2,1fr);gap:5px}.detailed-stat{grid-template-columns:1fr auto auto}.detailed-stat em{font-style:normal;font-size:.52rem;font-weight:900}.detailed-stat em.up{color:#70e88e}.detailed-stat em.down{color:#ff7288}
+.weapons-panel{display:grid;gap:5px;margin-top:10px}.weapons-panel>div{display:grid;grid-template-columns:116px minmax(0,1fr);gap:8px;padding:7px;border:1px solid #14243a;border-radius:8px;background:#070b11}.weapons-panel span{color:#667b96;font-size:.5rem;font-weight:900}.weapons-panel strong{font-size:.67rem;text-align:right}
+#careerPanel[hidden],#setupPanel[hidden]{display:none!important}
+@media(max-width:900px){
+ .career-card{padding:10px}.condition-grid{grid-template-columns:repeat(2,1fr)}.action-grid{grid-template-columns:repeat(2,1fr)}.plan-grid{grid-template-columns:repeat(2,1fr)}.plan-button:last-child{grid-column:1/-1}
+}
+@media(max-width:520px){
+ .fixture-board{grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr);padding:10px 8px;gap:5px}.fixture-side strong{font-size:.84rem}.fixture-side small{font-size:.55rem}
+ .action-grid{grid-template-columns:1fr 1fr}.training-action{padding:8px}.career-totals{grid-template-columns:repeat(4,1fr)}.stats-grid.detailed{grid-template-columns:1fr 1fr}.weapons-panel>div{grid-template-columns:96px minmax(0,1fr)}
+}
