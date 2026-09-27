@@ -1032,8 +1032,8 @@ function contributionStage(){
  const opts=[
   weighted('Straight Red Card','A reckless challenge or confrontation gets you sent off immediately.',Math.max(.25,1.05-(s.reactions+s.defense)/220+Math.max(0,-state.run.form)*.2),{},'RED',{contrib:{sentOff:1,redCards:1,mistakes:1,ratingPenalty:1.4}}),
   weighted('Second Yellow','Already booked, you mistime another challenge and are sent off.',yellowAlready?Math.max(.25,1.15-(s.reactions+s.defense)/240):.01,{},'2ND YELLOW',{contrib:{yellowCards:1,secondYellow:1,ratingPenalty:.65}}),
-  weighted('Yellow Card','You stop a dangerous phase illegally and go into the book.',Math.max(1.2,3.7-(s.reactions+s.defense)/90),{},'YELLOW',{contrib:{yellowCards:1,ratingPenalty:.1}}),
-  weighted('Tactical Foul','You deliberately kill a transition before it becomes a clear chance.',Math.max(1.2,2.8+prof.defense*.5),{},'TACTICAL FOUL',{contrib:{yellowCards:1,recoveries:1,bonusRating:.04,ratingPenalty:.08}}),
+  weighted('Yellow Card','You stop a dangerous phase illegally and go into the book.',Math.max(.55,2.5-(s.reactions+s.defense)/130+prof.defense*.35),{},'YELLOW',{contrib:{yellowCards:1,ratingPenalty:.1}}),
+  weighted('Tactical Foul','You deliberately kill a transition before it becomes a clear chance.',Math.max(.35,.75+prof.defense*1.05),{},'TACTICAL FOUL',{contrib:{yellowCards:1,recoveries:1,bonusRating:.04,ratingPenalty:.08}}),
   weighted('Forced Off Injured','Your body gives way and your match ends early.',Math.max(.35,.8+(58-state.run.fitness)*.03+(60-s.stamina)*.012),{},'INJURED',{contrib:{injured:1,ratingPenalty:.8}}),
   weighted('Major Error','A bad decision creates a dangerous moment for the opponent.',Math.max(.8,bad*.38),{},'ERROR',{contrib:{mistakes:1,ratingPenalty:.7}}),
   weighted('Own Goal','A desperate defensive action goes horribly wrong.',Math.max(.08,(80-s.reactions)*.015*prof.defense),{},'OWN GOAL',{contrib:{mistakes:1,oppBonusGoals:1,ratingPenalty:1.05}}),
@@ -1594,24 +1594,24 @@ function cleanSheetRatingBonus(oppGoals,profile=positionProfile()){
  return 0;
 }
 function contributionRating(a,result,profile=positionProfile(),oppGoals=null){
- const defScale=clamp(.74+profile.defense*.44,.84,1.62);
- const attackScale=clamp(.78+profile.shots*.24,.8,1.08);
- const createScale=clamp(.82+profile.creation*.18,.88,1.08);
- const positive=(a.bonusRating||0)+
-  (a.goals||0)*1.02*attackScale+
-  (a.assists||0)*.78*createScale+
-  (a.keyPasses||0)*.09*createScale+
-  (a.dribbles||0)*.07*clamp(.8+profile.carry*.18,.85,1.08)+
-  (a.tackles||0)*.15*defScale+
-  (a.interceptions||0)*.19*defScale+
-  (a.blocks||0)*.25*defScale+
-  (a.clearances||0)*.14*defScale+
-  (a.recoveries||0)*.11*defScale+
-  (a.aerialDuels||0)*.09*clamp(.8+profile.defense*.25,.85,1.3);
+ const defScale=clamp(.74+profile.defense*.40,.84,1.55);
+ const attackScale=clamp(.78+profile.shots*.22,.8,1.06);
+ const createScale=clamp(.82+profile.creation*.16,.88,1.06);
+ const positive=(a.bonusRating||0)*.45+
+  (a.goals||0)*.92*attackScale+
+  (a.assists||0)*.68*createScale+
+  (a.keyPasses||0)*.075*createScale+
+  (a.dribbles||0)*.055*clamp(.8+profile.carry*.16,.85,1.06)+
+  (a.tackles||0)*.125*defScale+
+  (a.interceptions||0)*.16*defScale+
+  (a.blocks||0)*.21*defScale+
+  (a.clearances||0)*.115*defScale+
+  (a.recoveries||0)*.09*defScale+
+  (a.aerialDuels||0)*.07*clamp(.8+profile.defense*.22,.85,1.25);
  const penalty=(a.ratingPenalty||0)+(a.sentOff?1.1:0)+(a.injured?.35:0);
- const resultAdj=result==='WIN'?.20:result==='LOSS'?-.14:0;
+ const resultAdj=result==='WIN'?.18:result==='LOSS'?-.14:0;
  const cleanSheet=oppGoals===null?0:cleanSheetRatingBonus(oppGoals,profile);
- return clamp(6+positive+cleanSheet-penalty+resultAdj,3.2,10);
+ return clamp(5.85+positive+cleanSheet-penalty+resultAdj,3.2,10);
 }
 function updateRollingForm(c,rep){
  if(!c||rep.type!=='match')return;
