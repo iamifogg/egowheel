@@ -4,7 +4,7 @@
 const STORAGE_KEY='egowheel.save.v7';
 const AUDIO_KEY='egowheel.audio.v1';
 const VERSION=7;
-const BUILD_ID='v17';
+const BUILD_ID='v18';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -1672,7 +1672,10 @@ function renderCondition(){
 }
 function canRetryRebalancedGoal100(){
  const c=state.run.career,fixture=currentFixture();
- return !!(c&&c.complete&&c.eliminated&&!c.goal100BalanceRetryUsed&&c.finalStatus==='ELIMINATED — 100 GOAL CHALLENGE'&&fixture?.id==='goal100');
+ if(!c||c.goal100BalanceRetryUsed||fixture?.id!=='goal100')return false;
+ const failedReport=!!(c.report&&c.report.type==='challenge'&&!c.report.passed);
+ const eliminatedHere=!!(c.complete&&c.eliminated&&c.finalStatus==='ELIMINATED — 100 GOAL CHALLENGE');
+ return failedReport||eliminatedHere;
 }
 function retryRebalancedGoal100(){
  const c=state.run.career;if(!canRetryRebalancedGoal100())return;
@@ -1680,7 +1683,7 @@ function retryRebalancedGoal100(){
  c.complete=false;c.eliminated=false;c.finalStatus=null;c.finalReason=null;c.report=null;
  state.run.mode='career';state.run.pendingMatch=null;
  delete state.run.selections.challengeOutcome;
- if(!c.prepPhase||c.prepPhase===PREP_PHASE.EVENT)setPrepPhase(c,PREP_PHASE.READY);
+ setPrepPhase(c,PREP_PHASE.READY);
  careerLog('Balance update: one-time 100 Goal Challenge retry granted with the same player.');
  save();renderAll();toast('100 Goal Challenge reopened.');
 }
@@ -1699,7 +1702,6 @@ function renderCareer(){
   $('#matchReport').innerHTML='<span class="result-eyebrow '+(eliminated?'loss':'win')+'">'+(eliminated?'ELIMINATED':'SURVIVED')+'</span><h3>'+esc(c.finalStatus||'Career Complete')+'</h3><p>'+esc(c.finalReason||'Your Blue Lock run is complete.')+'</p><div class="performance-line"><span>APPS <b>'+c.totals.apps+'</b></span><span>GOALS <b>'+c.totals.goals+'</b></span><span>ASSISTS <b>'+c.totals.assists+'</b></span><span>DEF <b>'+((c.totals.tackles||0)+(c.totals.interceptions||0)+(c.totals.blocks||0)+(c.totals.clearances||0)+(c.totals.recoveries||0))+'</b></span><span>BID <b>¥'+(c.bid||0)+'m</b></span></div>';
   $('#advanceFixtureBtn').hidden=true;$('#retryGoal100Btn').hidden=!canRetryRebalancedGoal100();renderCareerLog();return;
  }
- $('#retryGoal100Btn').hidden=true;
  $('#prepArea').hidden=!!c.report;
  $('#careerStage').textContent=fixture.stage;$('#fixtureTitle').textContent=fixture.venue;
  $('#fixtureSubtitle').textContent=fixture.type==='challenge'?'Resolve the between-game event, choose your plan, then spin the 100-goal result.':'Resolve the between-game event first. Then choose a match plan and spin the actual actions you contribute.';
@@ -1710,7 +1712,10 @@ function renderCareer(){
  const inj=$('#injuryNotice');if(state.run.injury){inj.hidden=false;inj.textContent=state.run.injury.name+' — '+state.run.injury.matches+' fixture(s) remaining; effective attributes are reduced.';}else inj.hidden=true;
  repairPrepState();$('#playMatchBtn').disabled=c.prepPhase!==PREP_PHASE.READY;
  $('#playMatchBtn').textContent=fixture.type==='challenge'?'Spin 100 Goal Challenge':'Begin Contribution Spins';
- $('#matchReport').hidden=!c.report;$('#advanceFixtureBtn').hidden=!c.report;
+ const goalRetry=canRetryRebalancedGoal100();
+ $('#matchReport').hidden=!c.report;
+ $('#advanceFixtureBtn').hidden=!c.report||goalRetry;
+ $('#retryGoal100Btn').hidden=!goalRetry;
  if(c.report)renderMatchReport(c.report,fixture);
  renderCareerLog();
 }
