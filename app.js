@@ -566,13 +566,7 @@ Object.assign(potentialByName['Prodigy'].meta,{growth:1.32,ceiling:98});
 Object.assign(potentialByName['Genius'].meta,{growth:1.45,ceiling:101});
 Object.assign(potentialByName['Generational Talent'].meta,{growth:1.60,ceiling:103});
 potentialStageV22.options.push(
- option('Early Developer','You improve quickly at first, though the long-term ceiling is less extreme.','common',{},'EARLY',{growth:1.13,ceiling:88}),
- option('Steady Climber','Progress comes reliably without dramatic spikes or stalls.','common',{},'STEADY',{growth:1.04,ceiling:91}),
- option('Pressure Reactor','Competition accelerates your learning more than ordinary training does.','uncommon',{},'REACTOR',{growth:1.17,ceiling:93}),
  option('Specialist Ceiling','Overall growth is measured, but one elite identity can keep expanding.','uncommon',{},'SPECIALIST',{growth:1.08,ceiling:96}),
- option('Explosive Developer','When something clicks, several parts of your game jump at once.','rare',{},'EXPLOSIVE',{growth:1.29,ceiling:96}),
- option('Long-Term Monster','Early growth is slower, but the eventual ceiling is frighteningly high.','rare',{},'LONG TERM',{growth:1.06,ceiling:100}),
- option('Phenomenal Learner','Technical and tactical lessons stick at an exceptional rate.','epic',{},'PHENOM',{growth:1.38,ceiling:99}),
  option('Breakthrough Magnet','Pressure repeatedly produces larger-than-normal developmental leaps.','epic',{},'BREAKTHROUGH',{growth:1.31,ceiling:101}),
  option('Evolution Freak','Your game seems to rebuild itself whenever the current version stops working.','legendary',{},'EVOLUTION',{growth:1.52,ceiling:102}),
  option('Anomalous Ceiling','Normal youth-development comparisons stop being particularly useful.','mythic',{},'ANOMALY',{growth:1.70,ceiling:104})
