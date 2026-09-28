@@ -15,6 +15,9 @@ const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
 const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const RARITY_ORDER=['common','uncommon','rare','epic','legendary','mythic'];
 const RARITY_CHANCES={common:52,uncommon:28,rare:13,epic:5,legendary:1.5,mythic:.5};
+const FOUNDATION_RARITY_CHANCES={common:44,uncommon:30,rare:16,epic:7,legendary:2.5,mythic:.5};
+const ARCHETYPE_RARITY_CHANCES={common:38,uncommon:30,rare:19,epic:8.5,legendary:3.5,mythic:1};
+const FOUNDATION_RARITY_KEYS=new Set(['physique','potential','primaryWeapon','secondaryWeapon','egoStyle']);
 const RARITY_LABELS={common:'Common',uncommon:'Uncommon',rare:'Rare',epic:'Epic',legendary:'Legendary',mythic:'Mythic'};
 const RARITY_COLORS={common:'#77879b',uncommon:'#47b86a',rare:'#288fdb',epic:'#8659c7',legendary:'#d9a92d',mythic:'#dc405b'};
 
@@ -119,7 +122,7 @@ const BUILD_STAGES=[
   option('Reflex Finishing','In chaotic box situations your body shoots before conscious planning catches up.','epic',{finishing:10,reactions:7}),
   option('Weapon Fusion','Your secondary tool naturally combines with your primary weapon.','legendary',{finishing:4,dribbling:4,vision:4,technique:5,ego:3})
  ]},
- {key:'egoStyle',chapter:'EGO',name:'Ego Style',prompt:'What kind of selfishness actually drives you?',mode:'equal',options:[
+ {key:'egoStyle',chapter:'EGO',name:'Ego Style',prompt:'What kind of selfishness actually drives you?',mode:'rarity',options:[
   option('Adaptation Addict','You enjoy being forced to become a different player.', 'common',{vision:3,ego:4}),
   option('The King','You want the field to orbit your scoring.', 'common',{finishing:3,ego:5}),
   option('Freedom Seeker','Rigid instructions suffocate you; improvisation unlocks your best football.', 'common',{dribbling:3,ego:4}),
@@ -174,7 +177,7 @@ positionStage.options.push(
  option('Sweeper','You defend space behind the line through anticipation rather than constant contact.','common',{defense:6,vision:6,reactions:5,speed:2},'SW')
 );
 
-const ARCHETYPE_STAGE={key:'archetype',chapter:'PLAYER ARCHETYPE',name:'Player Archetype',prompt:'What kind of egoist does your natural game resemble?',mode:'equal',options:[
+const ARCHETYPE_STAGE={key:'archetype',chapter:'PLAYER ARCHETYPE',name:'Player Archetype',prompt:'What kind of egoist does your natural game resemble?',mode:'rarity',options:[
  option('Clinical No. 9','Lives for efficient box movement and decisive finishing.','common',{finishing:4,offBall:4,reactions:2},'NO.9',{bonusText:'+ shot quality and finishing training',match:{goalP:.035,shots:.5},training:{finishing:.25}}),
  option('Space Hunter','Finds the patch of grass defenders forgot existed.','common',{offBall:5,vision:3,acceleration:2},'SPACE',{bonusText:'+ involvement from off-ball movement',match:{shots:.5,keyPasses:.3},training:{film:.2}}),
  option('Creative Playmaker','Treats teammates as moving pieces for chance creation.','common',{vision:4,passing:5,technique:2},'PLAYMAKER',{bonusText:'+ key passes and assist chance',match:{keyPasses:1,assistP:.045},training:{passing:.25,film:.15}}),
@@ -680,9 +683,9 @@ function stopMusic(){if(musicLoop){clearInterval(musicLoop);musicLoop=null;}if(a
 function syncAudio(){const b=$('#soundBtn');if(b){b.textContent=audioEnabled?'🎵':'🔇';b.classList.toggle('active-audio',audioEnabled);}if(audioEnabled)startMusic();else stopMusic();}
 
 const START_STAT_TABLE=[
- {value:25,weight:.6},{value:30,weight:1.2},{value:35,weight:2.5},{value:40,weight:5},{value:45,weight:9},
- {value:50,weight:14},{value:55,weight:18},{value:60,weight:18},{value:65,weight:14},{value:70,weight:9},
- {value:75,weight:5},{value:80,weight:2.5},{value:85,weight:1.2},{value:90,weight:.5},{value:95,weight:.12}
+ {value:25,weight:.4},{value:30,weight:.8},{value:35,weight:1.8},{value:40,weight:3.8},{value:45,weight:7},
+ {value:50,weight:12},{value:55,weight:16},{value:60,weight:17},{value:65,weight:16},{value:70,weight:12},
+ {value:75,weight:7},{value:80,weight:3.5},{value:85,weight:1.6},{value:90,weight:.8},{value:95,weight:.3}
 ];
 
 function learnedWeapons(){state.run.learnedWeapons=state.run.learnedWeapons||[];return state.run.learnedWeapons;}
@@ -1202,8 +1205,9 @@ function layoutFor(stage){
  const opts=stage.options;
  if(stage.mode==='equal'){const sh=1/opts.length;return opts.map((o,i)=>({opt:o,start:i*sh*360,end:(i+1)*sh*360,mid:(i+.5)*sh*360,share:sh}));}
  if(stage.mode==='weights'){const total=opts.reduce((s,o)=>s+(o.weight||1),0);let c=0;return opts.map(o=>{const sh=(o.weight||1)/total,st=c*360;c+=sh;return{opt:o,start:st,end:c*360,mid:(st+c*360)/2,share:sh};});}
- const present=RARITY_ORDER.filter(r=>opts.some(o=>o.rarity===r)),tierTotal=present.reduce((s,r)=>s+RARITY_CHANCES[r],0);let cursor=0,rows=[];
- present.forEach(r=>{const group=opts.filter(o=>o.rarity===r),tier=RARITY_CHANCES[r]/tierTotal,each=tier/group.length;group.forEach(o=>{const st=cursor*360;cursor+=each;rows.push({opt:o,start:st,end:cursor*360,mid:(st+cursor*360)/2,share:each});});});
+ const rarityCurve=stage.key==='archetype'?ARCHETYPE_RARITY_CHANCES:(FOUNDATION_RARITY_KEYS.has(stage.key)?FOUNDATION_RARITY_CHANCES:RARITY_CHANCES);
+ const present=RARITY_ORDER.filter(r=>opts.some(o=>o.rarity===r)),tierTotal=present.reduce((s,r)=>s+rarityCurve[r],0);let cursor=0,rows=[];
+ present.forEach(r=>{const group=opts.filter(o=>o.rarity===r),tier=rarityCurve[r]/tierTotal,each=tier/group.length;group.forEach(o=>{const st=cursor*360;cursor+=each;rows.push({opt:o,start:st,end:cursor*360,mid:(st+cursor*360)/2,share:each});});});
  return rows;
 }
 function choose(stage){let roll=Math.random(),chosen=layoutFor(stage).slice(-1)[0];for(const row of layoutFor(stage)){roll-=row.share;if(roll<=0){chosen=row;break;}}return chosen;}
