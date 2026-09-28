@@ -943,12 +943,16 @@ function learningRewardStage(){
  if(['Devourer','Collector'].includes(ego)){weaponWeight+=5;perfectWeight+=1.8;}
  if(ego==='Disciple'){deepWeight+=8;breakWeight+=5;}
  if(state.run.selections.primaryWeapon?.name==='Chameleon Technique'){weaponWeight+=3;perfectWeight+=1;}
- return{key:'learningReward',chapter:'LEARNING RESULT',name:'What Do You Take From '+(player?.name||'Them')+'?',prompt:'The same lesson can become a small detail, a major evolution, or even a stolen weapon.',mode:'weights',options:[
-  weighted('Surface Detail','You pick up one useful detail, but it does not transform your game.',18,{},'DETAIL',{scale:.75,confidence:1}),
-  weighted('Useful Lesson','The idea becomes a reliable part of your game.',38,{},'LESSON',{scale:1.45,confidence:3}),
+ return{key:'learningReward',chapter:'LEARNING RESULT',name:'What Do You Take From '+(player?.name||'Them')+'?',prompt:'The same lesson can become nothing, a useful detail, a major evolution, or a stolen weapon.',mode:'weights',options:[
+  weighted('Lesson Does Not Stick','You understand what they showed you, but cannot reproduce it under pressure.',7,{},'MISREAD',{scale:.25,confidence:-2}),
+  weighted('Surface Detail','You pick up one useful detail, but it does not transform your game.',15,{},'DETAIL',{scale:.75,confidence:1}),
+  weighted('Useful Lesson','The idea becomes a reliable part of your game.',30,{},'LESSON',{scale:1.45,confidence:3}),
+  weighted('Applied Principle','You adapt the lesson to your own role instead of copying it literally.',18,{},'APPLIED',{scale:1.8,confidence:4}),
   weighted('Deep Assimilation','You understand why the technique works, not just what it looks like.',deepWeight,{},'DEEP',{scale:2.1,confidence:5,potential:1}),
   weighted('Breakthrough Lesson','The lesson changes how you solve similar situations.',breakWeight,{},'BREAK',{scale:2.8,confidence:7,potential:2}),
+  weighted('Weapon Fragment','You steal one functional piece of their signature weapon, even if it is not yet complete.',weaponWeight*.75,{},'FRAGMENT',{scale:1.35,confidence:6,weapon:true}),
   weighted('Steal Their Weapon','You successfully adapt a fragment of their signature weapon into your own game.',weaponWeight,{},'WEAPON',{scale:1.65,confidence:8,weapon:true,potential:1}),
+  weighted('Rival-Level Insight','For a moment, you understand the game at something close to their level.',Math.max(2,breakWeight*.45),{},'RIVAL INSIGHT',{scale:3.05,confidence:10,potential:2}),
   weighted('Perfect Devouring','You absorb the concept at an exceptional level and permanently expand your ceiling.',perfectWeight,{},'DEVOUR',{scale:3.3,confidence:12,weapon:true,potential:3})
  ]};
 }
@@ -994,46 +998,70 @@ function learningStage(){
 }
 function injuryEventStage(){
  return{key:'injuryEvent',chapter:'TRAINING SETBACK',name:'How Bad Is It?',prompt:'The injury scare is real. Spin the severity.',mode:'weights',options:[
-  weighted('False Alarm','Pain fades quickly; nothing meaningful is damaged.',24,{},'FINE',{matches:0,penalty:0,fitness:-2}),
-  weighted('Minor Knock','You can play, but you will not be completely free.',40,{},'KNOCK',{matches:1,penalty:5,fitness:-7}),
-  weighted('Muscle Strain','You carry a real physical restriction into multiple fixtures.',25,{},'STRAIN',{matches:2,penalty:10,fitness:-14}),
-  weighted('Serious Injury','You miss a major stretch and return diminished.',9,{},'SERIOUS',{matches:3,penalty:14,fitness:-24,confidence:-8}),
-  weighted('Medical Withdrawal','The injury is too severe to continue this Blue Lock run.',2,{},'OUT',{eliminate:true,fitness:-35,confidence:-15})
+  weighted('False Alarm','Pain fades quickly; nothing meaningful is damaged.',18,{},'FINE',{matches:0,penalty:0,fitness:-2}),
+  weighted('Heavy Bruising','You are sore and restricted, but should still be available.',16,{},'BRUISED',{matches:1,penalty:3,fitness:-5}),
+  weighted('Minor Knock','You can play, but you will not be completely free.',27,{},'KNOCK',{matches:1,penalty:5,fitness:-7}),
+  weighted('Concussion Protocol','You are removed from full training and cannot be rushed straight back.',7,{},'PROTOCOL',{matches:1,penalty:8,fitness:-10,confidence:-2}),
+  weighted('Ankle Sprain','Turning and acceleration become uncomfortable for multiple fixtures.',11,{},'ANKLE',{matches:2,penalty:8,fitness:-12,confidence:-2}),
+  weighted('Muscle Strain','You carry a real physical restriction into multiple fixtures.',13,{},'STRAIN',{matches:2,penalty:10,fitness:-14}),
+  weighted('Serious Injury','You miss a major stretch and return diminished.',6,{},'SERIOUS',{matches:3,penalty:14,fitness:-24,confidence:-8}),
+  weighted('Major Muscle Tear','The injury removes you from several fixtures and leaves a substantial temporary penalty.',1.5,{},'TEAR',{matches:4,penalty:17,fitness:-30,confidence:-10}),
+  weighted('Medical Withdrawal','The injury is too severe to continue this Blue Lock run.',.5,{},'OUT',{eliminate:true,fitness:-35,confidence:-15})
  ]};
 }
+
 function egoEventStage(){
- return{key:'egoEvent',chapter:'EGO EVENT',name:'How Do You Respond?',prompt:'Pressure can create evolution or break the version of you that entered the week.',mode:'weights',options:[
-  weighted('Ego Collapse','Doubt wins. Confidence and form fall hard.',12,{},'COLLAPSE',{confidence:-14,form:-2,stats:{ego:-1}}),
-  weighted('Stagnation','You understand the problem but cannot yet solve it.',24,{},'STAGNATE',{confidence:-3}),
-  weighted('Resolve','You stabilise and return to your own game.',32,{},'RESOLVE',{confidence:5,stats:{ego:1}}),
-  weighted('Breakthrough','You leave the week with a clearer weapon and stronger conviction.',24,{},'BREAKTHROUGH',{confidence:9,form:1,stats:{ego:2,vision:1}}),
-  weighted('Ego Awakening','The pressure forces a genuine leap in how you see yourself on the pitch.',8,{},'AWAKEN',{confidence:14,form:2,stats:{ego:3,reactions:1,technique:1}})
+ return{key:'egoEvent',chapter:'EGO EVENT',name:'How Do You Respond?',prompt:'Pressure can create evolution, obsession, adaptation or collapse.',mode:'weights',options:[
+  weighted('Ego Collapse','Doubt wins. Confidence and form fall hard.',8,{},'COLLAPSE',{confidence:-14,form:-2,stats:{ego:-1}}),
+  weighted('Identity Fracture','You start questioning whether your current weapon is really yours.',6,{},'FRACTURE',{confidence:-9,form:-1,stats:{ego:-1,technique:1}}),
+  weighted('Stagnation','You understand the problem but cannot yet solve it.',15,{},'STAGNATE',{confidence:-3}),
+  weighted('Defiant Response','Criticism hardens rather than weakens you.',13,{},'DEFIANT',{confidence:6,stats:{ego:2,physical:1}}),
+  weighted('Tactical Reframe','You stop forcing the old answer and begin seeing the problem differently.',13,{},'REFRAME',{confidence:4,stats:{vision:2,reactions:1}}),
+  weighted('Rival Fixation','You turn the pressure into a very specific competitive target.',10,{},'RIVAL',{confidence:5,form:1,stats:{ego:2,reactions:1}}),
+  weighted('Resolve','You stabilise and return to your own game.',17,{},'RESOLVE',{confidence:5,stats:{ego:1}}),
+  weighted('Controlled Anger','You channel frustration into a more aggressive version of your existing game.',8,{},'ANGER',{confidence:7,form:1,stats:{ego:2,physical:1,shotPower:1}}),
+  weighted('Breakthrough','You leave the week with a clearer weapon and stronger conviction.',7,{},'BREAKTHROUGH',{confidence:9,form:1,stats:{ego:2,vision:1},potential:1}),
+  weighted('Flow Premonition','For brief stretches, decisions begin arriving before conscious thought.',2.2,{},'FLOW',{confidence:11,form:2,stats:{reactions:2,vision:2,ego:1},potential:1}),
+  weighted('Ego Awakening','The pressure forces a genuine leap in how you see yourself on the pitch.',.8,{},'AWAKEN',{confidence:14,form:2,stats:{ego:4,reactions:2,technique:1},potential:2})
  ]};
 }
+
 function weaponEventStage(){
- const pos=state.run.selections.position?.name||'Centre Forward';
  const defensive=isDefensiveRole(),mid=isMidfieldRole();
  const opts=defensive?[
-  weighted('Sharper Duel Timing','Your defensive weapon becomes cleaner in direct contests.',30,{},'DUEL',{stats:{defense:2,reactions:1}}),
-  weighted('Better First Pass','Your regain now has a more dangerous next action.',24,{},'PROGRESS',{stats:{passing:2,vision:1}}),
-  weighted('Aerial Detail','You improve body shape and timing in the air.',18,{},'AERIAL',{stats:{physical:1,defense:1,reactions:1}}),
-  weighted('Scanning Habit','You refresh the picture earlier and defend with more information.',20,{},'SCAN',{stats:{vision:2,reactions:1}}),
+  weighted('Sharper Duel Timing','Your defensive weapon becomes cleaner in direct contests.',20,{},'DUEL',{stats:{defense:2,reactions:1}}),
+  weighted('Better First Pass','Your regain now has a more dangerous next action.',15,{},'PROGRESS',{stats:{passing:2,vision:1}}),
+  weighted('Aerial Detail','You improve body shape and timing in the air.',12,{},'AERIAL',{stats:{physical:1,defense:1,reactions:1},tempMatch:{aerial:.3}}),
+  weighted('Scanning Habit','You refresh the picture earlier and defend with more information.',14,{},'SCAN',{stats:{vision:2,reactions:1}}),
+  weighted('Aggressive Step','You become more confident leaving the line to meet the receiver early.',9,{},'STEP',{stats:{defense:2,acceleration:1},tempMatch:{defense:.25}}),
+  weighted('Recovery Technique','Your turning line after being beaten becomes much cleaner.',8,{},'RECOVER',{stats:{speed:1,acceleration:1,reactions:1}}),
+  weighted('Long Diagonal','You begin turning defensive regains directly into attacks.',8,{},'DIAGONAL',{stats:{passing:2,technique:1},tempMatch:{keyPasses:.2}}),
+  weighted('Set-Piece Threat','You find a repeatable attacking movement on corners.',6,{},'SET PIECE',{stats:{finishing:1,physical:1,reactions:1},tempMatch:{corner:.45,aerial:.25}}),
   weighted('No Useful Discovery','The idea never becomes reliable enough to use.',8,{},'NOTHING',{})
  ]:mid?[
-  weighted('Faster Release','You move the ball before pressure can settle.',26,{},'RELEASE',{stats:{passing:2,reactions:1}}),
-  weighted('New Receiving Angle','Your first touch opens the next lane more often.',24,{},'ANGLE',{stats:{control:2,vision:1}}),
-  weighted('Late-Run Timing','You become harder to track around the box.',20,{},'RUN',{stats:{offBall:2,reactions:1}}),
-  weighted('Scanning Habit','You see the next phase earlier.',22,{},'SCAN',{stats:{vision:2,reactions:1}}),
-  weighted('No Useful Discovery','The idea never becomes reliable enough to use.',8,{},'NOTHING',{})
+  weighted('Faster Release','You move the ball before pressure can settle.',18,{},'RELEASE',{stats:{passing:2,reactions:1}}),
+  weighted('New Receiving Angle','Your first touch opens the next lane more often.',16,{},'ANGLE',{stats:{control:2,vision:1}}),
+  weighted('Late-Run Timing','You become harder to track around the box.',13,{},'RUN',{stats:{offBall:2,reactions:1}}),
+  weighted('Scanning Habit','You see the next phase earlier.',14,{},'SCAN',{stats:{vision:2,reactions:1}}),
+  weighted('Press Resistance','You learn to invite pressure before escaping it.',10,{},'RESIST',{stats:{control:2,physical:1,vision:1}}),
+  weighted('Third-Man Movement','You use a teammate’s pass as the trigger for your own run beyond them.',9,{},'THIRD MAN',{stats:{offBall:2,vision:1},tempMatch:{keyPasses:.2}}),
+  weighted('Switch of Play','You recognise when the far side is the real attacking route.',7,{},'SWITCH',{stats:{passing:2,vision:1}}),
+  weighted('Counterpress Cue','You identify the instant a lost ball is worth attacking again.',6,{},'COUNTERPRESS',{stats:{defense:1,stamina:1,reactions:1},tempMatch:{recoveries:.3}}),
+  weighted('No Useful Discovery','The idea never becomes reliable enough to use.',7,{},'NOTHING',{})
  ]:[
-  weighted('Cleaner Finishing Window','Your setup touch creates a better strike.',27,{},'FINISH',{stats:{finishing:2,control:1}}),
-  weighted('New Run Pattern','You learn a different way to arrive in scoring space.',24,{},'RUN',{stats:{offBall:2,acceleration:1}}),
-  weighted('Stronger Shot Shape','Technique and power align more consistently.',20,{},'SHOT',{stats:{shotPower:2,technique:1}}),
-  weighted('1v1 Detail','You add a small but usable change of rhythm.',21,{},'1V1',{stats:{dribbling:2,control:1}}),
-  weighted('No Useful Discovery','The idea never becomes reliable enough to use.',8,{},'NOTHING',{})
+  weighted('Cleaner Finishing Window','Your setup touch creates a better strike.',18,{},'FINISH',{stats:{finishing:2,control:1}}),
+  weighted('New Run Pattern','You learn a different way to arrive in scoring space.',16,{},'RUN',{stats:{offBall:2,acceleration:1}}),
+  weighted('Stronger Shot Shape','Technique and power align more consistently.',13,{},'SHOT',{stats:{shotPower:2,technique:1}}),
+  weighted('1v1 Detail','You add a small but usable change of rhythm.',14,{},'1V1',{stats:{dribbling:2,control:1}}),
+  weighted('Near-Post Route','You create a repeatable run that attacks the keeper’s blind side.',10,{},'NEAR POST',{stats:{offBall:2,reactions:1},tempMatch:{shots:.2}}),
+  weighted('Back-to-Goal Detail','You become better at protecting service before turning or laying it off.',8,{},'HOLD UP',{stats:{physical:1,control:2,passing:1}}),
+  weighted('Weak-Side Finish','You find a more trustworthy finishing action on your weaker side.',8,{},'WEAK SIDE',{stats:{weakFoot:2,finishing:1,technique:1}}),
+  weighted('Pressing Trigger','You recognise a defensive cue that immediately creates an attacking transition.',6,{},'PRESS',{stats:{defense:1,reactions:1,stamina:1},tempMatch:{recoveries:.25}}),
+  weighted('No Useful Discovery','The idea never becomes reliable enough to use.',7,{},'NOTHING',{})
  ];
  return{key:'weaponEvent',chapter:'WEAPON DEVELOPMENT',name:'What Do You Discover?',prompt:'The inspiration only matters if it becomes something usable.',mode:'weights',options:opts};
 }
+
 function contributionMomentCount(){
  const s=currentStats(),role=activePositionName();
  let count=6;
