@@ -1013,6 +1013,7 @@ function learningRewardStage(){
  const ego=state.run.selections.egoStyle?.name||'';
  let weaponWeight=4,perfectWeight=1.2,deepWeight=24,breakWeight=11;
  if(['Devourer','Collector'].includes(ego)){weaponWeight+=5;perfectWeight+=1.8;}
+ if(ego==='World Devourer'){weaponWeight+=9;perfectWeight+=4;deepWeight+=4;breakWeight+=4;}
  if(ego==='Disciple'){deepWeight+=8;breakWeight+=5;}
  if(state.run.selections.primaryWeapon?.name==='Chameleon Technique'){weaponWeight+=3;perfectWeight+=1;}
  return{key:'learningReward',chapter:'LEARNING RESULT',name:'What Do You Take From '+(player?.name||'Them')+'?',prompt:'The same lesson can become nothing, a useful detail, a major evolution, or a stolen weapon.',mode:'weights',options:[
@@ -1168,7 +1169,7 @@ function contributionStage(){
  const yellowAlready=(p.contributions?.yellowCards||0)>0;
  const pressureEgo=state.run.selections.egoStyle?.name||'';
  const importance=fixture?.importance||1;
- const pressureBoost=['Pressure Junkie','Limit Breaker','Apex Mentality'].includes(pressureEgo)?Math.max(0,importance-1)*.7:0;
+ const pressureBoost=['Pressure Junkie','Limit Breaker','Apex Mentality','Pressure Sovereign','Singularity'].includes(pressureEgo)?Math.max(0,importance-1)*.7:0;
  const opts=[
   weighted('Straight Red Card','A reckless challenge or confrontation gets you sent off immediately.',Math.max(.06,.55-(s.reactions+s.defense)/400+Math.max(0,-state.run.form)*.12),{},'RED',{contrib:{sentOff:1,redCards:1,mistakes:1,ratingPenalty:1.4}}),
   weighted('Second Yellow','Already booked, you mistime another challenge and are sent off.',yellowAlready?Math.max(.06,.45-(s.reactions+s.defense)/500):.004,{},'2ND YELLOW',{contrib:{yellowCards:1,secondYellow:1,ratingPenalty:.65}}),
@@ -1211,7 +1212,8 @@ function breakthroughChance(){
  const p=state.run.pendingMatch,fixture=currentFixture(),s=currentStats();if(!p||p.breakthroughUsed||p.breakthroughPending)return 0;
  let chance=.022+Math.max(0,(fixture?.strength||70)-overall())*.0014+Math.max(0,-state.run.form)*.009+(s.ego-50)*.00035;
  const ego=state.run.selections.egoStyle?.name||'';
- if(['Limit Breaker','Devourer','Puzzle Solver','Pressure Junkie','Transcendent Ego'].includes(ego))chance+=.025;
+ if(['Limit Breaker','Devourer','Puzzle Solver','Pressure Junkie','Transcendent Ego','Evolution Addict','World Devourer','Pressure Sovereign','Singularity'].includes(ego))chance+=.025;
+ if(ego==='Singularity')chance+=.02;
  if((fixture?.importance||1)>=1.7)chance+=.012;
  return clamp(chance,.015,.11);
 }
@@ -1221,7 +1223,7 @@ function breakthroughStatPool(){
  return['finishing','offBall','reactions','dribbling','control','technique','ego'];
 }
 function breakthroughStage(){
- const ego=state.run.selections.egoStyle?.name||'',devour=['Devourer','Collector','Limit Breaker'].includes(ego)?1.5:1;
+ const ego=state.run.selections.egoStyle?.name||'',devour=['Devourer','Collector','Limit Breaker','Evolution Addict','World Devourer','Singularity'].includes(ego)?1.5:1;
  return{key:'matchBreakthrough',chapter:'MID-MATCH BREAKTHROUGH',name:'Your Game Evolves',prompt:'Pressure has opened a new solution. Spin what kind of evolution occurs.',mode:'weights',options:[
   weighted('Flash of Insight','One pattern suddenly becomes obvious and immediately usable.',34,{},'INSIGHT',{points:5,potential:0}),
   weighted('Adaptation','You alter your approach to solve what the opponent has been doing.',28,{},'ADAPT',{points:7,potential:1}),
