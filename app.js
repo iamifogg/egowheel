@@ -2006,6 +2006,130 @@ function startPostNelCareer(){
 }
 function continueProCareer(){if(canContinueBeyondNEL())startPostNelCareer();}
 
+const EPILOGUE_CLUBS=[
+ {name:'Manshine City',prestige:89},{name:'Bastard München',prestige:94},{name:'Ubers',prestige:92},{name:'Paris X Gen',prestige:93},{name:'FC Barcha',prestige:88},
+ {name:'Royale Madrid',prestige:98},{name:'Rhein Adler',prestige:95},{name:'London Red',prestige:94},{name:'Berserk Dortmund',prestige:92},{name:'Torino Ubers',prestige:93}
+];
+function epilogueRoleRates(){
+ const role=state.run.selections.position?.name||'Centre Forward';
+ if(['Centre Forward','Second Striker','Target Forward','Pressing Forward'].includes(role))return{goal:.52,assist:.20,def:1.15};
+ if(['Left Wing','Right Wing','False Nine','Attacking Midfielder'].includes(role))return{goal:.32,assist:.30,def:1.35};
+ if(['Central Midfielder'].includes(role))return{goal:.18,assist:.30,def:2.65};
+ if(['Defensive Midfielder'].includes(role))return{goal:.12,assist:.20,def:4.15};
+ if(['Left Back','Right Back','Left Wing-Back','Right Wing-Back'].includes(role))return{goal:.07,assist:.18,def:4.35};
+ return{goal:.06,assist:.10,def:5.15};
+}
+function clubPrestige(name){return EPILOGUE_CLUBS.find(x=>x.name===name)?.prestige||88;}
+function canSimulateCareerEpilogue(){
+ const c=state.run.career;
+ return !!(c&&c.complete&&!c.eliminated&&c.postNelStarted&&!c.epilogue?.completed);
+}
+function resolveHistoricalWorldCupDraw(c){
+ if(!c||c.epilogueFinalResolution)return c?.epilogueFinalResolution||null;
+ const idx=[...(c.history||[])].map((h,i)=>({h,i})).reverse().find(x=>x.h.stage==='Senior World Cup'&&x.h.opponent==='World Champions'&&/^DRAW\s+\d+[–-]\d+/.test(x.h.summary||''))?.i;
+ if(idx===undefined)return null;
+ const hist=c.history[idx],m=(hist.summary||'').match(/^DRAW\s+(\d+)[–-](\d+)/);
+ if(!m)return null;
+ const avg=c.totals.apps?c.totals.ratingTotal/c.totals.apps:7,winChance=clamp(.5+(overall()-88)*.008+(avg-7)*.05,.34,.72),win=Math.random()<winChance;
+ const loserPens=int(3,5),winnerPens=loserPens+1,shoot=win?winnerPens+'–'+loserPens:loserPens+'–'+winnerPens;
+ hist.summary=hist.summary.replace(/^DRAW\s+(\d+)[–-](\d+)/,(win?'WIN ':'LOSS ')+m[1]+'–'+m[2]+' ('+shoot+' pens)');
+ const li=(c.log||[]).findIndex(x=>x.includes('Senior World Cup:')&&x.includes('World Champions'));
+ if(li>=0)c.log[li]=c.log[li].replace(/Japan\s+\d+[–-]\d+\s+World Champions/,'Japan '+m[1]+'–'+m[2]+' World Champions ('+shoot+' pens) · '+(win?'WIN':'LOSS'));
+ if(win){
+  c.trophies=c.trophies||[];
+  if(!c.trophies.includes('Senior World Cup'))c.trophies.push('Senior World Cup');
+ }
+ c.epilogueFinalResolution=(win?'Japan win':'Japan lose')+' the previously drawn Senior World Cup final '+shoot+' on penalties after '+m[1]+'–'+m[2]+'.';
+ careerLog(c.epilogueFinalResolution);
+ return c.epilogueFinalResolution;
+}
+function epilogueLegacy(ep){
+ const worldAwards=ep.awards.filter(x=>x.includes('World Player of the Year')).length;
+ const worldCups=ep.honours.filter(x=>x.includes('Senior World Cup')).length+(state.run.career.trophies||[]).filter(x=>x==='Senior World Cup').length;
+ const score=ep.peakOvr+worldAwards*4+worldCups*5+ep.honours.length*.55+Math.min(8,ep.lifetime.goals/100)+Math.min(5,ep.lifetime.assists/120);
+ if(score>=125)return'All-Time Great';
+ if(score>=116)return'World Football Legend';
+ if(score>=108)return'Global Icon';
+ if(score>=101)return'International Great';
+ if(score>=94)return'Club Legend';
+ return'Elite Veteran';
+}
+function simulateCareerEpilogue(){
+ const c=state.run.career;if(!canSimulateCareerEpilogue())return;
+ const finalResolution=resolveHistoricalWorldCupDraw(c);
+ c.detailedFinalStatus=c.detailedFinalStatus||c.finalStatus;
+ const startAge=21,stamina=currentStats().stamina||60,physical=currentStats().physical||60;
+ const retirementAge=clamp(35+Math.round((stamina-70)/22)+int(-1,2),33,39);
+ let club=c.proClub||state.run.selections.nelClub?.name||'Manshine City',ovr=overall(),peakOvr=ovr;
+ const detailedApps=Math.max(1,c.totals.apps||1),role=epilogueRoleRates();
+ const historicGoal=(c.totals.goals||0)/detailedApps,historicAssist=(c.totals.assists||0)/detailedApps;
+ const historicDef=((c.totals.tackles||0)+(c.totals.interceptions||0)+(c.totals.blocks||0)+(c.totals.clearances||0)+(c.totals.recoveries||0))/detailedApps;
+ const baseGoal=historicGoal*.58+role.goal*.42,baseAssist=historicAssist*.55+role.assist*.45,baseDef=historicDef*.58+role.def*.42;
+ const lifetime={apps:c.totals.apps||0,goals:c.totals.goals||0,assists:c.totals.assists||0,defActions:Math.round(historicDef*detailedApps),ratingTotal:c.totals.ratingTotal||0,caps:0,intGoals:0};
+ const honours=[],awards=[],transfers=[],seasons=[];let majorInjuries=0,captain=false;
+ for(let age=startAge;age<retirementAge;age++){
+  const ageCurve=age<=24?pick([0,1,1,2]):age<=28?pick([0,0,1,1]):age<=31?pick([-1,0,0,1]):age<=34?pick([-1,-1,0,0]):pick([-2,-1,-1,0]);
+  const injuryChance=clamp(.055+Math.max(0,age-30)*.017-Math.max(0,stamina-70)*.0012,.035,.28),events=[],seasonHonours=[],seasonAwards=[];
+  let apps=int(34,47),injuryPenalty=0;
+  if(Math.random()<injuryChance){
+   majorInjuries++;const severe=Math.random()<.28;const missed=severe?int(14,24):int(6,13);apps=Math.max(16,apps-missed);injuryPenalty=severe?-.35:-.12;
+   events.push(severe?'Major injury costs '+missed+' matches.':'Injury interruption costs '+missed+' matches.');
+  }
+  const rating=clamp(6.65+(ovr-82)*.052+rand(-.34,.34)+injuryPenalty,6.05,9.25);
+  let delta=ageCurve+(rating>=8.25&&age<=30?1:0)+(rating<6.65?-1:0)-(majorInjuries>=3&&age>=31?1:0);
+  if(age>=33&&physical<65)delta--;
+  ovr=clamp(ovr+delta,62,103);peakOvr=Math.max(peakOvr,ovr);
+  const outputScale=clamp(.80+(ovr-78)/52,.72,1.30),ageFade=age>=34?.90:1;
+  const goals=Math.max(0,Math.round(apps*baseGoal*outputScale*ageFade*rand(.80,1.20)));
+  const assists=Math.max(0,Math.round(apps*baseAssist*outputScale*rand(.80,1.20)));
+  const defActions=Math.max(0,Math.round(apps*baseDef*clamp(.84+(ovr-80)/60,.74,1.26)*rand(.84,1.16)));
+  const prestige=clubPrestige(club),teamPower=(ovr+prestige)/2;
+  if(Math.random()<clamp(.10+(teamPower-86)*.026,.05,.56)){seasonHonours.push('League Title');honours.push('League Title — '+club+' (Age '+age+')');}
+  if(Math.random()<clamp(.10+(teamPower-87)*.018,.06,.38)){seasonHonours.push('Domestic Cup');honours.push('Domestic Cup — '+club+' (Age '+age+')');}
+  if(Math.random()<clamp(.035+(teamPower-91)*.018,.025,.32)){seasonHonours.push('Champions Cup');honours.push('Champions Cup — '+club+' (Age '+age+')');}
+  if(age===startAge+4||age===startAge+8||age===startAge+12||age===startAge+16){
+   const wcWin=Math.random()<clamp(.07+(ovr-86)*.016,.05,.36),caps=int(5,8),ig=Math.max(0,Math.round(caps*baseGoal*.48*rand(.7,1.25)));
+   lifetime.caps+=caps;lifetime.intGoals+=ig;
+   events.push('Senior World Cup: '+(wcWin?'Japan win the tournament.':'Japan fall short of the title.'));
+   if(wcWin){seasonHonours.push('Senior World Cup');honours.push('Senior World Cup — Japan (Age '+age+')');}
+  }else{
+   const caps=age>=35?int(2,6):int(6,11),ig=Math.max(0,Math.round(caps*baseGoal*.42*rand(.7,1.25)));lifetime.caps+=caps;lifetime.intGoals+=ig;
+  }
+  if(age===startAge+2||age===startAge+6||age===startAge+10||age===startAge+14){
+   if(Math.random()<clamp(.22+(ovr-84)*.025,.15,.68)){seasonHonours.push('Continental Championship');honours.push('Continental Championship — Japan (Age '+age+')');}
+  }
+  if(goals>=30){seasonAwards.push('Golden Boot');awards.push('Golden Boot — Age '+age);}
+  if(role.def>=4&&defActions>=apps*4.5&&rating>=7.65){seasonAwards.push('Defender of the Year');awards.push('Defender of the Year — Age '+age);}
+  if(rating>=8.05&&Math.random()<.42){seasonAwards.push('League Player of the Year');awards.push('League Player of the Year — Age '+age);}
+  if(ovr>=91&&rating>=7.7&&Math.random()<.52){seasonAwards.push('World Best XI');awards.push('World Best XI — Age '+age);}
+  if(ovr>=95&&rating>=8.05&&Math.random()<clamp(.12+(ovr-95)*.04+(rating-8)*.16,.10,.48)){seasonAwards.push('World Player of the Year');awards.push('World Player of the Year — Age '+age);}
+  if(!captain&&age>=26&&ovr>=91&&Math.random()<.32){captain=true;events.push('Named captain at '+club+'.');}
+  if(age<=31&&Math.random()<.18&&ovr>=clubPrestige(club)-1){
+   const candidates=EPILOGUE_CLUBS.filter(x=>x.name!==club&&x.prestige>=clubPrestige(club)+1&&x.prestige<=ovr+5);
+   if(candidates.length){const old=club,next=pick(candidates).name;club=next;transfers.push(old+' → '+next+' (Age '+age+')');events.push('Transfers from '+old+' to '+next+'.');}
+  }else if(age>=33&&Math.random()<.13){
+   const candidates=EPILOGUE_CLUBS.filter(x=>x.name!==club&&x.prestige<=clubPrestige(club));
+   if(candidates.length){const old=club,next=pick(candidates).name;club=next;transfers.push(old+' → '+next+' (Age '+age+')');events.push('Veteran move from '+old+' to '+next+'.');}
+  }
+  lifetime.apps+=apps;lifetime.goals+=goals;lifetime.assists+=assists;lifetime.defActions+=defActions;lifetime.ratingTotal+=rating*apps;
+  seasons.push({age,club,ovr,apps,goals,assists,defActions,rating:Number(rating.toFixed(2)),honours:seasonHonours,awards:seasonAwards,events});
+ }
+ const retirementOvr=ovr,lifetimeAvg=lifetime.apps?lifetime.ratingTotal/lifetime.apps:0;
+ const ep={completed:true,startAge,retirementAge,peakOvr,retirementOvr,club,seasons,honours,awards,transfers,lifetime,averageRating:Number(lifetimeAvg.toFixed(2)),majorInjuries,finalResolution};
+ ep.legacy=epilogueLegacy(ep);c.epilogue=ep;c.finalStatus='RETIRED — '+ep.legacy;
+ c.finalReason='Retires at '+retirementAge+' after '+lifetime.apps+' senior appearances, '+lifetime.goals+' goals, '+lifetime.assists+' assists and a peak OVR of '+peakOvr+'.';
+ careerLog('Career epilogue complete: retires at '+retirementAge+' as '+ep.legacy+'.');
+ save();renderAll();toast('Full career simulated to retirement.');
+}
+function renderCareerEpilogue(){
+ const box=$('#careerEpilogue'),c=state.run.career,e=c?.epilogue;
+ if(!box)return;
+ if(!e?.completed){box.hidden=true;box.innerHTML='';return;}
+ box.hidden=false;
+ const seasons=e.seasons.map(s=>'<div class="epilogue-season"><div class="epilogue-season-head"><span>AGE '+s.age+' · '+esc(s.club)+'</span><strong>OVR '+s.ovr+'</strong></div><div class="epilogue-season-stats"><span>'+s.apps+' apps</span><span>'+s.goals+' G</span><span>'+s.assists+' A</span><span>'+s.defActions+' DEF</span><span>'+s.rating.toFixed(2)+' AVG</span></div>'+((s.honours.length||s.awards.length||s.events.length)?'<p>'+[...s.honours,...s.awards,...s.events].map(esc).join(' · ')+'</p>':'')+'</div>').join('');
+ box.innerHTML='<div class="subhead"><div><span class="kicker">CAREER EPILOGUE</span><h3>'+esc(e.legacy)+'</h3></div><span class="small-status">RETIRED '+e.retirementAge+'</span></div>'+(e.finalResolution?'<div class="epilogue-resolution">'+esc(e.finalResolution)+'</div>':'')+'<div class="epilogue-lifetime"><div><span>APPS</span><strong>'+e.lifetime.apps+'</strong></div><div><span>GOALS</span><strong>'+e.lifetime.goals+'</strong></div><div><span>ASSISTS</span><strong>'+e.lifetime.assists+'</strong></div><div><span>DEF</span><strong>'+e.lifetime.defActions+'</strong></div><div><span>PEAK</span><strong>'+e.peakOvr+'</strong></div><div><span>CAPS</span><strong>'+e.lifetime.caps+'</strong></div></div><p class="epilogue-summary">'+e.honours.length+' later-career trophies · '+e.awards.length+' individual honours · '+e.transfers.length+' transfers · '+e.majorInjuries+' major injury interruptions</p><div class="epilogue-seasons">'+seasons+'</div>';
+}
+
 function completeCareer(){
  const c=state.run.career,s=currentStats(),ov=overall(s),bid=c.bid||Math.max(5,Math.round((ov-50)*2+c.totals.goals*8+c.totals.assists*5));
  c.bid=bid;c.trophies=c.trophies||[];
@@ -2071,9 +2195,9 @@ function renderCareer(){
   $('#fixtureCount').textContent='FINAL';$('#fixtureType').textContent=eliminated?'ELIMINATED':'ARCHIVE READY';
   $('#prepArea').hidden=true;$('#matchReport').hidden=false;
   $('#matchReport').innerHTML='<span class="result-eyebrow '+(eliminated?'loss':'win')+'">'+(eliminated?'ELIMINATED':'SURVIVED')+'</span><h3>'+esc(c.finalStatus||'Career Complete')+'</h3><p>'+esc(c.finalReason||'Your Blue Lock run is complete.')+'</p><div class="performance-line"><span>APPS <b>'+c.totals.apps+'</b></span><span>GOALS <b>'+c.totals.goals+'</b></span><span>ASSISTS <b>'+c.totals.assists+'</b></span><span>DEF <b>'+((c.totals.tackles||0)+(c.totals.interceptions||0)+(c.totals.blocks||0)+(c.totals.clearances||0)+(c.totals.recoveries||0))+'</b></span><span>BID <b>¥'+(c.bid||0)+'m</b></span></div>';
-  $('#advanceFixtureBtn').hidden=true;$('#retryGoal100Btn').hidden=!canRetryRebalancedGoal100();$('#continueProCareerBtn').hidden=!canContinueBeyondNEL();renderCareerLog();return;
+  $('#advanceFixtureBtn').hidden=true;$('#retryGoal100Btn').hidden=!canRetryRebalancedGoal100();$('#continueProCareerBtn').hidden=!canContinueBeyondNEL();$('#simulateCareerEpilogueBtn').hidden=!canSimulateCareerEpilogue();renderCareerEpilogue();renderCareerLog();return;
  }
- $('#continueProCareerBtn').hidden=true;
+ $('#continueProCareerBtn').hidden=true;$('#simulateCareerEpilogueBtn').hidden=true;$('#careerEpilogue').hidden=true;
  $('#prepArea').hidden=!!c.report;
  $('#careerStage').textContent=fixture.stage;$('#fixtureTitle').textContent=fixture.venue;
  $('#fixtureSubtitle').textContent=fixture.type==='challenge'?'Resolve the between-game event, choose your plan, then spin the 100-goal result.':'Resolve the between-game event first. Then choose a match plan and spin the actual actions you contribute.';
@@ -2296,7 +2420,7 @@ function bind(){
  $('#trainingActions').addEventListener('click',e=>{const b=e.target.closest('[data-train]');if(b)applyTraining(b.dataset.train);});
  $('#matchPlans').addEventListener('click',e=>{const b=e.target.closest('[data-plan]');if(b)choosePlan(b.dataset.plan);});
  $('#playMatchBtn').addEventListener('click',playFixture);
- $('#advanceFixtureBtn').addEventListener('click',advanceFixture);$('#retryGoal100Btn').addEventListener('click',retryRebalancedGoal100);$('#continueProCareerBtn').addEventListener('click',continueProCareer);
+ $('#advanceFixtureBtn').addEventListener('click',advanceFixture);$('#retryGoal100Btn').addEventListener('click',retryRebalancedGoal100);$('#continueProCareerBtn').addEventListener('click',continueProCareer);$('#simulateCareerEpilogueBtn').addEventListener('click',simulateCareerEpilogue);
  $('#archiveBtn').addEventListener('click',archiveCareer);$('#newRunBtn').addEventListener('click',()=>newRun(false));
  $('#stageStrip').addEventListener('click',e=>{const b=e.target.closest('[data-build]');if(!b||state.run.mode!=='build')return;const i=Number(b.dataset.build);if(i<=state.run.buildIndex||state.run.selections[BUILD_STAGES[i]?.key]){state.run.buildIndex=clamp(i,0,BUILD_STAGES.length-1);wheelRotation=0;renderAll();}});
  $$('.nav-button').forEach(b=>b.addEventListener('click',()=>{state.ui.view=b.dataset.view;renderView();if(state.ui.view==='profileView')renderProfile();if(state.ui.view==='archiveView')renderArchive();save();clickSound();}));
