@@ -4,7 +4,7 @@
 const STORAGE_KEY='egowheel.save.v7';
 const AUDIO_KEY='egowheel.audio.v1';
 const VERSION=7;
-const BUILD_ID='v20';
+const BUILD_ID='v21';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -1649,23 +1649,36 @@ function updateRollingForm(c,rep){
  const target=clamp((avg-6.6)*1.45+resultAdj,-3,3);
  state.run.form=Math.round(target*2)/2;
 }
+function resolveKnockoutScore(fixture,teamGoals,oppGoals,ownStrength){
+ if(!fixture?.knockout||teamGoals!==oppGoals)return{teamGoals,oppGoals,result:teamGoals>oppGoals?'WIN':teamGoals<oppGoals?'LOSS':'DRAW',decidedBy:null,shootout:null};
+ const edge=(ownStrength-(fixture.strength||ownStrength))+state.run.form*1.4+(state.run.confidence-50)*.035;
+ const win=Math.random()<clamp(.5+edge*.012,.28,.72);
+ if(Math.random()<.46){
+  if(win)teamGoals++;else oppGoals++;
+  return{teamGoals,oppGoals,result:win?'WIN':'LOSS',decidedBy:'AET',shootout:null};
+ }
+ const loserPens=int(3,5),winnerPens=loserPens+1;
+ return{teamGoals,oppGoals,result:win?'WIN':'LOSS',decidedBy:'PENALTIES',shootout:win?{team:winnerPens,opp:loserPens}:{team:loserPens,opp:winnerPens}};
+}
+
 function finalizeContributionMatch(){
  const c=state.run.career,fixture=currentFixture(),p=state.run.pendingMatch;if(!c||!fixture||!p)return;
  const a=p.contributions||emptyMatchContribution(),s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{};
  const ownStrength=fixture.teamStrength+overall()*.14+state.run.form*1.4;
  const mateLambda=clamp(.45+(ownStrength-58)/40+(s.passing+s.vision)/520+(bonus.mateGoals||0),.15,3);
  const teammateGoals=Math.max(a.assists||0,poisson(mateLambda));
- const teamGoals=(a.goals||0)+teammateGoals;
+ let teamGoals=(a.goals||0)+teammateGoals;
  const defActions=(a.tackles||0)+(a.interceptions||0)+(a.blocks||0)+(a.clearances||0)+(a.recoveries||0);
  const defensiveHelp=((s.defense+s.reactions+s.stamina)/3)*prof.defense+defActions*5-(a.mistakes||0)*8;
  const oppLambda=clamp(.72+(fixture.strength-62)/34-defensiveHelp/310-(bonus.oppDefense||0),.1,3.8);
- const oppGoals=poisson(oppLambda)+(a.oppBonusGoals||0);
- const result=teamGoals>oppGoals?'WIN':teamGoals<oppGoals?'LOSS':'DRAW';
+ let oppGoals=poisson(oppLambda)+(a.oppBonusGoals||0);
+ const resolved=resolveKnockoutScore(fixture,teamGoals,oppGoals,ownStrength);teamGoals=resolved.teamGoals;oppGoals=resolved.oppGoals;
+ const result=resolved.result;
  const rating=contributionRating(a,result,prof,oppGoals);
  const minutes=a.sentOff?int(18,70):a.injured?int(12,65):(state.run.injury?int(55,82):90);
  if(a.sentOff){state.run.confidence=clamp(state.run.confidence-8,0,100);state.run.form=clamp(state.run.form-1,-3,3);}
  if(a.injured){state.run.injury={name:'Match injury',matches:2,penalty:10};state.run.fitness=clamp(state.run.fitness-14,20,100);}
- const rep={type:'match',passed:true,minutes,cleanSheet:oppGoals===0,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,aerialDuels:a.aerialDuels||0,yellowCards:a.yellowCards||0,redCards:a.redCards||0,setPieceGoals:a.setPieceGoals||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
+ const rep={type:'match',passed:true,minutes,cleanSheet:oppGoals===0,decidedBy:resolved.decidedBy,shootout:resolved.shootout,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,aerialDuels:a.aerialDuels||0,yellowCards:a.yellowCards||0,redCards:a.redCards||0,setPieceGoals:a.setPieceGoals||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
  rep.moments=matchMoments(rep,fixture);rep.moments.unshift('Contribution spins: '+rep.contributionLabels.join(' · ')+'.');
  c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();
  state.run.pendingMatch=null;
@@ -2119,7 +2132,7 @@ function renderMatchReport(r,f){
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
  const defTotal=(r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0);
  const spins=(r.contributionLabels||[]).map(x=>'<span class="contribution-chip">'+esc(x)+'</span>').join('');
- $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+'</small></div><div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>AERIAL <b>'+(r.aerialDuels||0)+'</b></span><span>YC <b>'+(r.yellowCards||0)+'</b></span><span>RC <b>'+(r.redCards||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
+ $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+(r.decidedBy==='AET'?' · AET':r.decidedBy==='PENALTIES'&&r.shootout?' · '+r.shootout.team+'–'+r.shootout.opp+' pens':'')+'</small></div><div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>AERIAL <b>'+(r.aerialDuels||0)+'</b></span><span>YC <b>'+(r.yellowCards||0)+'</b></span><span>RC <b>'+(r.redCards||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
 }
 function renderCareerLog(){const c=state.run.career;$('#careerLog').innerHTML=(c?.log||[]).slice(0,8).map(x=>'<div>'+esc(x)+'</div>').join('')||'<div>No career events yet.</div>';}
 
@@ -2150,7 +2163,7 @@ function renderArchive(){
 }
 function recordHistory(){
  const c=state.run.career,f=currentFixture(),r=c?.report;if(!c||!f||!r)return;
- c.history.push({stage:f.stage,opponent:f.opponent,summary:r.type==='challenge'?r.result+' '+r.challengeScore+'/100':r.result+' '+r.teamGoals+'–'+r.oppGoals+' · '+r.goals+'G '+r.assists+'A · '+((r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0))+' DEF · '+r.rating.toFixed(1)});
+ c.history.push({stage:f.stage,opponent:f.opponent,summary:r.type==='challenge'?r.result+' '+r.challengeScore+'/100':r.result+' '+r.teamGoals+'–'+r.oppGoals+(r.decidedBy==='AET'?' AET':r.decidedBy==='PENALTIES'&&r.shootout?' ('+r.shootout.team+'–'+r.shootout.opp+' pens)':'')+' · '+r.goals+'G '+r.assists+'A · '+((r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0))+' DEF · '+r.rating.toFixed(1)});
 }
 
 function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.classList.toggle('active',x.id===v));$$('.nav-button').forEach(x=>x.classList.toggle('active',x.dataset.view===v));}
