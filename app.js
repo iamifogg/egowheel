@@ -542,6 +542,84 @@ potentialStageV21.options.push(
  option('Limitless Growth','Every solved problem appears to reveal another level above it. Your theoretical ceiling is almost meaningless.','mythic',{},null,{growth:1.80,ceiling:102})
 );
 
+/* v22 wheel variety pass */
+const footStageV22=BUILD_STAGES.find(s=>s.key==='foot');
+footStageV22.name='Footedness Profile';
+footStageV22.prompt='How naturally can you use each side of your body?';
+footStageV22.options=[
+ weighted('Strong Right Foot','Your right side is dominant and your left is mainly supportive.',27,{weakFoot:0},'RIGHT'),
+ weighted('Right-Footed, Trained Left','Right remains natural, but the left is useful under pressure.',24,{weakFoot:4,technique:1},'R + L'),
+ weighted('Strong Left Foot','A naturally left-footed profile gives you less common angles.',18,{weakFoot:0,technique:1},'LEFT'),
+ weighted('Left-Footed, Trained Right','Left remains dominant, while the right is genuinely serviceable.',12,{weakFoot:4,technique:2},'L + R'),
+ weighted('Comfortably Two-Footed','You can pass, carry and strike credibly from either side.',10,{weakFoot:8,technique:2},'2 FOOT'),
+ weighted('Near-Ambidextrous','There is only a small practical difference between your two feet.',6,{weakFoot:12,technique:3},'NEAR AMBI'),
+ weighted('True Ambidexterity','Either foot can function as the primary tool in decisive actions.',3,{weakFoot:16,technique:5},'AMBIDEXTROUS')
+];
+
+const potentialStageV22=BUILD_STAGES.find(s=>s.key==='potential');
+const potentialByName=Object.fromEntries(potentialStageV22.options.map(o=>[o.name,o]));
+Object.assign(potentialByName['Late Bloomer'].meta,{growth:.92,ceiling:95});
+Object.assign(potentialByName['Solid Prospect'].meta,{growth:1.0,ceiling:89});
+Object.assign(potentialByName['High Potential'].meta,{growth:1.10,ceiling:92});
+Object.assign(potentialByName['National Prospect'].meta,{growth:1.20,ceiling:95});
+Object.assign(potentialByName['Prodigy'].meta,{growth:1.32,ceiling:98});
+Object.assign(potentialByName['Genius'].meta,{growth:1.45,ceiling:101});
+Object.assign(potentialByName['Generational Talent'].meta,{growth:1.60,ceiling:103});
+potentialStageV22.options.push(
+ option('Early Developer','You improve quickly at first, though the long-term ceiling is less extreme.','common',{},'EARLY',{growth:1.13,ceiling:88}),
+ option('Steady Climber','Progress comes reliably without dramatic spikes or stalls.','common',{},'STEADY',{growth:1.04,ceiling:91}),
+ option('Pressure Reactor','Competition accelerates your learning more than ordinary training does.','uncommon',{},'REACTOR',{growth:1.17,ceiling:93}),
+ option('Specialist Ceiling','Overall growth is measured, but one elite identity can keep expanding.','uncommon',{},'SPECIALIST',{growth:1.08,ceiling:96}),
+ option('Explosive Developer','When something clicks, several parts of your game jump at once.','rare',{},'EXPLOSIVE',{growth:1.29,ceiling:96}),
+ option('Long-Term Monster','Early growth is slower, but the eventual ceiling is frighteningly high.','rare',{},'LONG TERM',{growth:1.06,ceiling:100}),
+ option('Phenomenal Learner','Technical and tactical lessons stick at an exceptional rate.','epic',{},'PHENOM',{growth:1.38,ceiling:99}),
+ option('Breakthrough Magnet','Pressure repeatedly produces larger-than-normal developmental leaps.','epic',{},'BREAKTHROUGH',{growth:1.31,ceiling:101}),
+ option('Evolution Freak','Your game seems to rebuild itself whenever the current version stops working.','legendary',{},'EVOLUTION',{growth:1.52,ceiling:102}),
+ option('Anomalous Ceiling','Normal youth-development comparisons stop being particularly useful.','mythic',{},'ANOMALY',{growth:1.70,ceiling:104})
+);
+
+const egoStageV22=BUILD_STAGES.find(s=>s.key==='egoStyle');
+egoStageV22.mode='rarity';
+egoStageV22.options.push(
+ option('Competitive Narcissist','You need proof that the decisive action belonged to you.','uncommon',{ego:5,finishing:2,reactions:2},'NARCISSIST',{statBias:{ego:.03,finishing:.015}}),
+ option('Evolution Addict','Being forced to abandon a solved version of yourself is exciting rather than frightening.','rare',{ego:6,vision:3,reactions:3},'EVOLUTION',{statBias:{ego:.035,vision:.02,reactions:.02}}),
+ option('Self-Concept Monster','Your strongest performances happen when the match confirms an extreme image of who you are.','epic',{ego:8,reactions:4,offBall:3},'SELF-CONCEPT',{statBias:{ego:.045,reactions:.025}}),
+ option('Cold Genius','Emotion disappears under pressure and leaves only execution.','epic',{technique:5,reactions:5,control:3,ego:4},'COLD GENIUS',{statBias:{technique:.03,reactions:.03}}),
+ option('World Devourer','Elite opponents become libraries of ideas you intend to steal and weaponise.','legendary',{vision:6,technique:5,ego:8,reactions:3},'DEVOURER+',{statBias:{vision:.035,technique:.03,ego:.04}}),
+ option('Pressure Sovereign','The more important the match becomes, the more natural dominance feels.','legendary',{ego:9,reactions:5,physical:3},'SOVEREIGN',{statBias:{ego:.05,reactions:.03}}),
+ option('Singularity','Your footballing self-concept develops in ways even Blue Lock cannot easily categorise.','mythic',{ego:12,vision:6,reactions:6,technique:4},'SINGULARITY',{statBias:{ego:.06,vision:.035,reactions:.035}})
+);
+const egoRaritySets={
+ uncommon:['The King','Freedom Seeker','Puzzle Solver','Perfectionist','Rivalry Addict','Cold Executor','Artist','Disciple','Architect','Survivor','Tactician','Selfless Egoist','Pressure Junkie','Gambler','Mirror','Connector Ego','Revenge Engine','Masochist','Collector','Gladiator','Isolationist','Competitive Narcissist'],
+ rare:['Devourer','Showman','Controller','Provocateur','Rebel','Executioner','Chaos Lover','Blank-Slate Ego','Dominator','Limit Breaker','Evolution Addict'],
+ epic:['Apex Mentality','Transcendent Ego','Self-Concept Monster','Cold Genius'],
+ legendary:['World Devourer','Pressure Sovereign'],
+ mythic:['Singularity']
+};
+egoStageV22.options.forEach(o=>o.rarity='common');
+Object.entries(egoRaritySets).forEach(([rarity,names])=>names.forEach(name=>{const o=egoStageV22.options.find(x=>x.name===name);if(o)o.rarity=rarity;}));
+
+ARCHETYPE_STAGE.mode='rarity';
+ARCHETYPE_STAGE.options.push(
+ option('Metavision Conductor','You scan continuously and use the full field to manipulate several phases ahead.','epic',{vision:8,passing:6,reactions:5,offBall:3},'META CONDUCTOR',{bonusText:'+ elite scanning, creation and anticipation',match:{keyPasses:1,performance:.11,defense:.35},training:{film:.3,passing:.2}}),
+ option('Predator-Eye Finisher','You read the goalkeeper and final defensive movement before choosing the strike.','epic',{finishing:8,reactions:6,vision:4,ego:3},'PREDATOR EYE',{bonusText:'+ elite finishing windows',match:{goalP:.04,shots:.55,performance:.06},training:{finishing:.3}}),
+ option('Complete Libero','You defend like a centre-back and progress the match like a midfielder.','epic',{defense:7,vision:6,passing:5,control:4,reactions:3},'TOTAL LIBERO',{bonusText:'+ high-level defending and progression',match:{defense:1.1,keyPasses:.55,performance:.09},training:{shape:.22,passing:.2}}),
+ option('Transition Sovereign','The instant possession changes, you become the most influential player on the pitch.','rare',{reactions:7,stamina:5,vision:4,acceleration:3},'TRANSITION+',{bonusText:'+ regains, carries and instant chance creation',match:{recoveries:.8,keyPasses:.45,dribbles:.3},training:{press:.22,film:.18}}),
+ option('Total Footballer','You can become the missing function in almost any phase without losing your own threat.','legendary',{vision:6,reactions:6,technique:5,stamina:4,defense:4,finishing:4,passing:4},'TOTAL',{bonusText:'+ major all-phase influence',match:{performance:.16,keyPasses:.55,defense:.65,shots:.3},training:{film:.2,passing:.15,duels:.15,defduels:.15}}),
+ option('Defensive Singularity','Your anticipation makes entire attacking routes feel unavailable to the opposition.','legendary',{defense:10,reactions:7,vision:6,physical:4},'DEF SINGULARITY',{bonusText:'+ exceptional defensive event frequency',match:{defense:1.9,blocks:.55,recoveries:.7,oppDefense:.08},training:{shape:.32,defduels:.28}}),
+ option('Positionless Genius','Traditional positional labels fail to describe where your influence actually comes from.','legendary',{vision:7,technique:6,control:5,reactions:5,ego:4},'POSITIONLESS',{bonusText:'+ adaptable contribution across every zone',match:{performance:.15,keyPasses:.55,dribbles:.4,defense:.45},training:{film:.25,duels:.15,passing:.18}}),
+ option('World-Class Anomaly','There is no ordinary tactical explanation for how many elite problems you can solve.','mythic',{finishing:6,vision:8,reactions:8,technique:7,control:6,ego:7},'ANOMALY',{bonusText:'+ extreme all-phase ceiling and breakthrough potential',match:{performance:.22,goalP:.02,keyPasses:.65,defense:.65,dribbles:.4},training:{film:.3,finishing:.2,passing:.2,duels:.2}})
+);
+const archetypeRaritySets={
+ uncommon:['Complete Forward','Adaptive Solver','Two-Footed Killer','Transition Monster','Tempo Controller','Clutch Specialist','Interception Predator','Ball-Playing Defender','Libero','Defensive Commander','Regista','Box-to-Box Engine','Deep-Lying Playmaker','Half-Space Creator','Inverted Full-Back','Set-Piece Threat','Raumdeuter','Playmaking Libero','Utility Egoist','Mezzala','Press-Resistant Six','False Full-Back','Shadow Striker','False-Nine Creator','Hybrid Stopper-Libero'],
+ rare:['Trap Genius','Technical Artist','Chaos Egoist','Lockdown Marker','Aerial Enforcer','Destroyer Six','Press-Bait Technician','Duel Monster','Adaptive Generalist','False Centre-Back','Emergency Goal Threat','Overlap Centre-Back','Set-Piece Centre-Back','Roaming Playmaker','Duel Baiter','Transition Sovereign'],
+ epic:['Complete Libero','Metavision Conductor','Predator-Eye Finisher'],
+ legendary:['Total Footballer','Defensive Singularity','Positionless Genius'],
+ mythic:['World-Class Anomaly']
+};
+ARCHETYPE_STAGE.options.forEach(o=>o.rarity='common');
+Object.entries(archetypeRaritySets).forEach(([rarity,names])=>names.forEach(name=>{const o=ARCHETYPE_STAGE.options.find(x=>x.name===name);if(o)o.rarity=rarity;}));
+
 const NEL_STAGE={key:'nelClub',chapter:'NEO EGOIST LEAGUE',name:'Choose Your NEL Club',prompt:'Which European philosophy will reshape your final stage?',mode:'equal',options:Object.keys(NEL_DATA).map(n=>option(n,NEL_DATA[n].master+' leads a squad built around a distinct football philosophy.','common',{},n.replace('Bastard München','Bastard').replace('Manshine City','Manshine').replace('FC Barcha','Barcha').replace('Paris X Gen','PXG')))};
 
 const TRAINING_ACTIONS=[
@@ -698,9 +776,9 @@ function stopMusic(){if(musicLoop){clearInterval(musicLoop);musicLoop=null;}if(a
 function syncAudio(){const b=$('#soundBtn');if(b){b.textContent=audioEnabled?'🎵':'🔇';b.classList.toggle('active-audio',audioEnabled);}if(audioEnabled)startMusic();else stopMusic();}
 
 const START_STAT_TABLE=[
- {value:25,weight:.4},{value:30,weight:.8},{value:35,weight:1.8},{value:40,weight:3.8},{value:45,weight:7},
- {value:50,weight:12},{value:55,weight:16},{value:60,weight:17},{value:65,weight:16},{value:70,weight:12},
- {value:75,weight:7},{value:80,weight:3.5},{value:85,weight:1.6},{value:90,weight:.8},{value:95,weight:.3}
+ {value:25,weight:.3},{value:30,weight:.7},{value:35,weight:1.6},{value:40,weight:3.5},{value:45,weight:7},
+ {value:50,weight:12},{value:55,weight:17},{value:60,weight:18.5},{value:65,weight:15.5},{value:70,weight:11.5},
+ {value:75,weight:6.5},{value:80,weight:3.5},{value:85,weight:1.8},{value:90,weight:.8},{value:95,weight:.3}
 ];
 
 function learnedWeapons(){state.run.learnedWeapons=state.run.learnedWeapons||[];return state.run.learnedWeapons;}
