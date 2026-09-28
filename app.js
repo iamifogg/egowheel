@@ -2192,7 +2192,7 @@ function renderCareer(){
   $('#careerStage').textContent=eliminated?'RUN ENDED':'CAREER COMPLETE';
   $('#fixtureTitle').textContent=c.finalStatus||'Career Complete';
   $('#fixtureSubtitle').textContent=c.finalReason||('Final bid: ¥'+(c.bid||0)+'m');
-  $('#fixtureCount').textContent='FINAL';$('#fixtureType').textContent=eliminated?'ELIMINATED':'ARCHIVE READY';
+  $('#fixtureCount').textContent='FINAL';$('#fixtureType').textContent=eliminated?'ELIMINATED':c.epilogue?.completed?'RETIRED':canSimulateCareerEpilogue()?'EPILOGUE READY':'ARCHIVE READY';
   $('#prepArea').hidden=true;$('#matchReport').hidden=false;
   const ep=c.epilogue?.completed?c.epilogue:null,lt=ep?ep.lifetime:c.totals,defTotal=ep?(lt.defActions||0):((lt.tackles||0)+(lt.interceptions||0)+(lt.blocks||0)+(lt.clearances||0)+(lt.recoveries||0));
   $('#matchReport').innerHTML='<span class="result-eyebrow '+(eliminated?'loss':'win')+'">'+(eliminated?'ELIMINATED':ep?'RETIRED':'SURVIVED')+'</span><h3>'+esc(c.finalStatus||'Career Complete')+'</h3><p>'+esc(c.finalReason||'Your Blue Lock run is complete.')+'</p><div class="performance-line"><span>APPS <b>'+lt.apps+'</b></span><span>GOALS <b>'+lt.goals+'</b></span><span>ASSISTS <b>'+lt.assists+'</b></span><span>DEF <b>'+defTotal+'</b></span><span>'+(ep?'PEAK':'BID')+' <b>'+(ep?ep.peakOvr:'¥'+(c.bid||0)+'m')+'</b></span></div>';
