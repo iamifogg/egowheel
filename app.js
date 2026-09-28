@@ -527,6 +527,21 @@ if(!egoStageV12.options.some(o=>o.name==='Masochist')){
  );
 }
 
+
+/* v21 small-wheel variety pass */
+const potentialStageV21=BUILD_STAGES.find(s=>s.key==='potential');
+potentialStageV21.options.push(
+ option('Steady Developer','Growth is reliable rather than explosive, with a respectable long-term ceiling.','common',{},null,{growth:1.03,ceiling:88}),
+ option('Fast Starter','You improve quickly early on, but your natural ceiling is a little lower than the most gifted prospects.','uncommon',{},null,{growth:1.20,ceiling:89}),
+ option('Slow-Burn Ceiling','Early progress is frustratingly slow, but there is much more room above you than first appears.','uncommon',{},null,{growth:.96,ceiling:93}),
+ option('Pressure Learner','Competition accelerates your development more than ordinary training ever did.','uncommon',{},null,{growth:1.17,ceiling:91}),
+ option('Late-Blooming Prodigy','Your learning curve is initially ordinary, but your eventual technical ceiling is elite.','rare',{},null,{growth:1.06,ceiling:97}),
+ option('Accelerated Prospect','Your development is unusually fast even if the final ceiling is not truly generational.','rare',{},null,{growth:1.30,ceiling:94}),
+ option('Elite Trajectory','Both your learning speed and long-term ceiling already resemble an elite professional pathway.','epic',{},null,{growth:1.44,ceiling:97}),
+ option('World-Class Trajectory','Your development profile points toward the very top level if the environment does not break you first.','legendary',{},null,{growth:1.60,ceiling:100}),
+ option('Limitless Growth','Every solved problem appears to reveal another level above it. Your theoretical ceiling is almost meaningless.','mythic',{},null,{growth:1.80,ceiling:102})
+);
+
 const NEL_STAGE={key:'nelClub',chapter:'NEO EGOIST LEAGUE',name:'Choose Your NEL Club',prompt:'Which European philosophy will reshape your final stage?',mode:'equal',options:Object.keys(NEL_DATA).map(n=>option(n,NEL_DATA[n].master+' leads a squad built around a distinct football philosophy.','common',{},n.replace('Bastard München','Bastard').replace('Manshine City','Manshine').replace('FC Barcha','Barcha').replace('Paris X Gen','PXG')))};
 
 const TRAINING_ACTIONS=[
