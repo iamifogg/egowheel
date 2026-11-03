@@ -251,3 +251,19 @@ Known remaining issues:
 - Attacking-midfield group (includes Second Striker / False Nine) scores slightly above wingers.
 - First Selection is the single biggest eliminator; could use another individual-survival lever.
 - Event mix leans on `rival_notice`, `partnership_offer`, `refuse_pass`, `obsession`.
+
+## Phase 4 — Presentation & history (v25)
+- **Milestones** recorded from real events: first goal, hat-tricks, first 9+ display, top-10 / #1
+  rank, survived selections (and how), close NEL survival, decisive duel wins vs elite players,
+  weapon evolutions and combinations, first Flow, first rival/partner, trophies, eliminations.
+- **Career biography** on the completion screen and in the archive: peak OVR, best rank, top bid,
+  output, Flow count, weapons and evolutions, combos, main rivals (with duel record), partners,
+  trophies and the 8 most defining moments. Pre-v25 archive entries show a fallback note; their
+  missing statistics are shown as "—", never invented.
+- **Debug panel** (`?debug=1`): seed, injury risk, rank score, market breakdown, live wheel odds,
+  Flow chance, director candidates and weights, relationship axes, copy-state and full-fitness tools.
+- **Sound cues** for Flow, confrontations and evolutions (generated tones; no assets).
+- **Bug fixed (pre-existing in v24)**: the stylesheet had no global `[hidden]` rule, so the match-prep
+  area stayed visible under the career-complete screen. Added `[hidden]{display:none!important}`.
+- Verified in Chromium at 390px and 1280px: no console errors, no horizontal scroll; offline reload
+  via the service worker loads every engine and starts a career.

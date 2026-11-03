@@ -76,3 +76,16 @@ test('archived entries lacking newer fields still load', () => {
   assert.strictEqual(g.api.state.archive[0].name, 'Old Timer');
   assert.strictEqual(g.api.state.archive[0].goals, null, 'unknown stats stay unknown, not invented');
 });
+
+test('archiving stores a career biography built from real events', () => {
+  const { playCareer } = require('./autoplay');
+  const r = playCareer({ seed: 'arch-bio', continuePro: true });
+  const a = r.api, c = r.state.run.career;
+  if (!c.eliminated && c.postNelStarted) a.simulateCareerEpilogue();
+  a.archiveCareer();
+  const entry = a.state.archive[0];
+  assert.ok(entry && entry.summary, 'summary stored');
+  assert.ok(Array.isArray(entry.summary.milestones) && entry.summary.milestones.length >= 1, 'milestones recorded');
+  assert.strictEqual(entry.summary.goals, c.totals.goals, 'biography numbers match recorded totals');
+  a.renderAll();
+});

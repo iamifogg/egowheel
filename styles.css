@@ -512,3 +512,21 @@ button:disabled{cursor:not-allowed}
 .scene-actor{display:flex;flex-direction:column;align-items:flex-start;margin:6px 0 8px;padding:8px 12px;border:1px solid #2a6bb0;background:rgba(5,9,15,.7);color:var(--text);cursor:pointer;clip-path:polygon(0 0,100% 0,94% 100%,0 100%)}
 .scene-actor span{font-size:.68rem;color:var(--blue2)}
 .moment-list.drama p{color:var(--warn)}
+
+/* ===== v25: biography, archive, debug ===== */
+.bio{margin-top:8px}
+.bio-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:6px;margin-bottom:8px}
+.bio-grid div{padding:7px 9px;border:1px solid var(--line);background:rgba(10,16,24,.8)}
+.bio-grid span{display:block;font-size:.55rem;letter-spacing:.14em;color:var(--blue2);font-weight:800}
+.bio-grid strong{font-size:1rem;font-weight:900;font-style:italic}
+.bio p{margin:4px 0;font-size:.76rem;color:var(--muted);line-height:1.45}.bio p b{color:var(--text)}
+.bio details summary{cursor:pointer;font-size:.72rem;color:var(--blue2);font-weight:800;margin:6px 0}
+.archive-card.elim{border-left:3px solid var(--down)}
+.archive-card em{color:var(--faint);font-style:normal;font-size:.72rem}
+.archive-legacy{font-size:.7rem;color:var(--faint)}
+.debug-panel{position:fixed;left:8px;bottom:78px;z-index:80;max-width:min(560px,calc(100vw - 16px))}
+.debug-panel button{font:700 .62rem ui-monospace,monospace;background:#1a0f22;color:#e0b3ff;border:1px solid #6b3f8a;padding:5px 8px;cursor:pointer}
+.debug-panel pre{max-height:50vh;overflow:auto;white-space:pre-wrap;font:.62rem/1.45 ui-monospace,monospace;background:rgba(10,4,16,.95);color:#e6d6f5;border:1px solid #6b3f8a;padding:8px;margin:4px 0}
+
+/* Global: the hidden attribute must always win over component display rules. */
+[hidden]{display:none!important}
