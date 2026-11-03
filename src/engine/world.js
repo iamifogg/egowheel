@@ -180,9 +180,9 @@
   }
 
   function ratePlayer(rng, p, g, a, d, result, cleanSheet, oppStrength) {
-    const defScale = { CB: 1.25, DM: 1.15, FB: 1.1, CM: 1, AM: .8, WG: .8, CF: .7 }[p.pos] || 1;
-    let r = 6.3 + 0.95 * g + 0.6 * a + 0.11 * d * defScale + (result > 0 ? .25 : result < 0 ? -.2 : 0) + (p.ovr - oppStrength) * 0.025 + rng.normal(0, 0.5);
-    if (cleanSheet && ['CB', 'DM', 'FB'].includes(p.pos)) r += 0.45;
+    const defScale = { CB: .95, DM: .95, FB: .95, CM: 1, AM: .9, WG: .9, CF: .8 }[p.pos] || 1;
+    let r = 6.35 + 0.95 * g + 0.6 * a + 0.075 * d * defScale + (result > 0 ? .25 : result < 0 ? -.2 : 0) + (p.ovr - oppStrength) * 0.025 + rng.normal(0, 0.5);
+    if (cleanSheet && ['CB', 'DM', 'FB'].includes(p.pos)) r += 0.3;
     return clamp(r, 4.3, 9.9);
   }
 

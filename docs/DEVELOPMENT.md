@@ -215,3 +215,39 @@ a partnership, reading your weapon, refusing to pass. Original writing, no quote
 ### Professional continuity
 Pro fixtures against Paris X Gen / Ubers use the real NEL rosters (your rivals are there); Japan
 fixtures put the best surviving Blue Lock players on your side; club fixtures use your NEL club.
+
+## Phase 5 — Balancing pass 1 (v25)
+Tool: `npm run balance` autoplays careers spread evenly over all 18 positions.
+
+| Metric | Before pass | After pass |
+|---|---|---|
+| CB goals / app | 0.31 | 0.14 |
+| CM goals / app | 0.60 | 0.40 |
+| Avg rating CB vs CF | 7.81 vs 7.40 | 7.20 vs 7.05 |
+| NPC rating CB vs CF | 7.33 vs 6.72 | 6.98 vs 6.69 |
+| Senior World Cup (all careers) | 25% | ~10% |
+| Reached NEL | 51% | ~44% |
+| Qualified top 23 (of NEL) | 87% | ~75% |
+| Match-ending injuries | 2.3% | ~2.0% (longest streak 1–2) |
+| Flow / duels per match | 3.8% / 18% | ~2.5–3.4% / ~18% |
+
+Changes and reasons:
+- **Goal slice** no longer has a 0.8 floor; form bonuses scale with the role's shooting profile.
+  **Assists** scale more steeply with the role's creation profile. Corner header goals halved.
+- **Ratings**: baseline lowered 5.85 → 5.68, defensive action and clean-sheet weights reduced, key
+  passes and dribbles rewarded more (wingers/creators were under-rated). Growth, confidence and form
+  thresholds moved with the new scale so development did not silently slow down.
+- **NPC ratings** aligned with the protagonist scale (rankings compare both).
+- **Team scoring is now matchup-relative**: teammates' scoring used to ignore the opponent, so strong
+  opponents only conceded more and never scored fewer. Defensive help was also counted twice.
+- Momentum and per-segment defensive suppression softened (a dominant player could make a 108-rated
+  side score ~1 goal per game).
+- Late knockout opponents strengthened; NEL field widened to 40 for a real top-23 race.
+
+Current outcome spread (108 careers): First Selection out ~21–25%, 100 Goal Challenge ~13–16%,
+Second Selection ~13–15%, U-20 defeat ~3–5%, NEL cut ~8–11%, professional ~35–45%.
+
+Known remaining issues:
+- Attacking-midfield group (includes Second Striker / False Nine) scores slightly above wingers.
+- First Selection is the single biggest eliminator; could use another individual-survival lever.
+- Event mix leans on `rival_notice`, `partnership_offer`, `refuse_pass`, `obsession`.

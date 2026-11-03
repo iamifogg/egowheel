@@ -1188,12 +1188,12 @@ function contributionStage(){
   weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(.8,8+prof.shots*5-s.finishing*.08),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,ratingPenalty:.18}}),
   weighted('Quiet Phase','The match moves around you without a decisive contribution.',10,{},'QUIET',{contrib:{}}),
   weighted('Shot on Target','You create a credible attempt without scoring.',Math.max(2,6+attack*.08*prof.shots+(bonus.shots||0)*2),{},'SHOT',{contrib:{shots:1,bonusRating:.04}}),
-  weighted('Goal','You finish a decisive chance.',Math.max(.8,finishQ*.22*prof.shots+(bonus.goalP||0)*90+formBoost*.4+pressureBoost),{},'GOAL',{contrib:{goals:1,shots:1,bonusRating:1.05}}),
-  weighted('Brace Moment','You punish the opponent twice in the same spell.',Math.max(.12,(finishQ-22)*.03*prof.shots+(bonus.goalP||0)*18+Math.max(0,formBoost)*.08),{},'BRACE',{contrib:{goals:2,shots:2,bonusRating:2.05}}),
+  weighted('Goal','You finish a decisive chance.',Math.max(.15,(finishQ*.2+Math.max(0,formBoost)*.35+pressureBoost)*Math.pow(prof.shots,.95)+(bonus.goalP||0)*90*Math.max(.35,prof.shots)),{},'GOAL',{contrib:{goals:1,shots:1,bonusRating:1.05}}),
+  weighted('Brace Moment','You punish the opponent twice in the same spell.',Math.max(.04,(finishQ-22)*.03*prof.shots+(bonus.goalP||0)*18*prof.shots+Math.max(0,formBoost)*.08),{},'BRACE',{contrib:{goals:2,shots:2,bonusRating:2.05}}),
   weighted('Corner Header Won','You attack a corner aggressively and win first contact.',Math.max(.3,2.8*aerialThreat+(bonus.aerial||0)*2),{},'CORNER HEADER',{contrib:{shots:1,aerialDuels:1,bonusRating:.16}}),
-  weighted('Header Goal From Corner','You rise above the defence and score from a corner.',Math.max(.06,.55*aerialThreat+(bonus.corner||0)*1.2),{},'HEADER GOAL',{contrib:{goals:1,shots:1,aerialDuels:1,setPieceGoals:1,bonusRating:1.18}}),
+  weighted('Header Goal From Corner','You rise above the defence and score from a corner.',Math.max(.04,.28*aerialThreat+(bonus.corner||0)*.8),{},'HEADER GOAL',{contrib:{goals:1,shots:1,aerialDuels:1,setPieceGoals:1,bonusRating:1.18}}),
   weighted('Aerial Duel Won','You dominate a high ball and control the next phase.',Math.max(.8,3.8*heightFactor*(s.physical/75)*prof.defense),{},'AERIAL WIN',{contrib:{aerialDuels:1,clearances:isDefensiveRole()?1:0,bonusRating:.12}}),
-  weighted('Assist','You create the final pass for a goal.',Math.max(.8,create*.075*prof.creation+(bonus.assistP||0)*85),{},'ASSIST',{contrib:{assists:1,keyPasses:1,bonusRating:.7}}),
+  weighted('Assist','You create the final pass for a goal.',Math.max(.3,Math.max(0,create-35)*.1*Math.pow(prof.creation,1.3)+(bonus.assistP||0)*85),{},'ASSIST',{contrib:{assists:1,keyPasses:1,bonusRating:.7}}),
   weighted('Key Pass','You create a chance that someone else fails to finish.',Math.max(2,create*.1*prof.creation+(bonus.keyPasses||0)*2+(egoStyle==='Architect'?2.2:0)),{},'KEY PASS',{contrib:{keyPasses:1,bonusRating:.12}}),
   weighted('Cross Creates Chance','Your delivery beats the first defender and finds a dangerous runner.',Math.max(1.1,(s.passing+s.vision)/35*prof.creation),{},'CROSS',{contrib:{keyPasses:1,bonusRating:.12}}),
   weighted('Switch of Play','A long pass moves the entire defensive block and opens the weak side.',Math.max(.8,(s.passing+s.vision)/42*prof.creation),{},'SWITCH',{contrib:{keyPasses:1,bonusRating:.09}}),
@@ -1540,21 +1540,21 @@ function postNelFixtures(club){
   {id:'pro3',stage:'Professional League',type:'match',team:club,opponent:'Berserk Dortmund',stars:['Ryusei Shidou'],strength:94,teamStrength:clubStrength,venue:'Professional League — Derby Night',importance:1.6},
   {id:'pro4',stage:'Professional League',type:'match',team:club,opponent:'London Red',stars:['Adam Blake'],strength:95,teamStrength:clubStrength,venue:'Professional League — Title Run-In',importance:1.7,final:true,competition:'Professional League'},
   {id:'ccqf',stage:'Champions Cup',type:'match',competition:'Champions Cup',knockout:true,team:club,opponent:'Torino Ubers',stars:['Don Lorenzo','Oliver Aiku'],strength:97,teamStrength:clubStrength,venue:'Champions Cup Quarter-Final',importance:1.8},
-  {id:'ccsf',stage:'Champions Cup',type:'match',competition:'Champions Cup',knockout:true,team:club,opponent:'Paris X Gen Elite',stars:['Julian Loki','Rin Itoshi'],strength:99,teamStrength:clubStrength,venue:'Champions Cup Semi-Final',importance:1.9},
-  {id:'ccf',stage:'Champions Cup',type:'match',competition:'Champions Cup',knockout:true,team:club,opponent:'World Select XI',stars:['Julian Loki','Leonardo Luna','Michael Kaiser'],strength:101,teamStrength:clubStrength,venue:'Champions Cup Final',importance:2.0,final:true,},
+  {id:'ccsf',stage:'Champions Cup',type:'match',competition:'Champions Cup',knockout:true,team:club,opponent:'Paris X Gen Elite',stars:['Julian Loki','Rin Itoshi'],strength:101,teamStrength:clubStrength,venue:'Champions Cup Semi-Final',importance:1.9},
+  {id:'ccf',stage:'Champions Cup',type:'match',competition:'Champions Cup',knockout:true,team:club,opponent:'World Select XI',stars:['Julian Loki','Leonardo Luna','Michael Kaiser'],strength:104,teamStrength:clubStrength,venue:'Champions Cup Final',importance:2.0,final:true,},
   {id:'u20wc1',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'Germany U-20',stars:['Michael Kaiser'],strength:96,teamStrength:95,venue:'U-20 World Cup Group Stage',importance:1.75},
   {id:'u20wc2',stage:'U-20 World Cup',type:'match',team:'Japan U-20',opponent:'England U-20',stars:['Adam Blake'],strength:95,teamStrength:95,venue:'U-20 World Cup Group Stage',importance:1.75},
-  {id:'u20wcqf',stage:'U-20 World Cup',type:'match',competition:'U-20 World Cup',knockout:true,team:'Japan U-20',opponent:'Argentina U-20',stars:['Pablo Cavasoz'],strength:97,teamStrength:95,venue:'U-20 World Cup Quarter-Final',importance:1.9},
-  {id:'u20wcsf',stage:'U-20 World Cup',type:'match',competition:'U-20 World Cup',knockout:true,team:'Japan U-20',opponent:'France U-20',stars:['Julian Loki'],strength:99,teamStrength:95,venue:'U-20 World Cup Semi-Final',importance:2.0},
-  {id:'u20wcf',stage:'U-20 World Cup',type:'match',competition:'U-20 World Cup',knockout:true,team:'Japan U-20',opponent:'Spain U-20',stars:['Leonardo Luna'],strength:100,teamStrength:95,venue:'U-20 World Cup Final',importance:2.1,final:true,},
+  {id:'u20wcqf',stage:'U-20 World Cup',type:'match',competition:'U-20 World Cup',knockout:true,team:'Japan U-20',opponent:'Argentina U-20',stars:['Pablo Cavasoz'],strength:99,teamStrength:95,venue:'U-20 World Cup Quarter-Final',importance:1.9},
+  {id:'u20wcsf',stage:'U-20 World Cup',type:'match',competition:'U-20 World Cup',knockout:true,team:'Japan U-20',opponent:'France U-20',stars:['Julian Loki'],strength:101,teamStrength:95,venue:'U-20 World Cup Semi-Final',importance:2.0},
+  {id:'u20wcf',stage:'U-20 World Cup',type:'match',competition:'U-20 World Cup',knockout:true,team:'Japan U-20',opponent:'Spain U-20',stars:['Leonardo Luna'],strength:102,teamStrength:95,venue:'U-20 World Cup Final',importance:2.1,final:true,},
   {id:'elite1',stage:'Elite Club Season',type:'match',team:club,opponent:'Royale Madrid',stars:['Sae Itoshi','Leonardo Luna'],strength:100,teamStrength:Math.max(clubStrength,96),venue:'Elite Club Season — Matchday 1',importance:1.75},
   {id:'elite2',stage:'Elite Club Season',type:'match',team:club,opponent:'Paris X Gen Elite',stars:['Julian Loki','Rin Itoshi','Ryusei Shidou'],strength:101,teamStrength:Math.max(clubStrength,96),venue:'Elite Club Season — Matchday 2',importance:1.8},
   {id:'elite3',stage:'Elite Club Season',type:'match',team:club,opponent:'World Select XI',stars:['Michael Kaiser','Don Lorenzo','Julian Loki'],strength:102,teamStrength:Math.max(clubStrength,96),venue:'Elite Club Season — Championship Match',importance:1.95,final:true,competition:'Elite Club Season'},
-  {id:'wc1',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Germany',stars:['Michael Kaiser'],strength:99,teamStrength:98,venue:'Senior World Cup Group Stage',importance:1.9},
-  {id:'wc2',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Brazil',stars:['Dada Silva'],strength:100,teamStrength:98,venue:'Senior World Cup Group Stage',importance:1.95},
-  {id:'wcqf',stage:'Senior World Cup',type:'match',competition:'Senior World Cup',knockout:true,team:'Japan',opponent:'Spain',stars:['Leonardo Luna'],strength:101,teamStrength:98,venue:'Senior World Cup Quarter-Final',importance:2.0},
-  {id:'wcsf',stage:'Senior World Cup',type:'match',competition:'Senior World Cup',knockout:true,team:'Japan',opponent:'France',stars:['Julian Loki'],strength:103,teamStrength:98,venue:'Senior World Cup Semi-Final',importance:2.1},
-  {id:'wcf',stage:'Senior World Cup',type:'match',competition:'Senior World Cup',knockout:true,team:'Japan',opponent:'World Champions',stars:['Julian Loki','Leonardo Luna','Adam Blake'],strength:104,teamStrength:98,venue:'Senior World Cup Final',importance:2.2,final:true,}
+  {id:'wc1',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Germany',stars:['Michael Kaiser'],strength:101,teamStrength:98,venue:'Senior World Cup Group Stage',importance:1.9},
+  {id:'wc2',stage:'Senior World Cup',type:'match',team:'Japan',opponent:'Brazil',stars:['Dada Silva'],strength:102,teamStrength:98,venue:'Senior World Cup Group Stage',importance:1.95},
+  {id:'wcqf',stage:'Senior World Cup',type:'match',competition:'Senior World Cup',knockout:true,team:'Japan',opponent:'Spain',stars:['Leonardo Luna'],strength:105,teamStrength:98,venue:'Senior World Cup Quarter-Final',importance:2.0},
+  {id:'wcsf',stage:'Senior World Cup',type:'match',competition:'Senior World Cup',knockout:true,team:'Japan',opponent:'France',stars:['Julian Loki'],strength:107,teamStrength:98,venue:'Senior World Cup Semi-Final',importance:2.1},
+  {id:'wcf',stage:'Senior World Cup',type:'match',competition:'Senior World Cup',knockout:true,team:'Japan',opponent:'World Champions',stars:['Julian Loki','Leonardo Luna','Adam Blake'],strength:108,teamStrength:98,venue:'Senior World Cup Final',importance:2.2,final:true,}
  ];
 }
 
@@ -1785,9 +1785,10 @@ function momentMinute(p,i){const start=p.startMinute||0,n=Math.max(1,p.targetSpi
 function matchBaseLambdas(fixture){
  const s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{},temp=state.run.career?.tempMatchBonus||{};
  const ownStrength=fixture.teamStrength+overall()*.14+state.run.form*1.4;
- const mate=clamp(.45+(ownStrength-58)/40+(s.passing+s.vision)/520+(bonus.mateGoals||0)+(temp.mateGoals||0),.15,3)*.82;
+ // Both sides' scoring depends on the matchup, not on absolute strength.
+ const mate=clamp(1.0+(ownStrength-fixture.strength)/16+((s.passing+s.vision)/2-65)/200+(bonus.mateGoals||0)+(temp.mateGoals||0),.15,3)*.82;
  const help=((s.defense+s.reactions+s.stamina)/3)*prof.defense;
- const opp=clamp(.72+(fixture.strength-62)/34-help/310-(bonus.oppDefense||0)-(temp.oppDefense||0),.12,3.8);
+ const opp=clamp(1.05+(fixture.strength-fixture.teamStrength)/16-help/500-(bonus.oppDefense||0)-(temp.oppDefense||0),.12,3.8);
  return{mate,opp,ownStrength};
 }
 function duelCandidate(fixture){
@@ -1879,9 +1880,9 @@ function playSegment(p,fixture,tags,contrib){
  for(let i=0;i<(contrib.assists||0);i++){ctx.tg++;ctx.timeline.push({m:minute,t:'assist',txt:'Assist — your pass is finished'});}
  if(contrib.oppBonusGoals){ctx.og+=contrib.oppBonusGoals;ctx.timeline.push({m:minute,t:'og',txt:'Own goal'});}
  if(contrib.oppGoal){ctx.og+=1;ctx.timeline.push({m:minute,t:'opp',txt:'Opponent scores after beating you'});}
- let oppL=ctx.base.opp*segShare*(1-.07*ctx.mom),mateL=ctx.base.mate*segShare*(1+.07*ctx.mom)*(obj.mate||1);
+ let oppL=ctx.base.opp*segShare*(1-.045*ctx.mom),mateL=ctx.base.mate*segShare*(1+.045*ctx.mom)*(obj.mate||1);
  const defCount=tags.includes('def')&&!tags.includes('neg')?1:0;
- if(defCount)oppL*=.6;if(contrib.oppSuppress)oppL*=.3;if(tags.includes('error'))oppL*=1.8;
+ if(defCount)oppL*=.72;if(contrib.oppSuppress)oppL*=.3;if(tags.includes('error'))oppL*=1.8;
  if(contrib.oppChance&&R()<.45){ctx.og++;ctx.timeline.push({m:minute,t:'opp',txt:'Opponent converts the chance you allowed'});}
  if(tags.includes('error')&&R()<.32){ctx.og++;ctx.timeline.push({m:minute,t:'opp',txt:'Your error is punished'});}
  const og=poisson(Math.max(0,oppL)),mg=poisson(Math.max(0,mateL));
@@ -1994,22 +1995,22 @@ function resolveContributionOutcome(outcome){
 function cleanSheetRatingBonus(oppGoals,profile=positionProfile()){
  if(oppGoals!==0)return 0;
  const role=activePositionName();
- if(['Centre Back','Ball-Playing Centre Back','Stopper','Sweeper'].includes(role))return .62;
- if(role==='Defensive Midfielder')return .46;
+ if(['Centre Back','Ball-Playing Centre Back','Stopper','Sweeper'].includes(role))return .45;
+ if(role==='Defensive Midfielder')return .36;
  if(['Left Back','Right Back','Left Wing-Back','Right Wing-Back'].includes(role))return .38;
  if(role==='Central Midfielder')return .16;
  if(role==='Pressing Forward')return .08;
  return 0;
 }
 function contributionRating(a,result,profile=positionProfile(),oppGoals=null){
- const defScale=clamp(.74+profile.defense*.40,.84,1.55);
+ const defScale=clamp(.74+profile.defense*.30,.84,1.3);
  const attackScale=clamp(.78+profile.shots*.22,.8,1.06);
  const createScale=clamp(.82+profile.creation*.16,.88,1.06);
  const positive=(a.bonusRating||0)*.45+
   (a.goals||0)*.92*attackScale+
   (a.assists||0)*.68*createScale+
-  (a.keyPasses||0)*.075*createScale+
-  (a.dribbles||0)*.055*clamp(.8+profile.carry*.16,.85,1.06)+
+  (a.keyPasses||0)*.095*createScale+
+  (a.dribbles||0)*.085*clamp(.8+profile.carry*.16,.85,1.06)+
   (a.tackles||0)*.125*defScale+
   (a.interceptions||0)*.16*defScale+
   (a.blocks||0)*.21*defScale+
@@ -2019,7 +2020,7 @@ function contributionRating(a,result,profile=positionProfile(),oppGoals=null){
  const penalty=(a.ratingPenalty||0)+(a.sentOff?1.1:0)+(a.injured?.35:0);
  const resultAdj=result==='WIN'?.18:result==='LOSS'?-.14:0;
  const cleanSheet=oppGoals===null?0:cleanSheetRatingBonus(oppGoals,profile);
- return clamp(5.85+positive+cleanSheet-penalty+resultAdj,3.2,10);
+ return clamp(5.68+positive+cleanSheet-penalty+resultAdj,3.2,10);
 }
 function updateRollingForm(c,rep){
  if(!c||rep.type!=='match')return;
@@ -2032,7 +2033,7 @@ function updateRollingForm(c,rep){
  });
  const avg=total?weighted/total:rep.rating;
  const resultAdj=rep.result==='WIN'?.18:rep.result==='LOSS'?-.12:0;
- const target=clamp((avg-6.6)*1.45+resultAdj,-3,3);
+ const target=clamp((avg-6.45)*1.45+resultAdj,-3,3);
  state.run.form=Math.round(target*2)/2;
 }
 function resolveKnockoutScore(fixture,teamGoals,oppGoals,ownStrength){
@@ -2589,7 +2590,7 @@ function applyPostMatch(rep,fixture){
   state.run.fitness=clamp(state.run.fitness-fitnessLoss,EW.injuries.FITNESS_FLOOR,100);
  }
  if(rep.type==='match'){
-  const confDelta=rep.rating>=8.5?7:rep.rating>=7.5?4:rep.rating>=6.8?2:rep.rating>=6.2?0:rep.rating>=5.5?-3:-6;
+  const confDelta=rep.rating>=8.3?7:rep.rating>=7.3?4:rep.rating>=6.6?2:rep.rating>=6.0?0:rep.rating>=5.3?-3:-6;
   state.run.confidence=clamp(state.run.confidence+confDelta,0,100);
   updateRollingForm(c,rep);
  }else{
@@ -2599,7 +2600,7 @@ function applyPostMatch(rep,fixture){
  const totalDef=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
  const growthPool=rep.goals?['finishing','offBall','reactions','shotPower']:rep.assists?['passing','vision','control','offBall']:totalDef>=4?['defense','reactions','stamina','physical','vision']:['ego','stamina','technique','vision'];
  const importance=fixture.importance||1;
- const growthBudget=rep.rating<5?-1:rep.rating<6?0:rep.rating<6.7?2:rep.rating<7.4?4:rep.rating<8.2?6:rep.rating<9?8:10;
+ const growthBudget=rep.rating<5?-1:rep.rating<5.8?0:rep.rating<6.5?2:rep.rating<7.2?4:rep.rating<8?6:rep.rating<8.8?8:10;
  if(growthBudget<0){changeStat(pick(growthPool),-1);}
  else{
   const points=Math.max(0,Math.round(growthBudget*(.82+importance*.16)));
@@ -2763,7 +2764,7 @@ function addMilestone(type,text){
 function enterNEL(){
  const club=state.run.selections.nelClub?.name;if(!club)return;
  const c=state.run.career,w=ensureWorld();
- if(w&&!w.nel){syncMe();EW.world.cull(w,EW.rng.current,36,'U-20 Match');EW.world.setupNEL(w,EW.rng.current,club,NEL_DATA);EW.market.updateAll(w,EW.rng.current,{initial:true});c.bid=w.players.me.bid;c.bidHistory.push(c.bid);EW.world.addNews(w,'The NEL auction opens. Only the top '+EW.market.QUALIFY+' Blue Lock players by value will survive.','market');}c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');save();renderAll();toast('Neo Egoist League begins.');
+ if(w&&!w.nel){syncMe();EW.world.cull(w,EW.rng.current,40,'U-20 Match');EW.world.setupNEL(w,EW.rng.current,club,NEL_DATA);EW.market.updateAll(w,EW.rng.current,{initial:true});c.bid=w.players.me.bid;c.bidHistory.push(c.bid);EW.world.addNews(w,'The NEL auction opens. Only the top '+EW.market.QUALIFY+' Blue Lock players by value will survive.','market');}c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');save();renderAll();toast('Neo Egoist League begins.');
 }
 function canContinueBeyondNEL(){
  const c=state.run.career;
