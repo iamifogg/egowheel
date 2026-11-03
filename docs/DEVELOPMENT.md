@@ -110,3 +110,62 @@ Consequences:
 - 100 Goal Challenge made role-aware (defenders lean on reactions/technique/composure); it was
   eliminating ~45% of careers, mostly non-strikers. Now ~15%.
 - Careers migrated from v7 mid-run get a world fast-forwarded to their current stage.
+
+## Phase 2 — Match & weapon overhaul (v25)
+
+### Contextual matches (wheel preserved)
+- Each contribution spin is a **segment of the match** with a minute stamp. The score is live:
+  your goals/assists, plus teammates and opponents scoring in that segment (Poisson from team
+  strengths, momentum, and what you just did — a defensive action suppresses that segment, an
+  error inflates it and may be punished immediately).
+- **Momentum** (−3…+3) rises with good actions and goals and decays each moment.
+- **Context modifiers**: trailing late pushes attacking slices and cards; leading late favours
+  defending and tactical fouls; level late in big matches raises clutch outcomes.
+- **Team hierarchy**: the highest-ranked player in your side gets more shooting moments.
+- Sent off / forced off: remaining segments are simulated (ten men concede more).
+- Final score, timeline and result all come from the same events (tested over 300+ matches).
+
+### Objectives (position-tailored)
+Play Your Game · Hunt Goals · Create Chances (Build From the Back for defenders) · Defensive
+Dominance · Target the Star (Mark Their Star; only when a named star is present) · Develop Your
+Weapon (×1.8 mastery, some wasted phases) · Play for the Result · Individual Showcase (higher highs,
+lower lows). Each multiplies tagged outcomes; none is strictly dominant.
+
+### Attribute sensitivity
+Goal odds now hinge on finishing (with movement, reactions, power as secondary); creation on
+passing > vision > control; defending on defence > reactions/physical; carrying on dribbling.
+An elite finisher has ~2.5× the goal share of a poor one.
+
+### Flow
+Per-moment chance from ability-vs-challenge (peaks when the opponent is slightly stronger), ego
+style, importance, confidence, weapon mastery, rivalry with the duel opponent, form and momentum.
+Measured: **~3% of matches**. In Flow, the archetype's family is amplified (×1.7), mistakes halve,
+a unique "FLOW: …" slice appears (e.g. *Field Prediction* for vision players, *Erase the Attack* for
+defenders), mastery XP doubles, and the wheel visibly changes.
+
+### Confrontations (duels) & devouring
+When the opposition contains a named star (or a rival), a duel can be scheduled (~13% of matches,
+much more with *Target the Star*). You pick an approach — **Force Your Weapon** (mastery helps,
+rivals who have read you resist), **Adapt Mid-Duel** (harder, success can evolve your weapon),
+**Exploit a Weakness** (your secondary strengths vs their weakest area) — then spin a
+matchup-weighted wheel (Decisive / Win / Stalemate / Beaten / Humiliated) shown split-screen.
+
+### Weapons (`src/engine/weapons.js`)
+- Every weapon maps to a family (finish, move, vision, dribble, pass, speed, control, defend,
+  aerial, adapt). Mastery XP only comes from relevant outcomes (levels at 12/32/62/100).
+- Mastery raises the weight of the family's outcomes and suppresses its failure modes.
+- **Evolutions** need mastery *and* a pressure trigger: tier 1 (L2 + strong display), tier 2
+  (L3 + big match, duel win or adaptation), tier 3 (L4 + Flow or decisive duel). Each tier adds
+  a new wheel opportunity (e.g. Spatial → Advanced Scanning → Predictive Movement → Metavision).
+- **Combination weapons** (Blind-Side Burst, Field Conductor, Sky Fortress, Counter Spear, Press
+  Predator, Two-Footed Executioner, Elastic Escape, Cannon Volley) need attribute thresholds *and*
+  a history of relevant actions.
+- Mid-match breakthroughs are rarer (≈0.4–3.5% per moment) and no longer grant Flow.
+
+### Reports
+Timeline with minutes, Flow banner, duel line, scorers with assist links, weapon events.
+Invented report lines (random "duel with X") were removed; only real events are reported.
+
+### Known balance issues (for Phase 5)
+- Centre-backs average higher ratings (≈7.7) and too many goals (≈0.3/app) vs forwards (≈7.0).
+- Senior World Cup won too often; attribute growth still generous.

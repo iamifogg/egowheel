@@ -52,6 +52,8 @@
                 <div class="stage-progress"><strong id="stageCount">1 / 8</strong><span id="stageMode">Build spin</span></div>
               </div>
 
+              <div id="matchHud" class="match-hud" hidden aria-live="polite"></div>
+              <div id="duelPanel" class="duel-panel" hidden></div>
               <div class="wheel-shell" id="wheelShell">
                 <div class="wheel-pointer"><span></span></div>
                 <svg id="wheelSvg" viewBox="0 0 520 520" role="img" aria-label="EgoWheel player creation wheel">
@@ -143,6 +145,8 @@
                 <div id="matchPlanPanel">
                   <div class="subhead plan-head"><div><span class="kicker">MATCH PLAN</span><h3>How will you approach the game?</h3></div></div>
                   <div id="matchPlans" class="plan-grid"></div>
+                  <div class="subhead plan-head"><div><span class="kicker">MATCH OBJECTIVE</span><h3>What are you trying to prove?</h3></div></div>
+                  <div id="objectiveRow" class="plan-grid objective-grid"></div>
                   <button id="playMatchBtn" class="button primary full big" type="button" disabled>Spin Match Contributions</button>
                 </div>
               </div>
@@ -263,6 +267,7 @@
   <script src="./src/data/characters.js?v=25" defer></script>
   <script src="./src/engine/world.js?v=25" defer></script>
   <script src="./src/engine/market.js?v=25" defer></script>
+  <script src="./src/engine/weapons.js?v=25" defer></script>
   <script src="./app.js?v=25" defer></script>
 </body>
 </html>

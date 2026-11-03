@@ -1162,9 +1162,10 @@ function contributionStage(){
  if(egoStyle==='Underdog'&&fixture&&fixture.strength>overall())formBoost+=Math.min(3,(fixture.strength-overall())*.15);
  if(egoStyle==='Pressure Junkie'&&(fixture?.importance||1)>=1.6)formBoost+=2.2;
  const attack=(s.finishing+s.offBall+s.reactions+s.shotPower)/4;
- const create=(s.passing+s.vision+s.control)/3;
- const carry=(s.dribbling+s.control+s.acceleration)/3;
- const defend=(s.defense+s.reactions+s.physical+s.vision)/4;
+ const create=s.passing*.45+s.vision*.35+s.control*.2;
+ const carry=s.dribbling*.5+s.control*.25+s.acceleration*.25;
+ const defend=s.defense*.45+s.reactions*.2+s.physical*.2+s.vision*.15;
+ const finishQ=Math.max(0,s.finishing*.5+s.offBall*.2+s.reactions*.15+s.shotPower*.15-40);
  const safe=Math.max(0,overall(s)-fixture.strength+formBoost);
  const bad=Math.max(2,18-safe*.22-(s.reactions+s.control)/28);
  const role=activePositionName(),arch=state.run.selections.archetype?.name||'',heightFactor=heightAerialFactor(),planKey=state.run.career?.planKey||'balanced';
@@ -1184,11 +1185,11 @@ function contributionStage(){
   weighted('Major Error','A bad decision creates a dangerous moment for the opponent.',Math.max(.8,bad*.38),{},'ERROR',{contrib:{mistakes:1,ratingPenalty:.7}}),
   weighted('Own Goal','A desperate defensive action goes horribly wrong.',Math.max(.08,(80-s.reactions)*.015*prof.defense),{},'OWN GOAL',{contrib:{mistakes:1,oppBonusGoals:1,ratingPenalty:1.05}}),
   weighted('Lose Important Duel','You are beaten in a meaningful individual contest.',Math.max(1.7,bad*.7),{},'LOST DUEL',{contrib:{mistakes:1,ratingPenalty:.28}}),
-  weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(.8,8+prof.shots*5-attack*.07),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,ratingPenalty:.18}}),
+  weighted('Waste Big Chance','You get a major opening but fail to convert it.',Math.max(.8,8+prof.shots*5-s.finishing*.08),{},'BIG MISS',{contrib:{shots:1,bigMisses:1,ratingPenalty:.18}}),
   weighted('Quiet Phase','The match moves around you without a decisive contribution.',10,{},'QUIET',{contrib:{}}),
   weighted('Shot on Target','You create a credible attempt without scoring.',Math.max(2,6+attack*.08*prof.shots+(bonus.shots||0)*2),{},'SHOT',{contrib:{shots:1,bonusRating:.04}}),
-  weighted('Goal','You finish a decisive chance.',Math.max(.8,attack*.095*prof.shots+(bonus.goalP||0)*90+formBoost*.4+pressureBoost),{},'GOAL',{contrib:{goals:1,shots:1,bonusRating:1.05}}),
-  weighted('Brace Moment','You punish the opponent twice in the same spell.',Math.max(.12,(attack-62)*.025*prof.shots+(bonus.goalP||0)*18+Math.max(0,formBoost)*.08),{},'BRACE',{contrib:{goals:2,shots:2,bonusRating:2.05}}),
+  weighted('Goal','You finish a decisive chance.',Math.max(.8,finishQ*.22*prof.shots+(bonus.goalP||0)*90+formBoost*.4+pressureBoost),{},'GOAL',{contrib:{goals:1,shots:1,bonusRating:1.05}}),
+  weighted('Brace Moment','You punish the opponent twice in the same spell.',Math.max(.12,(finishQ-22)*.03*prof.shots+(bonus.goalP||0)*18+Math.max(0,formBoost)*.08),{},'BRACE',{contrib:{goals:2,shots:2,bonusRating:2.05}}),
   weighted('Corner Header Won','You attack a corner aggressively and win first contact.',Math.max(.3,2.8*aerialThreat+(bonus.aerial||0)*2),{},'CORNER HEADER',{contrib:{shots:1,aerialDuels:1,bonusRating:.16}}),
   weighted('Header Goal From Corner','You rise above the defence and score from a corner.',Math.max(.06,.55*aerialThreat+(bonus.corner||0)*1.2),{},'HEADER GOAL',{contrib:{goals:1,shots:1,aerialDuels:1,setPieceGoals:1,bonusRating:1.18}}),
   weighted('Aerial Duel Won','You dominate a high ball and control the next phase.',Math.max(.8,3.8*heightFactor*(s.physical/75)*prof.defense),{},'AERIAL WIN',{contrib:{aerialDuels:1,clearances:isDefensiveRole()?1:0,bonusRating:.12}}),
@@ -1210,18 +1211,19 @@ function contributionStage(){
   weighted('Turnover to Chance','You win the ball and immediately create a dangerous attack.',Math.max(.2,(defend+create-105)*.035*Math.min(1.4,prof.defense)),{},'TURNOVER',{contrib:{interceptions:1,keyPasses:1,bonusRating:.32}})
  ];
  const total=p.targetSpins||contributionMomentCount();
+ applyMatchModifiers(opts,p,fixture);
  appendInjurySlices(opts,p,total);
  return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:'Match Moment '+(idx+1)+' / '+total,prompt:'Role, height, fitness, form, weapons, cards and opponent all change the wheel. Spin what you actually do.',mode:'weights',options:opts};
 }
 
 function breakthroughChance(){
  const p=state.run.pendingMatch,fixture=currentFixture(),s=currentStats();if(!p||p.breakthroughUsed||p.breakthroughPending)return 0;
- let chance=.022+Math.max(0,(fixture?.strength||70)-overall())*.0014+Math.max(0,-state.run.form)*.009+(s.ego-50)*.00035;
+ let chance=.006+Math.max(0,(fixture?.strength||70)-overall())*.0006+Math.max(0,-state.run.form)*.003+(s.ego-50)*.0001;
  const ego=state.run.selections.egoStyle?.name||'';
- if(['Limit Breaker','Devourer','Puzzle Solver','Pressure Junkie','Transcendent Ego','Evolution Addict','World Devourer','Pressure Sovereign','Singularity'].includes(ego))chance+=.025;
- if(ego==='Singularity')chance+=.02;
- if((fixture?.importance||1)>=1.7)chance+=.012;
- return clamp(chance,.015,.11);
+ if(['Limit Breaker','Devourer','Puzzle Solver','Pressure Junkie','Transcendent Ego','Evolution Addict','World Devourer','Pressure Sovereign','Singularity'].includes(ego))chance+=.008;
+ if(ego==='Singularity')chance+=.006;
+ if((fixture?.importance||1)>=1.7)chance+=.004;
+ return clamp(chance,.004,.035);
 }
 function breakthroughStatPool(){
  if(isDefensiveRole())return['defense','vision','reactions','physical','stamina','passing'];
@@ -1234,7 +1236,7 @@ function breakthroughStage(){
   weighted('Flash of Insight','One pattern suddenly becomes obvious and immediately usable.',34,{},'INSIGHT',{points:5,potential:0}),
   weighted('Adaptation','You alter your approach to solve what the opponent has been doing.',28,{},'ADAPT',{points:7,potential:1}),
   weighted('Weapon Evolution','Your existing weapon gains a new application under match pressure.',18*devour,{},'EVOLVE',{points:8,potential:1,evolveWeapon:true}),
-  weighted('Flow State','Challenge and ability align and your decisions accelerate.',13,{},'FLOW',{points:10,potential:2,form:1,extraMoment:1}),
+  weighted('Pressure Clarity','Under pressure, your decisions accelerate for the rest of the match.',13,{},'CLARITY',{points:8,potential:1,form:1,extraMoment:1}),
   weighted('Ego Mutation','Your understanding of what kind of player you are changes mid-match.',5*devour,{},'MUTATE',{points:13,potential:3,ego:3,extraMoment:1}),
   weighted('Transcendent Breakthrough','The match permanently raises the level you can imagine reaching.',2*devour,{},'TRANSCEND',{points:16,potential:4,ego:4,extraMoment:2})
  ]};
@@ -1257,7 +1259,8 @@ function resolveBreakthroughOutcome(outcome){
  if(outcome.meta?.potential)raisePotential(outcome.meta.potential);
  if(outcome.meta?.form)state.run.form=clamp(state.run.form+outcome.meta.form,-3,3);
  if(outcome.meta?.extraMoment)p.targetSpins=clamp((p.targetSpins||6)+outcome.meta.extraMoment,6,9);
- const evolved=outcome.meta?.evolveWeapon?evolveCurrentWeapon():null;
+ let evolved=null;
+ if(outcome.meta?.evolveWeapon){const W=weaponsState();if(W){EW.weapons.award(W,EW.weapons.FAMILIES[W.primary.family].tags,{mult:4});p.evo=Object.assign({},p.evo,{adapted:true});evolved={name:W.primary.name+' (mastery surge)'};}}
  p.breakthroughUsed=true;
  careerLog('Mid-match breakthrough: '+outcome.name+(evolved?' · '+evolved.name:'')+'.');
 }
@@ -1312,6 +1315,7 @@ function currentWheelStage(){
  if(state.run.mode==='weaponEventSpin')return weaponEventStage();
  if(state.run.mode==='contributionSpin')return contributionStage();
  if(state.run.mode==='breakthroughSpin')return breakthroughStage();
+ if(state.run.mode==='duelSpin')return duelStage();
  if(state.run.mode==='challengeSpin')return challengeStage();
  if(state.run.mode==='survivalSpin')return secondSelectionSurvivalStage();
  if(state.run.mode==='selectionSpin')return selectionStage();
@@ -1407,6 +1411,7 @@ function renderWheel(){
  else if(mode==='injuryEventSpin')$('#nextBtn').textContent=picked?.meta?.eliminate?'Accept Medical Withdrawal':'Return to Match Plan';
  else if(mode==='contributionSpin'){const p=state.run.pendingMatch||{},last=(p.targetSpins||6)-1;$('#nextBtn').textContent=p.breakthroughPending?'Spin Breakthrough':(p.endedEarly?'Resolve Match':((p.spinIndex||0)<last?'Next Match Moment':'Resolve Match'));}
  else if(mode==='breakthroughSpin')$('#nextBtn').textContent='Return to Match';
+ else if(mode==='duelSpin'){const p=state.run.pendingMatch||{};$('#nextBtn').textContent=(p.endedEarly||(p.spinIndex||0)>=(p.targetSpins||6)-1)?'Resolve Match':'Next Match Moment';}
  else if(mode==='challengeSpin')$('#nextBtn').textContent='View Challenge Result';
  else if(mode==='survivalSpin')$('#nextBtn').textContent=(picked?.meta?.survive?'Continue Second Selection':'Accept Elimination');
  else if(mode==='selectionSpin')$('#nextBtn').textContent=(picked?.meta?.role==='out'?'Accept the Decision':'Continue to the U-20 Match');
@@ -1739,18 +1744,242 @@ function betweenFixtureRecovery(mode){
  const stamina=currentStats().stamina||60;
  state.run.fitness=clamp(state.run.fitness+EW.injuries.recoveryBetweenFixtures(state.run.fitness,stamina),EW.injuries.FITNESS_FLOOR,100);
 }
+// ===== MATCH CONTEXT ENGINE: tags, objectives, live score, momentum, Flow, duels =====
+const OUTCOME_TAGS={
+ 'Straight Red Card':['card','neg'],'Second Yellow':['card','neg'],'Yellow Card':['card','neg'],'Tactical Foul':['card','def'],
+ 'Major Error':['error','neg'],'Own Goal':['error','neg','def'],'Lose Important Duel':['duel','neg'],'Waste Big Chance':['finish','neg'],'Quiet Phase':['quiet'],
+ 'Shot on Target':['finish','shot'],'Goal':['finish','goal'],'Brace Moment':['finish','goal','star'],'Corner Header Won':['aerial','shot'],'Header Goal From Corner':['aerial','goal'],
+ 'Aerial Duel Won':['aerial','def'],'Assist':['pass','create','star'],'Key Pass':['pass','create'],'Cross Creates Chance':['pass','create','wide'],'Switch of Play':['pass','vision'],
+ 'Successful Take-On':['dribble','carry'],'Progressive Carry':['dribble','carry','create'],'Foul Won':['dribble','control'],'Tackle Won':['def','duel'],'Interception':['def','read'],
+ 'Shot Block':['def','block'],'Goal-Line Clearance':['def','block','star'],'Dominant Clearance':['def','aerial'],'Ball Recovery':['def','read'],'Press Forces Error':['def','press'],
+ 'Last-Man Stop':['def','duel','star'],'Turnover to Chance':['def','read','create'],'Picks Up a Knock':['injury'],'Forced Off Injured':['injury'],'Combination Play':['pass','create','combo']
+};
+const OBJECTIVES=[
+ {key:'balanced',name:'Play Your Game',desc:'No special intention. Read the match and react.',roles:'all',mods:{}},
+ {key:'goals',name:'Hunt Goals',desc:'Attack scoring chances aggressively. Fewer creative and defensive actions; misses hurt more.',roles:'att mid',mods:{finish:1.3,goal:1.1,create:.85,def:.85},neg:{finish:1.15}},
+ {key:'create',name:'Create Chances',desc:'Prioritise the final pass and progression over your own shot.',roles:'all',mods:{create:1.32,pass:1.15,finish:.8}},
+ {key:'defend',name:'Defensive Dominance',desc:'Win every duel and own your zone. Little attacking output; more cards.',roles:'mid def att',mods:{def:1.35,finish:.75,create:.9},neg:{card:1.15}},
+ {key:'rival',name:'Target the Star',desc:'Seek out their most dangerous player. Far more likely to trigger a direct duel; tempers rise.',roles:'all',mods:{star:1.1},neg:{card:1.15},duel:2.4,requiresStar:true},
+ {key:'weapon',name:'Develop Your Weapon',desc:'Force situations that use your primary weapon. Mastery grows much faster; some phases are wasted experimenting.',roles:'all',weapon:1.15,xp:1.8,neg:{error:1.1},quiet:1.2},
+ {key:'team',name:'Play for the Result',desc:'Sacrifice personal glory for the team: more combinations and team goals, fewer selfish shots.',roles:'all',mods:{create:1.15,finish:.9},mate:1.15,result:1.6},
+ {key:'showcase',name:'Individual Showcase',desc:'Play for a statement performance. Higher highs, lower lows.',roles:'att mid def',mods:{star:1.3},neg:{all:1.25},quiet:.8}
+];
+function roleGroup(){return isDefensiveRole()?'def':isMidfieldRole()?'mid':'att';}
+function objectiveOptions(fixture=currentFixture()){
+ const g=roleGroup(),hasStar=!!duelCandidate(fixture);
+ return OBJECTIVES.filter(o=>(o.roles==='all'||o.roles.split(' ').includes(g))&&(!o.requiresStar||hasStar)).map(o=>{
+  if(g==='def'&&o.key==='create')return Object.assign({},o,{name:'Build From the Back',desc:'Turn defensive security into progression: line-breaking passes and carries.'});
+  if(g==='def'&&o.key==='rival')return Object.assign({},o,{name:'Mark Their Star',desc:'Take their most dangerous attacker personally. A direct duel becomes much more likely.'});
+  return o;
+ });
+}
+function currentObjective(){const c=state.run.career;return OBJECTIVES.find(o=>o.key===c?.objectiveKey)||OBJECTIVES[0];}
+function chooseObjective(key){const c=state.run.career;if(!c||c.report)return;if(!objectiveOptions().some(o=>o.key===key))return;c.objectiveKey=key;save();renderCareer();clickSound();}
+function weaponsState(){return state.run.selections.primaryWeapon?EW.weapons.ensure(state.run,state.run.selections):null;}
+function momentMinute(p,i){const start=p.startMinute||0,n=Math.max(1,p.targetSpins||6);return Math.round(start+((i||0)+.5)*(90-start)/n);}
+function matchBaseLambdas(fixture){
+ const s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{},temp=state.run.career?.tempMatchBonus||{};
+ const ownStrength=fixture.teamStrength+overall()*.14+state.run.form*1.4;
+ const mate=clamp(.45+(ownStrength-58)/40+(s.passing+s.vision)/520+(bonus.mateGoals||0)+(temp.mateGoals||0),.15,3)*.82;
+ const help=((s.defense+s.reactions+s.stamina)/3)*prof.defense;
+ const opp=clamp(.72+(fixture.strength-62)/34-help/310-(bonus.oppDefense||0)-(temp.oppDefense||0),.12,3.8);
+ return{mate,opp,ownStrength};
+}
+function duelCandidate(fixture){
+ const w=worldOf();if(!w||!fixture?.cast)return null;
+ const ids=(fixture.cast.opp||[]).filter(id=>w.players[id]&&id!=='me');if(!ids.length)return null;
+ const rel=id=>(typeof relationFor==='function'?relationFor(id,true):null);
+ const def=isDefensiveRole();
+ const score=id=>{const q=w.players[id],r=rel(id);let v=(q.named?(q.tier===1?30:15):0)+q.ovr*.4;if(r)v+=r.rivalry*.6+r.respect*.1;const attacker=['CF','WG','AM'].includes(q.pos);if(def===attacker)v+=12;return v;};
+ const best=ids.slice().sort((a,b)=>score(b)-score(a))[0];
+ const q=w.players[best];return(q.named||(rel(best)?.rivalry||0)>=40)?best:null;
+}
+function scheduleDuel(p,fixture){
+ const id=duelCandidate(fixture);if(!id)return null;
+ const r=typeof relationFor==='function'?relationFor(id,true):null,obj=currentObjective();
+ let chance=.2+(r?r.rivalry/250:0)+((fixture.importance||1)>=1.6?.1:0);
+ chance*=obj.duel||1;chance=clamp(chance,0,.85);
+ if(R()>=chance)return null;
+ const n=p.targetSpins||6;return{oppId:id,at:clamp(int(1,n-2),1,n-1),approach:null,done:false};
+}
+function flowChance(p,fixture){
+ if(p.ctx.flow||p.endedEarly)return 0;
+ const s=currentStats(),gap=(fixture.strength||70)-overall(s),ego=state.run.selections.egoStyle?.name||'';
+ const chal=Math.exp(-Math.pow((gap-4)/8,2))*1.6+.4;
+ const egoMult=['Adaptation Addict','Puzzle Solver','Transcendent Ego','Limit Breaker','Challenger','World Devourer','Pressure Sovereign','Singularity','Freedom Seeker','Evolution Addict'].includes(ego)?1.8:1;
+ const imp=fixture.importance||1,conf=Math.pow(Math.max(20,state.run.confidence)/60,1.1);
+ const W=weaponsState(),mastery=1+.08*(W?.primary?.level||0);
+ const duelRel=p.duel&&typeof relationFor==='function'?relationFor(p.duel.oppId,true):null,rival=1+(duelRel?duelRel.rivalry/100:0);
+ const form=1+Math.max(0,state.run.form)*.12,mom=1+Math.max(0,p.ctx.mom)*.1;
+ return clamp(.0016*chal*egoMult*imp*conf*mastery*rival*form*mom,0,.03);
+}
+function applyMatchModifiers(opts,p,fixture){
+ const ctx=p.ctx||{tg:0,og:0,mom:0},idx=p.spinIndex||0,minute=momentMinute(p,idx),diff=ctx.tg-ctx.og,late=minute>=65,imp=fixture?.importance||1;
+ const obj=currentObjective(),W=weaponsState(),flowExp=ctx.flow?EW.weapons.flowExpression(W):null;
+ const w=worldOf(),hier=w&&fixture?.cast?hierarchyFactor(w,fixture.cast.mine):1;
+ const relMod=typeof relationMatchModifier==='function'?relationMatchModifier(fixture):null;
+ const counter=typeof counterPressureFor==='function'?counterPressureFor(fixture):null;
+ for(const o of opts){
+  const tags=OUTCOME_TAGS[o.name]||o.meta?.tags||[];o.meta=Object.assign({},o.meta,{tags});
+  if(tags.includes('injury'))continue;
+  const neg=tags.includes('neg'),has=t=>tags.includes(t);let m=1;
+  if(late&&diff<0){if(has('finish')||has('goal')||has('shot'))m*=1.25;if(has('card'))m*=1.3;if(has('def')&&!neg)m*=.9;}
+  if(late&&diff>0){if(has('def'))m*=1.2;if(o.name==='Tactical Foul')m*=1.5;if(has('finish')&&!neg)m*=.88;}
+  if(late&&diff===0&&imp>=1.5){if(has('goal')||has('star'))m*=1.15;if(neg&&has('finish'))m*=1.1;}
+  if(!neg&&!has('quiet')&&!has('card'))m*=1+.05*ctx.mom;else if(neg)m*=Math.max(.75,1-.04*ctx.mom);
+  for(const [t,v] of Object.entries(obj.mods||{}))if(has(t)&&!neg)m*=v;
+  for(const [t,v] of Object.entries(obj.neg||{}))if(neg&&(t==='all'||has(t)))m*=v;
+  if(has('quiet')&&obj.quiet)m*=obj.quiet;
+  if(obj.weapon&&W&&!neg&&EW.weapons.FAMILIES[W.primary?.family]?.tags.some(t=>has(t)))m*=obj.weapon;
+  m*=EW.weapons.weightMultiplier(W,tags,{counter});
+  if(flowExp){if(!neg&&flowExp.tags.some(t=>has(t)))m*=1.7;if(neg)m*=.5;if(has('quiet'))m*=.6;}
+  if(has('finish')&&!neg)m*=hier;
+  if(relMod)m*=relMod(tags,o.name);
+  o.weight=Math.max(.01,o.weight*m);
+ }
+ // Evolution / combination opportunities and Flow-only slices
+ const total=opts.reduce((t,o)=>t+o.weight,0);
+ for(const sp of EW.weapons.specialSlices(W,{role:roleGroup()})){
+  opts.push(weighted(sp.name,sp.desc,sp.weight*total/100*(flowExp?1.6:1),{},sp.name.toUpperCase().slice(0,14),{contrib:sp.contrib,tags:sp.tags,special:true}));
+ }
+ if(flowExp){
+  const fe=FLOW_CONTRIB[flowExp.family]||FLOW_CONTRIB.finish;
+  opts.push(weighted('FLOW: '+flowExp.name,'In Flow, your weapon reaches a level you have never touched.',total*.08,{},'FLOW',{contrib:fe,tags:flowExp.tags.concat(['star','flowmove']),special:true}));
+ }
+ if(typeof relationSlices==='function')relationSlices(opts,fixture,total);
+}
+const FLOW_CONTRIB={
+ finish:{goals:1,shots:1,bonusRating:1.4},move:{goals:1,shots:1,bonusRating:1.35},vision:{assists:1,keyPasses:1,interceptions:1,bonusRating:1.2},
+ dribble:{dribbles:2,goals:1,shots:1,bonusRating:1.35},pass:{assists:1,keyPasses:2,bonusRating:1.2},speed:{dribbles:1,goals:1,shots:1,bonusRating:1.3},
+ control:{goals:1,shots:1,keyPasses:1,bonusRating:1.35},defend:{interceptions:1,tackles:1,blocks:1,bonusRating:1.1,oppSuppress:1},aerial:{aerialDuels:2,goals:1,setPieceGoals:1,shots:1,bonusRating:1.3},
+ adapt:{goals:1,keyPasses:1,shots:1,bonusRating:1.3}
+};
+function hierarchyFactor(w,mine){
+ const ranks=(mine||[]).map(id=>w.players[id]?.rank).filter(Boolean).sort((a,b)=>a-b),me=w.players.me.rank;
+ if(ranks.length<3||!me)return 1;const pos=ranks.indexOf(me)/(ranks.length-1);
+ return pos<=.1?1.08:pos>=.66?.94:1;
+}
+function momentumDelta(tags,contrib){
+ if(tags.includes('goal')||contrib.goals)return 2;if(contrib.assists)return 1.5;
+ if(tags.includes('neg'))return tags.includes('error')?-1.5:-.6;
+ if(tags.includes('quiet')||tags.includes('card')||tags.includes('injury'))return 0;return .5;
+}
+/** Advance the live match through the segment that this moment represents. */
+function playSegment(p,fixture,tags,contrib){
+ const ctx=p.ctx,n=Math.max(1,p.targetSpins||6),minute=momentMinute(p,p.spinIndex||0),obj=currentObjective();
+ const segShare=(90-(p.startMinute||0))/90/n;
+ for(let i=0;i<(contrib.goals||0);i++){ctx.tg++;ctx.timeline.push({m:clamp(minute+i*3,1,90),t:'goal',txt:(i?'Another goal':'Goal')+' — you'});}
+ for(let i=0;i<(contrib.assists||0);i++){ctx.tg++;ctx.timeline.push({m:minute,t:'assist',txt:'Assist — your pass is finished'});}
+ if(contrib.oppBonusGoals){ctx.og+=contrib.oppBonusGoals;ctx.timeline.push({m:minute,t:'og',txt:'Own goal'});}
+ if(contrib.oppGoal){ctx.og+=1;ctx.timeline.push({m:minute,t:'opp',txt:'Opponent scores after beating you'});}
+ let oppL=ctx.base.opp*segShare*(1-.07*ctx.mom),mateL=ctx.base.mate*segShare*(1+.07*ctx.mom)*(obj.mate||1);
+ const defCount=tags.includes('def')&&!tags.includes('neg')?1:0;
+ if(defCount)oppL*=.6;if(contrib.oppSuppress)oppL*=.3;if(tags.includes('error'))oppL*=1.8;
+ if(contrib.oppChance&&R()<.45){ctx.og++;ctx.timeline.push({m:minute,t:'opp',txt:'Opponent converts the chance you allowed'});}
+ if(tags.includes('error')&&R()<.32){ctx.og++;ctx.timeline.push({m:minute,t:'opp',txt:'Your error is punished'});}
+ const og=poisson(Math.max(0,oppL)),mg=poisson(Math.max(0,mateL));
+ for(let i=0;i<mg;i++){ctx.tg++;ctx.timeline.push({m:clamp(minute+int(-4,4),1,90),t:'mate',txt:'Teammate scores'});}
+ for(let i=0;i<og;i++){ctx.og++;ctx.timeline.push({m:clamp(minute+int(-4,4),1,90),t:'opp',txt:'Opponent scores'});}
+ ctx.mom=clamp(ctx.mom*.7+momentumDelta(tags,contrib)-og*1+mg*.6,-3,3);
+}
+function finishRemainingSegments(p,fixture,a){
+ const ctx=p.ctx,n=Math.max(1,p.targetSpins||6),done=(p.spinIndex||0)+1,left=Math.max(0,n-done);if(!left)return;
+ const share=(90-(p.startMinute||0))/90/n*left,red=!!a.sentOff;
+ const og=poisson(ctx.base.opp*share*(red?1.3:1)),mg=poisson(ctx.base.mate*share*(red?.7:.95));
+ const from=momentMinute(p,done);
+ for(let i=0;i<mg;i++){ctx.tg++;ctx.timeline.push({m:int(from,90),t:'mate',txt:'Teammate scores (you are off the pitch)'});}
+ for(let i=0;i<og;i++){ctx.og++;ctx.timeline.push({m:int(from,90),t:'opp',txt:'Opponent scores'+(red?' against ten men':'')});}
+}
+function opponentDuelStats(q){
+ if(!q)return{att:70,def:70,weak:'df',weakVal:60};
+ const ch=EW.data.CHARACTERS.find(c=>c.id===q.id),scale=ch&&ch.ovr?q.ovr/ch.ovr:1;
+ const base=q.prof?Object.fromEntries(Object.entries(q.prof).map(([k,v])=>[k,v*scale])):(()=>{const o=q.ovr,P={CF:{sh:8,pa:2,dr:2,ps:-6,vi:-2,df:-18,ph:2},WG:{sh:0,pa:8,dr:6,ps:-2,vi:-4,df:-14,ph:-4},AM:{sh:0,pa:0,dr:5,ps:6,vi:6,df:-12,ph:-6},CM:{sh:-6,pa:-2,dr:0,ps:6,vi:4,df:0,ph:0},DM:{sh:-12,pa:-4,dr:-6,ps:2,vi:4,df:8,ph:4},FB:{sh:-12,pa:6,dr:-2,ps:0,vi:-2,df:6,ph:0},CB:{sh:-16,pa:-4,dr:-10,ps:-4,vi:2,df:10,ph:8}}[q.pos]||{};return Object.fromEntries(['sh','pa','dr','ps','vi','df','ph'].map(k=>[k,o+(P[k]||0)]));})();
+ const weak=Object.entries(base).filter(([k])=>k!=='ps').sort((a,b)=>a[1]-b[1])[0];
+ return{att:base.sh*.4+base.dr*.4+base.pa*.2,def:base.df*.6+base.ph*.2+base.pa*.2,weak:weak[0],weakVal:weak[1],raw:base};
+}
+const DUEL_APPROACHES=[
+ {key:'force',name:'Force Your Weapon',desc:'Back your primary weapon head-on. Mastery helps; a rival who has read you resists.'},
+ {key:'adapt',name:'Adapt Mid-Duel',desc:'Change your solution live. Harder, but success can evolve your weapon.'},
+ {key:'exploit',name:'Exploit a Weakness',desc:'Attack a different part of their game with your secondary strengths.'}
+];
+function duelOdds(approach){
+ const p=state.run.pendingMatch,w=worldOf(),q=w?.players[p?.duel?.oppId],o=opponentDuelStats(q),s=effectiveStats(),W=weaponsState();
+ const def=isDefensiveRole(),fam=EW.weapons.FAMILIES[W?.primary?.family]||EW.weapons.FAMILIES.finish;
+ const famStat=fam.stats.reduce((t,k)=>t+(s[k]||60),0)/fam.stats.length;
+ const their=(def?o.att:o.def)*.5+(q?.ovr||70)*.5+2+(q?.tier===1?2:0),counter=(typeof counterPressureFor==='function'?counterPressureFor(currentFixture())?.[W?.primary?.family]:0)||0;
+ const ego=state.run.selections.egoStyle?.name||'';
+ let my;
+ if(approach==='force')my=famStat+(W?.primary?.level||0)*2.5+(W?.primary?.tier||0)*2-counter*12;
+ else if(approach==='adapt')my=(s.vision+s.reactions+s.technique)/3-6+(['Adaptation Addict','Puzzle Solver','Devourer','World Devourer','Evolution Addict','Chameleon'].includes(ego)?6:0)+(state.run.selections.primaryWeapon?.name==='Chameleon Technique'?4:0);
+ else{const keys=def?['defense','physical','reactions','speed']:['dribbling','passing','shotPower','speed','technique'];const vals=keys.filter(k=>!fam.stats.includes(k)).map(k=>s[k]||50).sort((a,b)=>b-a);my=((vals[0]||50)+(vals[1]||vals[0]||50))/2-2+Math.min(4,Math.max(0,(their-o.weakVal)*.15));}
+ my+=(state.run.confidence-50)*.06+state.run.form*.8;
+ return{p:1/(1+Math.exp(-(my-their)/8)),my:Math.round(my),their:Math.round(their),opp:q,type:def?'defend':'attack',weak:o.weak};
+}
+function duelStage(){
+ const p=state.run.pendingMatch||{},d=p.duel||{},q=worldOf()?.players[d.oppId],name=q?q.short:'Their star';
+ if(!d.approach)return{key:'duel_wait_'+(p.spinIndex||0),chapter:'CONFRONTATION',name:'You vs '+name,prompt:'Choose your approach below before the duel is spun.',mode:'equal',options:DUEL_APPROACHES.map(a=>option(a.name,a.desc,'common',{},a.key.toUpperCase()))};
+ const od=duelOdds(d.approach),pr=od.p,attack=od.type==='attack';
+ const C=attack?{dec:{goals:1,shots:1,bonusRating:1.3},win:{shots:1,keyPasses:1,dribbles:1,bonusRating:.35},beat:{ratingPenalty:.25,mistakes:1},hum:{bigMisses:1,shots:1,ratingPenalty:.5}}:{dec:{tackles:1,blocks:1,bonusRating:.9,oppSuppress:1},win:{tackles:1,interceptions:1,bonusRating:.35,oppSuppress:1},beat:{ratingPenalty:.35,oppChance:1},hum:{ratingPenalty:.6,oppGoal:1}};
+ return{key:'duel_'+(p.spinIndex||0),chapter:'CONFRONTATION · '+DUEL_APPROACHES.find(a=>a.key===d.approach).name.toUpperCase(),name:'You vs '+(q?q.name:'Their star'),prompt:'Your '+od.my+' vs their '+od.their+' → '+Math.round(pr*100)+'% to come out on top.',mode:'weights',options:[
+  weighted('Decisive Victory',attack?'You beat '+name+' completely and score.':'You erase '+name+' and the attack dies with them.',28*Math.pow(pr,1.6),{},'DECISIVE',{duel:'decisive',contrib:C.dec,tags:attack?['goal','finish','star']:['def','duel','star']}),
+  weighted('Win the Duel','You get the better of '+name+'.',42*pr,{},'WIN',{duel:'win',contrib:C.win,tags:attack?['dribble','create']:['def','duel']}),
+  weighted('Stalemate','Neither of you gives an inch.',22,{},'STALEMATE',{duel:'stalemate',contrib:{},tags:['quiet']}),
+  weighted('Beaten',name+' gets the better of you.',34*(1-pr),{},'BEATEN',{duel:'beaten',contrib:C.beat,tags:['duel','neg']}),
+  weighted('Humiliated',name+' makes you look ordinary.',14*Math.pow(1-pr,1.6),{},'HUMILIATED',{duel:'humiliated',contrib:C.hum,tags:['duel','neg','error']})
+ ]};
+}
+function chooseDuelApproach(key){
+ const p=state.run.pendingMatch;if(!p?.duel||p.duel.approach||state.run.mode!=='duelSpin')return;
+ if(!DUEL_APPROACHES.some(a=>a.key===key))return;p.duel.approach=key;wheelRotation=0;save();renderAll();clickSound();
+}
+function resolveDuelOutcome(outcome){
+ const p=state.run.pendingMatch;if(!p?.duel||!outcome)return;
+ const d=p.duel,q=worldOf()?.players[d.oppId],key=outcome.meta?.duel;
+ d.done=true;d.result=key;d.name=q?.name;
+ applyContribution(p,outcome,outcome.meta?.tags||[]);
+ const W=weaponsState(),minute=momentMinute(p,p.spinIndex||0);
+ if(key==='decisive'||key==='win'){
+  if(d.approach==='force'&&W)EW.weapons.award(W,EW.weapons.FAMILIES[W.primary.family].tags,{mult:2});
+  if(d.approach==='exploit'&&W?.secondary)EW.weapons.award({primary:null,secondary:W.secondary},EW.weapons.FAMILIES[W.secondary.family].tags,{mult:2});
+  if(d.approach==='adapt'){p.evo=Object.assign({},p.evo,{adapted:true});if(W)EW.weapons.award(W,EW.weapons.FAMILIES[W.primary.family].tags.concat(['star']),{mult:2.5});}
+  p.evo=Object.assign({},p.evo,{duelWin:true,decisive:p.evo?.decisive||key==='decisive'});
+ }
+ if(key==='humiliated')state.run.confidence=clamp(state.run.confidence-4,0,100);
+ if(key==='decisive')state.run.confidence=clamp(state.run.confidence+3,0,100);
+ p.ctx.timeline.push({m:minute,t:'duel',txt:'Duel vs '+(q?.short||'their star')+': '+outcome.name+(d.approach==='adapt'&&(key==='win'||key==='decisive')?' (adapted)':'')});
+ if(typeof onDuelResult==='function')onDuelResult(d.oppId,key,d.approach);
+}
+function applyContribution(p,outcome,tags){
+ const target=p.contributions||(p.contributions=emptyMatchContribution()),add=outcome.meta?.contrib||{};
+ for(const [k,v] of Object.entries(add)){if(['labels','secondYellow','oppSuppress','oppChance','oppGoal'].includes(k))continue;target[k]=(target[k]||0)+v;}
+ target.labels.push(outcome.name);
+ const fixture=currentFixture();
+ if(p.ctx&&fixture)playSegment(p,fixture,tags,add);
+ const W=weaponsState();
+ if(W&&!tags.includes('injury')){const mult=(currentObjective().xp||1)*(p.ctx?.flow?2:1)*((fixture?.importance||1)>=1.6?1.3:1);EW.weapons.award(W,tags,{mult});}
+}
+
 function resolveContributionOutcome(outcome){
  const p=state.run.pendingMatch;if(!p||!outcome)return;
- const target=p.contributions||(p.contributions=emptyMatchContribution()),add=outcome.meta?.contrib||{};
- for(const [k,v] of Object.entries(add)){if(k==='labels'||k==='secondYellow')continue;target[k]=(target[k]||0)+v;}
- target.labels.push(outcome.name);
+ const tags=OUTCOME_TAGS[outcome.name]||outcome.meta?.tags||[],add=outcome.meta?.contrib||{};
+ applyContribution(p,outcome,tags);
+ const target=p.contributions,minute=momentMinute(p,p.spinIndex||0);
  if(add.secondYellow||(target.yellowCards||0)>=2){target.sentOff=1;target.redCards=(target.redCards||0)+1;p.endedEarly=true;}
+ if(add.sentOff||add.secondYellow||(target.sentOff&&!p.redLogged)){p.redLogged=true;p.ctx?.timeline.push({m:minute,t:'card',txt:'Sent off'});}
  if(add.injured||add.knock){
   p.injuryFired=true;
   const sev=add.injured?EW.injuries.rollSeverity(EW.rng.current,injuryContext()):'knock';
   p.injurySeverity=sev;p.injuryMoment=p.spinIndex||0;
+  p.ctx?.timeline.push({m:minute,t:'injury',txt:add.injured?'Forced off injured':'Picks up a knock'});
  }
  if(add.sentOff||add.injured)p.endedEarly=true;
+ const fixture=currentFixture();
+ if(!p.endedEarly&&p.ctx&&fixture&&(p.spinIndex||0)>=1&&R()<flowChance(p,fixture)){
+  p.ctx.flow=true;p.ctx.flowMinute=minute;p.flowJustTriggered=true;p.evo=Object.assign({},p.evo,{flow:true});
+  p.ctx.timeline.push({m:minute,t:'flow',txt:'FLOW — '+EW.weapons.flowExpression(weaponsState()).name});
+  const c=state.run.career;c.flowCount=(c.flowCount||0)+1;
+  if(c.flowCount===1)addMilestone('flow','First Flow state: '+fixture.team+' vs '+fixture.opponent+', '+minute+"'.");
+ }
  if(!p.endedEarly&&!p.breakthroughUsed&&!p.breakthroughPending&&R()<breakthroughChance())p.breakthroughPending=true;
 }
 function cleanSheetRatingBonus(oppGoals,profile=positionProfile()){
@@ -1811,26 +2040,40 @@ function resolveKnockoutScore(fixture,teamGoals,oppGoals,ownStrength){
 
 function finalizeContributionMatch(){
  const c=state.run.career,fixture=currentFixture(),p=state.run.pendingMatch;if(!c||!fixture||!p)return;
- const a=p.contributions||emptyMatchContribution(),s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{};
- const ownStrength=fixture.teamStrength+overall()*.14+state.run.form*1.4;
- const mateLambda=clamp(.45+(ownStrength-58)/40+(s.passing+s.vision)/520+(bonus.mateGoals||0),.15,3);
- const teammateGoals=Math.max(a.assists||0,poisson(mateLambda));
- let teamGoals=(a.goals||0)+teammateGoals;
- const defActions=(a.tackles||0)+(a.interceptions||0)+(a.blocks||0)+(a.clearances||0)+(a.recoveries||0);
- const defensiveHelp=((s.defense+s.reactions+s.stamina)/3)*prof.defense+defActions*5-(a.mistakes||0)*8;
- const oppLambda=clamp(.72+(fixture.strength-62)/34-defensiveHelp/310-(bonus.oppDefense||0),.1,3.8);
- let oppGoals=poisson(oppLambda)+(a.oppBonusGoals||0);
+ const a=p.contributions||emptyMatchContribution(),prof=positionProfile();
+ if(!p.ctx)p.ctx={tg:(a.goals||0)+(a.assists||0),og:a.oppBonusGoals||0,mom:0,timeline:[],flow:false,base:matchBaseLambdas(fixture)};
+ if(p.endedEarly)finishRemainingSegments(p,fixture,a);
+ const ownStrength=p.ctx.base.ownStrength||fixture.teamStrength;
+ let teamGoals=p.ctx.tg,oppGoals=p.ctx.og;
  const resolved=resolveKnockoutScore(fixture,teamGoals,oppGoals,ownStrength);teamGoals=resolved.teamGoals;oppGoals=resolved.oppGoals;
+ if(resolved.decidedBy)p.ctx.timeline.push({m:resolved.decidedBy==='AET'?118:120,t:'ko',txt:resolved.decidedBy==='AET'?'Decided in extra time':'Decided on penalties'});
  const result=resolved.result;
  const rating=contributionRating(a,result,prof,oppGoals);
- const momentMinute=i=>Math.round(((i||0)+.5)/Math.max(1,p.targetSpins||6)*90);
- const minutes=a.sentOff?clamp(momentMinute(p.spinIndex)+int(-6,6),8,89):a.injured?clamp(momentMinute(p.injuryMoment)+int(-6,6),5,88):(state.run.injury?.limited?int(62,85):90);
+ const startMin=p.startMinute||0;
+ const minutes=a.sentOff?clamp(momentMinute(p,p.spinIndex)-startMin+int(-4,4),5,89):a.injured?clamp(momentMinute(p,p.injuryMoment)-startMin+int(-4,4),3,88):(state.run.injury?.limited?int(62,85):90-startMin);
  if(a.sentOff){state.run.confidence=clamp(state.run.confidence-8,0,100);state.run.form=clamp(state.run.form-1,-3,3);}
  if(p.injurySeverity)registerInjury(p.injurySeverity,'match');
  const rep={type:'match',passed:true,minutes,cleanSheet:oppGoals===0,decidedBy:resolved.decidedBy,shootout:resolved.shootout,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,aerialDuels:a.aerialDuels||0,yellowCards:a.yellowCards||0,redCards:a.redCards||0,setPieceGoals:a.setPieceGoals||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
- rep.moments=matchMoments(rep,fixture);rep.moments.unshift('Contribution spins: '+rep.contributionLabels.join(' · ')+'.');
+ rep.timeline=p.ctx.timeline.slice().sort((x,y)=>x.m-y.m);rep.flow=!!p.ctx.flow;rep.flowMinute=p.ctx.flowMinute||null;rep.objective=p.objective||'balanced';
+ rep.duel=p.duel&&p.duel.done?{oppId:p.duel.oppId,name:p.duel.name,result:p.duel.result,approach:p.duel.approach}:null;
+ if(currentObjective().result&&rep.result==='WIN')rep.rating=clamp(rep.rating+.12,3.2,10);
+ rep.moments=matchMoments(rep,fixture);
+ afterMatchWeapons(rep,fixture,p);
  c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();
  state.run.pendingMatch=null;
+}
+function afterMatchWeapons(rep,fixture,p){
+ const W=weaponsState();if(!W)return;rep.weaponLines=[];
+ const evos=EW.weapons.tryEvolve(W,Object.assign({rating:rep.rating,importance:fixture.importance||1},p.evo||{}),EW.rng.current);
+ evos.forEach(ev=>{
+  rep.weaponLines.push('WEAPON EVOLUTION: '+ev.base+' → '+ev.name+' (through '+ev.how+').');
+  addMilestone('evolution',ev.base+' evolved into '+ev.name+' through '+ev.how+'.');
+  (EW.weapons.FAMILIES[ev.family]?.stats||[]).slice(0,2).forEach(k=>changeStat(k,1));
+  careerLog('Weapon evolution: '+ev.name+'.');
+ });
+ const tot=state.run.career.totals;
+ EW.weapons.checkCombos(W,currentStats(),playerHeight(),tot).forEach(cb=>{rep.weaponLines.push('NEW COMBINATION WEAPON: '+cb.name+' — '+cb.desc);addMilestone('combo','Unlocked combination weapon: '+cb.name+'.');careerLog('Combination weapon unlocked: '+cb.name+'.');});
+ [W.primary,W.secondary].filter(Boolean).forEach(sl=>{if(sl._lastLevel!==undefined&&sl.level>sl._lastLevel)rep.weaponLines.push(sl.name+' mastery reaches level '+sl.level+'.');sl._lastLevel=sl.level;});
 }
 function resolveChallengeOutcome(outcome){
  const c=state.run.career,fixture=currentFixture();if(!c||!fixture||!outcome)return;
@@ -1968,8 +2211,8 @@ function matchMoments(rep,fixture){
  if(rep.clearances>=2)m.push('You deal with '+rep.clearances+' dangerous balls through clearances.');
  if(rep.recoveries>=3)m.push('You recover possession '+rep.recoveries+' times and restart the attack.');
  if(defActions>=5)m.push('Your defensive output becomes one of the match’s defining features ('+defActions+' actions).');
- if(rep.rating>=8.5&&fixture.stars?.length)m.push('Your duel with '+pick(fixture.stars)+' becomes one of the match’s defining battles.');
- if(rep.rating<6&&fixture.stars?.length)m.push(pick(fixture.stars)+' repeatedly exposes the gap between your current level and the next one.');
+ if(rep.duel)m.push(({decisive:'You decisively beat ',win:'You win your duel with ',stalemate:'Your duel with ',beaten:'You are beaten in your duel with ',humiliated:'You are humiliated by '})[rep.duel.result]+(rep.duel.name||'their star')+(rep.duel.result==='stalemate'?' ends in a stalemate.':'.'));
+ if(rep.flow)m.push('You enter Flow at '+rep.flowMinute+"'.");
  if(!m.length&&meaningful===0)m.push('You play a relatively quiet match without a decisive individual moment.');
  else if(!m.length)m.push('You contribute useful work across the match without one dominant headline moment.');
  return m;
@@ -2153,7 +2396,11 @@ function playFixture(){
   const bench=fixture.id==='u20'&&c.u20Role==='bench';
   const targetSpins=bench?4:contributionMomentCount();
   state.run.pendingMatch={fixtureId:fixture.id,spinIndex:0,targetSpins,startMinute:bench?55:0,contributions:emptyMatchContribution()};
-  state.run.pendingMatch.injuryRisk=planInjuryRisk(fixture);
+  const pm=state.run.pendingMatch;
+  pm.injuryRisk=planInjuryRisk(fixture);
+  pm.ctx={tg:0,og:0,mom:0,timeline:[],flow:false,base:matchBaseLambdas(fixture)};
+  pm.duel=scheduleDuel(pm,fixture);pm.objective=currentObjective().key;
+  for(let i=0;i<12;i++)delete state.run.selections['duel_'+i];
   for(let i=0;i<12;i++)delete state.run.selections['contribution_'+i];
   state.run.mode='contributionSpin';
  }
@@ -2292,7 +2539,7 @@ function addMilestone(type,text){
 function enterNEL(){
  const club=state.run.selections.nelClub?.name;if(!club)return;
  const c=state.run.career,w=ensureWorld();
- if(w&&!w.nel){syncMe();EW.world.cull(w,EW.rng.current,36,'Third Selection');EW.world.setupNEL(w,EW.rng.current,club,NEL_DATA);EW.market.updateAll(w,EW.rng.current,{initial:true});c.bid=w.players.me.bid;c.bidHistory.push(c.bid);EW.world.addNews(w,'The NEL auction opens. Only the top '+EW.market.QUALIFY+' Blue Lock players by value will survive.','market');}c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');save();renderAll();toast('Neo Egoist League begins.');
+ if(w&&!w.nel){syncMe();EW.world.cull(w,EW.rng.current,36,'U-20 Match');EW.world.setupNEL(w,EW.rng.current,club,NEL_DATA);EW.market.updateAll(w,EW.rng.current,{initial:true});c.bid=w.players.me.bid;c.bidHistory.push(c.bid);EW.world.addNews(w,'The NEL auction opens. Only the top '+EW.market.QUALIFY+' Blue Lock players by value will survive.','market');}c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');save();renderAll();toast('Neo Egoist League begins.');
 }
 function canContinueBeyondNEL(){
  const c=state.run.career;
@@ -2512,7 +2759,7 @@ function renderCareer(){
  $('#fixtureCount').textContent=(c.fixtureIndex+1)+' / '+c.fixtures.length;$('#fixtureType').textContent=fixture.type.toUpperCase();
  $('#homeLabel').textContent=fixture.type==='challenge'?'PLAYER':'YOUR SIDE';$('#homeTeam').textContent=fixture.team;const roleNote=c.temporaryPosition?' · TEMP '+(positionStage.options.find(o=>o.name===c.temporaryPosition)?.short||c.temporaryPosition):'';$('#homeStars').textContent=fixture.type==='challenge'?'One attempt. 100 goals required.':'OVR '+overall()+' · '+(state.run.selections.primaryWeapon?.name||'No weapon')+roleNote;
  $('#awayTeam').textContent=fixture.opponent;$('#awayStars').textContent=(fixture.stars||[]).slice(0,4).join(' · ');$('#fixtureStageTag').textContent=fixture.stage;$('#fixtureVenue').textContent=fixture.venue;
- renderCondition();renderTraining();renderPlans();renderDash();renderDecision();
+ renderCondition();renderTraining();renderPlans();renderObjectives();renderDash();renderDecision();
  const inj=$('#injuryNotice');if(state.run.injury){inj.hidden=false;const ij=state.run.injury;inj.textContent=ij.name+(ij.out>0?' — unavailable for '+ij.out+' fixture(s)':' — playing limited ('+(ij.limited||0)+' fixture(s), −'+(ij.penalty||0)+' to effective attributes)')+(ij.rushed?' · rushed back':'')+'.';}else inj.hidden=true;
  repairPrepState();$('#playMatchBtn').disabled=c.prepPhase!==PREP_PHASE.READY;
  $('#playMatchBtn').textContent=fixture.type==='challenge'?'Spin 100 Goal Challenge':'Begin Contribution Spins';
@@ -2577,7 +2824,7 @@ function renderMatchReport(r,f){
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
  const defTotal=(r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0);
  const spins=(r.contributionLabels||[]).map(x=>'<span class="contribution-chip">'+esc(x)+'</span>').join('');
- $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+(r.decidedBy==='AET'?' · AET':r.decidedBy==='PENALTIES'&&r.shootout?' · '+r.shootout.team+'–'+r.shootout.opp+' pens':'')+'</small></div><div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>AERIAL <b>'+(r.aerialDuels||0)+'</b></span><span>YC <b>'+(r.yellowCards||0)+'</b></span><span>RC <b>'+(r.redCards||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>'+reportWorldBlock(r);
+ $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+(r.decidedBy==='AET'?' · AET':r.decidedBy==='PENALTIES'&&r.shootout?' · '+r.shootout.team+'–'+r.shootout.opp+' pens':'')+'</small></div>'+(r.flow?'<div class="flow-banner">◆ FLOW STATE AT '+r.flowMinute+"'</div>":'')+timelineBlock(r)+'<div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>AERIAL <b>'+(r.aerialDuels||0)+'</b></span><span>YC <b>'+(r.yellowCards||0)+'</b></span><span>RC <b>'+(r.redCards||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>'+reportWorldBlock(r);
 }
 function reportWorldBlock(r){
  const parts=[];
@@ -2591,6 +2838,7 @@ function reportWorldBlock(r){
  if(r.bidAfter!=null){const d=r.bidAfter-(r.bidBefore||r.bidAfter);chips.push('<span>VALUE <b>¥'+r.bidAfter+'m</b> <span class="mv '+(d>0?'up':d<0?'down':'flat')+'">'+(d>0?'▲':d<0?'▼':'—')+(d?Math.abs(d):'')+'</span></span>');chips.push('<span>AUCTION <b>'+ordinal(r.marketPos)+'</b> · CUT ¥'+r.cutoff+'m</span>');}
  if(chips.length)parts.push('<div class="performance-line world-line">'+chips.join('')+'</div>');
  if(r.news?.length)parts.push('<div class="news-list compact">'+r.news.map(n=>'<div class="news market">'+esc(n)+'</div>').join('')+'</div>');
+ if(r.weaponLines?.length)parts.push('<div class="moment-list weapon">'+r.weaponLines.map(m=>'<p>⬢ '+esc(m)+'</p>').join('')+'</div>');
  if(r.dramaLines?.length)parts.push('<div class="moment-list drama">'+r.dramaLines.map(m=>'<p>◆ '+esc(m)+'</p>').join('')+'</div>');
  return parts.join('');
 }
@@ -2678,6 +2926,35 @@ function renderDecision(){
  }else if(typeof renderSceneDecision==='function')renderSceneDecision(box,d);
 }
 
+// ===== MATCH PRESENTATION =====
+function renderMatchHud(){
+ const hud=$('#matchHud'),duel=$('#duelPanel'),shell=$('#wheelShell');if(!hud)return;
+ const mode=state.run.mode,p=state.run.pendingMatch,f=currentFixture(),live=['contributionSpin','duelSpin','breakthroughSpin'].includes(mode)&&p?.ctx&&f;
+ hud.hidden=!live;duel.hidden=!(live&&mode==='duelSpin');
+ shell.classList.toggle('flow',!!(live&&p.ctx.flow));shell.classList.toggle('duel',!!(live&&mode==='duelSpin'));
+ if(!live)return;
+ const ctx=p.ctx,minute=momentMinute(p,p.spinIndex||0),mom=Math.round(ctx.mom),obj=currentObjective();
+ const bars=Array.from({length:7},(_,i)=>{const v=i-3;return'<i class="'+(v===0?'mid':(v<0&&mom<=v)||(v>0&&mom>=v)?(v<0?'neg on':'pos on'):'')+'"></i>';}).join('');
+ hud.innerHTML='<div class="hud-min">'+minute+"'</div>"+'<div class="hud-score"><span>'+esc(f.team)+'</span><strong>'+ctx.tg+' – '+ctx.og+'</strong><span>'+esc(f.opponent)+'</span></div><div class="hud-meta"><span class="hud-mom" title="Momentum" aria-label="Momentum '+mom+'">'+bars+'</span><span class="hud-obj">'+esc(obj.name)+'</span>'+(ctx.flow?'<span class="hud-flow">FLOW</span>':'')+'</div>'+(p.flowJustTriggered?'<div class="flow-burst">FLOW STATE — '+esc(EW.weapons.flowExpression(weaponsState()).name)+'</div>':'');
+ if(mode==='duelSpin'){
+  const w=worldOf(),q=w?.players[p.duel?.oppId],W=weaponsState(),rel=typeof relationFor==='function'&&q?relationFor(q.id,true):null;
+  const side=(title,name,line1,line2,cls)=>'<div class="duel-side '+cls+'"><span>'+title+'</span><strong>'+esc(name)+'</strong><em>'+esc(line1)+'</em><small>'+esc(line2)+'</small></div>';
+  const approaches=!p.duel.approach?'<div class="duel-approaches">'+DUEL_APPROACHES.map(a=>{const o=duelOdds(a.key);return'<button type="button" class="training-action" data-duel="'+a.key+'"><strong>'+esc(a.name)+' · '+Math.round(o.p*100)+'%</strong><span>'+esc(a.desc)+'</span></button>';}).join('')+'</div>':'<p class="duel-chosen">Approach: <b>'+esc(DUEL_APPROACHES.find(a=>a.key===p.duel.approach).name)+'</b></p>';
+  const myEvo=W?.primary?.tier?' · '+EW.weapons.evolutionName({family:W.primary.family,tier:W.primary.tier-1,name:W.primary.name}):'';
+  duel.innerHTML='<div class="duel-split">'+side('YOU',state.run.name||'You','OVR '+overall()+' · '+(W?.primary?.name||''),'Mastery L'+(W?.primary?.level||0)+myEvo,'me')+'<div class="duel-vs">VS</div>'+side(q?.named?'NAMED EGOIST':'OPPONENT',q?.name||'Their star','OVR '+Math.round(q?.ovr||0)+' · '+(q?.weapon||''),rel?rel.status+' · rivalry '+Math.round(rel.rivalry):((EW.data.PERSONALITIES[q?.pers]||{}).label||''),'them')+'</div>'+approaches;
+ }
+}
+function renderObjectives(){
+ const c=state.run.career,row=$('#objectiveRow');if(!row||!c)return;repairPrepState();const ready=c.prepPhase===PREP_PHASE.READY;
+ const opts=objectiveOptions(),cur=c.objectiveKey&&opts.some(o=>o.key===c.objectiveKey)?c.objectiveKey:'balanced';
+ row.innerHTML=opts.map(o=>'<button type="button" class="plan-button '+(cur===o.key?'selected':'')+'" data-objective="'+o.key+'" '+(!ready||c.report?'disabled':'')+'><strong>'+esc(o.name)+'</strong><span>'+esc(o.desc)+'</span></button>').join('');
+}
+function timelineBlock(r){
+ if(!r.timeline?.length)return'';
+ const icon={goal:'⚽',assist:'A',mate:'⚽',opp:'✕',og:'✕',card:'■',injury:'✚',flow:'◆',duel:'⚔',ko:'⏱'};
+ return'<div class="timeline">'+r.timeline.map(e=>'<div class="tl '+e.t+'"><b>'+e.m+"'</b><span>"+(icon[e.t]||'•')+'</span>'+esc(e.txt)+'</div>').join('')+'</div>';
+}
+
 function renderCareerLog(){const c=state.run.career;$('#careerLog').innerHTML=(c?.log||[]).slice(0,8).map(x=>'<div>'+esc(x)+'</div>').join('')||'<div>No career events yet.</div>';}
 
 function renderPlayer(){
@@ -2703,8 +2980,15 @@ function renderProfile(){
  const defActions=e?(tot.defActions||0):((tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0));
  const avg=e?e.averageRating:(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—');
  const epBlock=e?'<div class="profile-block"><span class="kicker">FULL CAREER</span><h3>'+esc(e.legacy)+' · retired '+e.retirementAge+'</h3><p class="profile-sub">Peak OVR: '+e.peakOvr+' · Retirement OVR: '+e.retirementOvr+'<br>International: '+e.lifetime.caps+' caps · '+e.lifetime.intGoals+' goals<br>Later-career trophies: '+e.honours.length+' · Individual honours: '+e.awards.length+'<br>Transfers: '+esc(e.transfers.join(' · ')||'None')+'</p></div>':'';
- $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">'+(e?'RETIRED EGOIST':'CURRENT EGOIST')+'</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">'+(e?'PEAK '+e.peakOvr:'OVR '+overall(s))+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Defensive actions: '+defActions+'<br>Average rating: '+avg+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Detailed-run trophies: '+esc((c?.trophies||[]).join(' · ')||'—')+'<br>Rival: '+esc(c?.rival||'—')+'</p></div>'+epBlock+'<div class="profile-block"><span class="kicker">LEARNED WEAPONS</span><h3>'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)).join(' · '):'None yet')+'</h3><p class="profile-sub">'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)+' — '+esc(w.source||'evolved')).join('<br>'):'Learn from elite players or trigger breakthroughs to add permanent weapons.')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Detailed career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
+ $('#profileContent').innerHTML='<div class="profile-hero"><span class="kicker">'+(e?'RETIRED EGOIST':'CURRENT EGOIST')+'</span><div class="profile-title">'+esc(state.run.name)+'</div><div class="profile-sub">'+(e?'PEAK '+e.peakOvr:'OVR '+overall(s))+' · '+esc(state.run.selections.primaryWeapon?.name||'No primary weapon')+' · '+(c?.bid?'¥'+c.bid+'m bid':'No bid yet')+'</div></div><div class="profile-block"><span class="kicker">CAREER NUMBERS</span><h3>'+tot.apps+' appearances · '+tot.goals+' goals · '+tot.assists+' assists</h3><p class="profile-sub">Defensive actions: '+defActions+'<br>Average rating: '+avg+'<br>First Selection points: '+(c?.firstSelectionPoints||0)+'<br>Detailed-run trophies: '+esc((c?.trophies||[]).join(' · ')||'—')+'<br>Rival: '+esc(c?.rival||'—')+'</p></div>'+epBlock+weaponProfileBlock()+'<div class="profile-block"><span class="kicker">LEARNED WEAPONS</span><h3>'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)).join(' · '):'None yet')+'</h3><p class="profile-sub">'+(learnedWeapons().length?learnedWeapons().map(w=>esc(w.name)+' — '+esc(w.source||'evolved')).join('<br>'):'Learn from elite players or trigger breakthroughs to add permanent weapons.')+'</p></div><div class="profile-block"><span class="kicker">MATCH HISTORY</span><h3>Detailed career timeline</h3><div class="profile-timeline">'+(c?.history?.slice().reverse().map(h=>'<div class="timeline-row"><span>'+esc(h.stage)+' · '+esc(h.opponent)+'</span><strong>'+esc(h.summary)+'</strong></div>').join('')||'<div class="empty-state">Play your first match to begin the timeline.</div>')+'</div></div>';
 }
+function weaponProfileBlock(){
+ const W=weaponsState();if(!W)return'';
+ const row=sl=>{if(!sl)return'';const fam=EW.weapons.FAMILIES[sl.family],next=EW.weapons.nextLevelAt(sl.xp),pct=next?Math.round(sl.xp/next*100):100;return'<div class="weapon-row"><div><strong>'+esc(sl.name)+'</strong><span>'+esc(fam?.label||'')+' family · Level '+sl.level+(sl.tier?' · Evolution '+sl.tier+': '+esc(EW.weapons.evolutionName({family:sl.family,tier:sl.tier-1,name:sl.name})):'')+'</span></div><i><b style="width:'+pct+'%"></b></i><small>'+(next?Math.floor(sl.xp)+' / '+next+' mastery':'Mastered')+'</small></div>';};
+ const combos=(W.combos||[]).map(k=>EW.weapons.COMBOS.find(c=>c.key===k)).filter(Boolean);
+ return'<div class="profile-block"><span class="kicker">WEAPON MASTERY</span><h3>Your football identity</h3>'+row(W.primary)+row(W.secondary)+(combos.length?'<p class="profile-sub"><b>Combination weapons:</b> '+combos.map(c=>esc(c.name)).join(' · ')+'</p>':'<p class="profile-sub">Combination weapons unlock when specific attributes and a history of relevant actions come together.</p>')+(W.evolutions.length?'<div class="profile-timeline">'+W.evolutions.map(e=>'<div class="timeline-row"><span>'+esc(e.base)+'</span><strong>→ '+esc(e.name)+' ('+esc(e.how)+')</strong></div>').join('')+'</div>':'')+'</div>';
+}
+
 function renderArchive(){
  const g=$('#archiveGrid');if(!state.archive.length){g.innerHTML='<div class="empty-state">No completed careers yet.</div>';return;}
  g.innerHTML=state.archive.map(p=>'<article class="archive-card"><span class="kicker">'+(p.retirementAge?'PEAK ':'OVR ')+p.overall+'</span><h3>'+esc(p.name)+'</h3><div class="archive-meta">'+esc(p.status)+' · '+(p.retirementAge?'Retired '+p.retirementAge+' · ':'')+(p.club?esc(p.club):'No NEL club')+'<br>¥'+p.bid+'m · '+p.goals+' goals · '+p.assists+' assists · '+(p.defActions||0)+' defensive actions'+(p.trophies!==undefined?'<br>'+p.trophies+' major honours'+(p.awards?' · '+p.awards+' individual awards':''):'')+'</div></article>').join('');
@@ -2719,8 +3003,9 @@ function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.
 function renderAll(){
  repairPrepState();
  if(globalThis.__EGOWHEEL_TEST__?.headless)return;
- const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','learningRewardSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','breakthroughSpin','challengeSpin','survivalSpin','selectionSpin','nelSpin'].includes(state.run.mode);
+ const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','learningRewardSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','duelSpin','breakthroughSpin','challengeSpin','survivalSpin','selectionSpin','nelSpin'].includes(state.run.mode);
  $('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
+ renderMatchHud();
  renderCareer();renderPlayer();renderProfile();renderArchive();renderRanks();renderView();syncAudio();syncFastSpin();
  $('#quickBuildBtn').hidden=state.run.mode!=='build';
 }
@@ -2732,6 +3017,7 @@ function spinCurrent(){
  const mode=state.run.mode,stage=currentWheelStage();
  // Career wheels are single-use: once a result is locked it cannot be re-rolled.
  if(wheelLocked(mode)&&state.run.selections[stage.key])return;
+ if(mode==='duelSpin'&&!state.run.pendingMatch?.duel?.approach){toast('Choose your approach first.');return;}
  if(audioEnabled)startMusic();
  const chosen=choose(stage),desired=360-chosen.mid,dur=spinDurationMs();
  spinning=true;
@@ -2755,12 +3041,13 @@ function spinCurrent(){
   if(mode==='weaponEventSpin')resolveWeaponEventOutcome(chosen.opt);
   if(mode==='contributionSpin')resolveContributionOutcome(chosen.opt);
   if(mode==='breakthroughSpin')resolveBreakthroughOutcome(chosen.opt);
+  if(mode==='duelSpin')resolveDuelOutcome(chosen.opt);
   if(mode==='challengeSpin')resolveChallengeOutcome(chosen.opt);
   if(mode==='survivalSpin')resolveSurvivalOutcome(chosen.opt);
   if(mode==='selectionSpin')resolveSelectionOutcome(chosen.opt);
   spinning=false;
   landSound(stage.mode==='rarity'?chosen.opt.rarity:'rare');
-  if(!globalThis.__EGOWHEEL_TEST__?.headless){renderWheel();renderSpinResult();renderPlayer();}save();
+  if(!globalThis.__EGOWHEEL_TEST__?.headless){renderWheel();renderSpinResult();renderPlayer();renderMatchHud();}save();
  },dur+30);
 }
 
@@ -2802,7 +3089,9 @@ function nextBuild(){
    state.run.mode='breakthroughSpin';wheelRotation=0;save();renderAll();return;
   }
   if(!p.endedEarly&&(p.spinIndex||0)<lastIndex){
-   p.spinIndex++;wheelRotation=0;save();renderAll();return;
+   p.spinIndex++;p.flowJustTriggered=false;
+   if(p.duel&&!p.duel.done&&p.spinIndex===p.duel.at){state.run.mode='duelSpin';toast('Confrontation!');}
+   wheelRotation=0;save();renderAll();return;
   }
   finalizeContributionMatch();state.run.mode='career';wheelRotation=0;save();renderAll();return;
  }
@@ -2811,6 +3100,12 @@ function nextBuild(){
   const resume=p.resumeAfterBreakthrough||'next';p.resumeAfterBreakthrough=null;
   const currentLast=(p.targetSpins||6)-1;
   if(resume==='finalize'&&(p.spinIndex||0)>=currentLast){finalizeContributionMatch();state.run.mode='career';wheelRotation=0;save();renderAll();return;}
+  p.spinIndex++;state.run.mode=(p.duel&&!p.duel.done&&p.spinIndex===p.duel.at)?'duelSpin':'contributionSpin';wheelRotation=0;save();renderAll();return;
+ }
+ if(mode==='duelSpin'){
+  const p=state.run.pendingMatch;if(!p)return;
+  const lastIndex=(p.targetSpins||6)-1;
+  if(p.endedEarly||(p.spinIndex||0)>=lastIndex){finalizeContributionMatch();state.run.mode='career';wheelRotation=0;save();renderAll();return;}
   p.spinIndex++;state.run.mode='contributionSpin';wheelRotation=0;save();renderAll();return;
  }
  if(mode==='survivalSpin'){
@@ -2863,6 +3158,8 @@ function bind(){
  $('#injuryRoomActions').addEventListener('click',e=>{const b=e.target.closest('[data-injury]');if(b)chooseInjuryRoom(b.dataset.injury);});
  $('#trainingActions').addEventListener('click',e=>{const b=e.target.closest('[data-train]');if(b)applyTraining(b.dataset.train);});
  $('#matchPlans').addEventListener('click',e=>{const b=e.target.closest('[data-plan]');if(b)choosePlan(b.dataset.plan);});
+ $('#objectiveRow')?.addEventListener('click',e=>{const b=e.target.closest('[data-objective]');if(b)chooseObjective(b.dataset.objective);});
+ $('#duelPanel')?.addEventListener('click',e=>{const b=e.target.closest('[data-duel]');if(b)chooseDuelApproach(b.dataset.duel);});
  $('#playMatchBtn').addEventListener('click',playFixture);
  $('#advanceFixtureBtn').addEventListener('click',advanceFixture);$('#retryGoal100Btn').addEventListener('click',retryRebalancedGoal100);$('#continueProCareerBtn').addEventListener('click',continueProCareer);$('#simulateCareerEpilogueBtn').addEventListener('click',simulateCareerEpilogue);
  $('#archiveBtn').addEventListener('click',archiveCareer);$('#newRunBtn').addEventListener('click',()=>newRun(false));
@@ -2889,7 +3186,9 @@ function exposeTestApi(){
   continueProCareer,simulateCareerEpilogue,archiveCareer,currentWheelStage,currentFixture,currentStats,effectiveStats,overall,
   layoutFor,choose,contributionStage,TRAINING_ACTIONS,MATCH_PLANS,save,load,renderAll,
   injuryBlocksFixture,injuryRoomOptions,chooseInjuryRoom,treatKnock,planInjuryRisk,registerInjury,
-  worldOf,ensureWorld,resolveDraft,qualificationStatus,
+  worldOf,ensureWorld,resolveDraft,qualificationStatus,objectiveOptions,chooseObjective,chooseDuelApproach,duelOdds,weaponsState,flowChance,
+  pendingWheelChoice(){return state.run.mode==='duelSpin'&&!state.run.pendingMatch?.duel?.approach;},
+  resolveWheelChoice(policy){chooseDuelApproach(policy.duel?policy.duel(DUEL_APPROACHES):'force');},
   pendingDecision(){return !!state.run.career?.pendingDecision;},
   resolveDecision(policy){const d=state.run.career.pendingDecision;if(d.type==='draft')resolveDraft(policy.pick?policy.pick(d.options.map(k=>({key:k}))):d.options[0]);else if(typeof chooseScene==='function')chooseScene(policy.scene?policy.scene(d.choices):d.choices[0].key);},
   forcePosition(name){const o=positionStage.options.find(x=>x.name===name);if(o){state.run.selections.position=o;}}

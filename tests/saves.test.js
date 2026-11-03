@@ -27,6 +27,7 @@ test('the migrated career remains playable to the end', () => {
   while (n++ < 6000 && a.state.run.mode !== 'complete') {
     const s = a.state, c = s.run.career;
     if (s.run.mode === 'career') {
+      if (a.pendingDecision && a.pendingDecision()) { a.resolveDecision({}); continue; }
       if (c.report) { a.advanceFixture(); continue; }
       if (a.injuryBlocksFixture()) { a.chooseInjuryRoom('rest'); continue; }
       if (c.prepPhase === 'event') { a.startBetweenEvent(); continue; }

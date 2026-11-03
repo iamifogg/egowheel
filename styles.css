@@ -448,3 +448,44 @@ button:disabled{cursor:not-allowed}
 .bottom-nav{grid-template-columns:repeat(5,1fr)}
 .dash-tile .mv{position:static;display:inline-block;margin-left:6px;vertical-align:middle}
 .dash-tile strong .mv{font-size:.72rem}
+
+/* ===== v25: live match HUD, duels, Flow, timeline ===== */
+.match-hud{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;margin:4px 0 8px;padding:10px 12px;border:1px solid #1d4a7c;background:linear-gradient(90deg,rgba(21,152,255,.16),rgba(5,9,15,.85));clip-path:polygon(0 0,100% 0,100% 80%,96% 100%,0 100%);position:relative}
+.hud-min{grid-row:span 2;font-size:1.7rem;font-weight:1000;font-style:italic;color:var(--cyan);min-width:56px}
+.hud-score{display:flex;align-items:center;gap:10px;min-width:0}
+.hud-score span{flex:1;min-width:0;font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hud-score span:last-child{text-align:right}
+.hud-score strong{font-size:1.5rem;font-weight:1000;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.hud-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:.62rem;letter-spacing:.12em;font-weight:800;color:var(--blue2);text-transform:uppercase}
+.hud-mom{display:inline-flex;gap:2px}.hud-mom i{width:9px;height:8px;background:#16263b;display:block}.hud-mom i.mid{background:#3a4f6b}.hud-mom i.pos.on{background:var(--up)}.hud-mom i.neg.on{background:var(--down)}
+.hud-flow{background:linear-gradient(90deg,#7de7ff,#b786ff);color:#04111f;padding:2px 7px}
+.flow-burst{grid-column:1/-1;margin-top:4px;font-weight:1000;font-style:italic;letter-spacing:.08em;color:#e9fbff;text-shadow:0 0 18px #7de7ff;animation:flowIn .9s ease-out}
+@keyframes flowIn{from{opacity:0;transform:translateX(-12px) skewX(-12deg)}to{opacity:1;transform:none}}
+.wheel-shell.flow{filter:drop-shadow(0 0 18px rgba(125,231,255,.55)) hue-rotate(28deg) saturate(1.35);transition:filter .6s}
+.wheel-shell.duel{filter:drop-shadow(0 0 16px rgba(255,93,115,.45))}
+@media (prefers-reduced-motion:reduce){.flow-burst{animation:none}.wheel-shell.flow{transition:none}}
+.duel-panel{margin:0 0 10px}
+.duel-split{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:0}
+.duel-side{padding:12px;min-width:0;display:grid;gap:2px}
+.duel-side.me{background:linear-gradient(120deg,rgba(21,152,255,.35),rgba(21,152,255,.05));clip-path:polygon(0 0,100% 0,88% 100%,0 100%)}
+.duel-side.them{background:linear-gradient(240deg,rgba(255,93,115,.35),rgba(255,93,115,.05));clip-path:polygon(12% 0,100% 0,100% 100%,0 100%);text-align:right}
+.duel-side span{font-size:.56rem;letter-spacing:.16em;font-weight:900;color:var(--blue2)}
+.duel-side.them span{color:#ff9aa8}
+.duel-side strong{font-size:1.1rem;font-weight:1000;font-style:italic;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.duel-side em,.duel-side small{font-style:normal;font-size:.68rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.duel-vs{display:grid;place-items:center;padding:0 6px;font-weight:1000;font-style:italic;font-size:1.4rem;color:#fff;text-shadow:0 0 14px #ff5d73}
+.duel-approaches{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
+.duel-chosen{margin:6px 0 0;color:var(--muted);font-size:.78rem}
+.flow-banner{margin:8px 0;padding:6px 10px;font-weight:1000;font-style:italic;letter-spacing:.1em;background:linear-gradient(90deg,rgba(125,231,255,.25),rgba(183,134,255,.15));border-left:3px solid var(--cyan)}
+.timeline{display:grid;gap:3px;margin:10px 0;padding:8px 10px;border-left:2px solid var(--line)}
+.tl{display:grid;grid-template-columns:38px 20px 1fr;gap:6px;font-size:.78rem;color:var(--muted);align-items:center}
+.tl b{color:var(--text);font-variant-numeric:tabular-nums}
+.tl.goal,.tl.assist{color:var(--up)}.tl.opp,.tl.og,.tl.card{color:var(--down)}.tl.flow{color:var(--cyan);font-weight:800}.tl.duel{color:var(--warn)}
+.moment-list.weapon p{color:#c9b4ff}
+.weapon-row{display:grid;gap:4px;margin:10px 0}
+.weapon-row div{display:flex;flex-direction:column}
+.weapon-row span{font-size:.72rem;color:var(--muted)}
+.weapon-row i{display:block;height:6px;background:#0f1a29}.weapon-row i b{display:block;height:100%;background:linear-gradient(90deg,#1598ff,#b786ff)}
+.weapon-row small{font-size:.64rem;color:var(--faint)}
+.objective-grid .plan-button span{font-size:.7rem}
+@media (max-width:620px){.duel-approaches{grid-template-columns:1fr}.hud-min{font-size:1.3rem;min-width:44px}.hud-score strong{font-size:1.2rem}}
