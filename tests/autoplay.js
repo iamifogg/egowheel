@@ -18,14 +18,8 @@ function defaultPolicy(api, ctx) {
  * Plays one career. Returns {game, state, matches[], events[]}.
  * opts: { seed, positionName, maxSteps, policy, onMatch(report, state), continuePro }
  */
-function playCareer(opts = {}) {
-  const game = createGame({ seed: opts.seed ?? 1, headless: opts.headless !== false });
-  const api = game.api;
-  api.EW_rng = () => game.EW.rng.next();
+function drive(api, opts = {}) {
   const policy = Object.assign(defaultPolicy(api), opts.policy || {});
-  api.quickBuild();
-  if (opts.positionName && api.forcePosition) api.forcePosition(opts.positionName);
-  if (opts.setup) opts.setup(api, game);
   const matches = [];
   let steps = 0, lastReport = null;
   const max = opts.maxSteps || 6000;
@@ -35,7 +29,8 @@ function playCareer(opts = {}) {
       if (opts.continuePro && c && !c.eliminated && !c.postNelStarted) { api.continueProCareer(); continue; }
       break;
     }
-    if (m === 'career') {
+    if (api.pendingProDecision && api.pendingProDecision()) { api.resolveProDecision(policy); continue; }
+    if (m === 'career' || m === 'pro') {
       if (api.pendingDecision && api.pendingDecision()) { api.resolveDecision(policy); continue; }
       if (c.report) {
         if (c.report !== lastReport && (c.report.type === 'match' || c.report.type === 'absent')) { matches.push(c.report); if (opts.onMatch) opts.onMatch(c.report, s, api); }
@@ -55,7 +50,18 @@ function playCareer(opts = {}) {
     const st = api.currentWheelStage();
     if (!s.run.selections[st.key]) api.spinCurrent(); else api.nextBuild();
   }
-  return { game, api, state: api.state, matches, steps };
+  return { matches, steps };
 }
 
-module.exports = { playCareer };
+function playCareer(opts = {}) {
+  const game = createGame({ seed: opts.seed ?? 1, headless: opts.headless !== false });
+  const api = game.api;
+  api.EW_rng = () => game.EW.rng.next();
+  api.quickBuild();
+  if (opts.positionName && api.forcePosition) api.forcePosition(opts.positionName);
+  if (opts.setup) opts.setup(api, game);
+  const r = drive(api, opts);
+  return { game, api, state: api.state, matches: r.matches, steps: r.steps };
+}
+
+module.exports = { playCareer, drive };

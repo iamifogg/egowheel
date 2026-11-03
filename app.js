@@ -2518,9 +2518,15 @@ function maybeScene(){
  if(sc)c.pendingDecision=Object.assign({type:'scene'},sc);
  save(); // persist the decision so a reload cannot re-roll the scene
 }
+function oddsBar(d){return'<i class="odds-bar" aria-hidden="true"><b class="s" style="width:'+(d.success*100)+'%"></b><b class="m" style="width:'+(d.mixed*100)+'%"></b><b class="f" style="width:'+(d.failure*100)+'%"></b></i>';}
+function choiceCardHtml(raw){
+ const ch=EW.decisions.normalizeChoice(raw),t=EW.decisions.TIERS[ch.risk];
+ return'<button type="button" class="draft-card choice-card risk-'+ch.risk+'" data-choice="'+esc(ch.key)+'"><span class="risk-tag" style="--risk:'+t.color+'">'+t.label.toUpperCase()+(ch.irreversible?' · IRREVERSIBLE':'')+'</span><strong>'+esc(ch.label)+'</strong><span>'+esc(ch.hint||'')+'</span>'+(ch.reward?'<em class="reward">Reward: '+esc(ch.reward)+'</em>':'')+(ch.failHint?'<em class="danger">If it fails: '+esc(ch.failHint)+'</em>':ch.risk==='extreme'?'<em class="danger">Failure is severe.</em>':'')+'<b class="odds">'+esc(EW.decisions.label(ch))+'</b>'+oddsBar(ch.dist)+'</button>';
+}
 function renderSceneDecision(box,d){
  const w=worldOf(),p=d.actor?w?.players[d.actor]:null,r=p?relationFor(p.id,true):null;
- box.innerHTML='<span class="kicker">'+esc(d.cat.toUpperCase())+(d.major?' · MAJOR':'')+'</span><h3>'+esc(d.title)+'</h3>'+(p?'<button type="button" class="scene-actor" data-player="'+esc(p.id)+'"><strong>'+esc(p.name)+'</strong><span>'+esc(r?r.status:(EW.data.PERSONALITIES[p.pers]||{}).label||'')+' · OVR '+Math.round(p.ovr)+'</span></button>':'')+'<p>'+esc(d.text)+'</p><div class="draft-grid">'+d.choices.map(ch=>'<button type="button" class="draft-card" data-choice="'+esc(ch.key)+'"><strong>'+esc(ch.label)+' · '+Math.round(ch.odds*100)+'%</strong><span>'+esc(ch.hint)+'</span></button>').join('')+'</div>';
+ const stage=typeof sceneStageHtml==='function'?sceneStageHtml(d,p,r):'';
+ box.innerHTML='<span class="kicker">'+esc(d.cat.toUpperCase())+(d.major?' · MAJOR':'')+(d.arcLabel?' · '+esc(d.arcLabel):'')+'</span><h3>'+esc(d.title)+'</h3>'+stage+(p&&!stage?'<button type="button" class="scene-actor" data-player="'+esc(p.id)+'"><strong>'+esc(p.name)+'</strong><span>'+esc(r?r.status:(EW.data.PERSONALITIES[p.pers]||{}).label||'')+' · OVR '+Math.round(p.ovr)+'</span></button>':'')+'<p>'+esc(d.text)+'</p><div class="draft-grid">'+d.choices.map(choiceCardHtml).join('')+'</div>';
 }
 function chooseScene(key){
  const c=state.run.career,d=c?.pendingDecision;if(!d||d.type!=='scene'||state.run.mode==='sceneSpin')return;
@@ -2528,11 +2534,11 @@ function chooseScene(key){
  state.run.pendingScene={scene:d,choice:ch};delete state.run.selections.sceneOutcome;state.run.mode='sceneSpin';wheelRotation=0;save();renderAll();clickSound();
 }
 function sceneStage(){
- const ps=state.run.pendingScene||{choice:{odds:.5,label:'?'},scene:{title:'Scene'}},pr=ps.choice.odds;
- return{key:'sceneOutcome',chapter:'DECISION · '+ps.scene.title.toUpperCase(),name:ps.choice.label,prompt:'You made your choice. Attributes, ego and relationships set the odds: '+Math.round(pr*100)+'% to go your way.',mode:'weights',options:[
-  weighted('Success',ps.choice.success?.text||'It works.',pr*70,{},'SUCCESS',{tier:'success'}),
-  weighted('Mixed',ps.choice.mixed?.text||'Partly.',30,{},'MIXED',{tier:'mixed'}),
-  weighted('Backfire',ps.choice.fail?.text||'It goes wrong.',(1-pr)*70,{},'BACKFIRE',{tier:'fail'})]};
+ const ps=state.run.pendingScene;
+ const ch=ps?EW.decisions.normalizeChoice(ps.choice):EW.decisions.normalizeChoice({odds:.5,label:'?'});
+ const title=ps?.scene?.title||'Decision';
+ // Wheel weights ARE the probabilities: the segment sizes equal the advertised odds.
+ return{key:'sceneOutcome',chapter:'DECISION · '+title.toUpperCase(),name:ch.label,prompt:EW.decisions.TIERS[ch.risk].label+' choice — '+EW.decisions.label(ch)+'.',mode:'weights',options:EW.decisions.wheelOptions(ch,weighted)};
 }
 function resolveSceneOutcome(outcome){
  const c=state.run.career,ps=state.run.pendingScene;if(!c||!ps||!outcome)return;
@@ -3491,7 +3497,7 @@ function exposeTestApi(){
   worldOf,ensureWorld,resolveDraft,qualificationStatus,objectiveOptions,chooseObjective,chooseDuelApproach,duelOdds,weaponsState,flowChance,
   pendingWheelChoice(){return state.run.mode==='duelSpin'&&!state.run.pendingMatch?.duel?.approach;},
   resolveWheelChoice(policy){chooseDuelApproach(policy.duel?policy.duel(DUEL_APPROACHES):'force');},
-  pendingDecision(){return !!state.run.career?.pendingDecision&&state.run.mode==='career';},relStore,relationFor,mainRival,directorContext,ensureFixtureCast,
+  pendingDecision(){return !!state.run.career?.pendingDecision&&state.run.mode==='career';},relStore,relationFor,mainRival,directorContext,ensureFixtureCast,sceneStage,sceneStage,
   resolveDecision(policy){const d=state.run.career.pendingDecision;if(d.type==='draft')resolveDraft(policy.pick?policy.pick(d.options.map(k=>({key:k}))):d.options[0]);else if(typeof chooseScene==='function')chooseScene(policy.scene?policy.scene(d.choices):d.choices[0].key);},
   forcePosition(name){const o=positionStage.options.find(x=>x.name===name);if(o){state.run.selections.position=o;}}
  });

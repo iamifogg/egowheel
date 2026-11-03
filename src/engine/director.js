@@ -396,7 +396,7 @@
     if (rng.next() > p) return null;
     const pick = rng.weighted(candidates, c => c.w * (c.ev.major ? 2 : 1));
     const ev = pick.ev, a = pick.actor;
-    const choices = ev.choices(ctx, a).map(ch => ({ key: ch.key, label: ch.label, hint: ch.hint, odds: clamp(ch.odds, 0.08, 0.95), success: ch.success, mixed: ch.mixed, fail: ch.fail }));
+    const choices = ev.choices(ctx, a).map(ch => EW.decisions.normalizeChoice(Object.assign({}, ch, { odds: clamp(ch.odds ?? 0.5, 0.04, 0.95) })));
     return { id: ev.id, cat: ev.cat, actor: a === 'self' ? null : a, title: ev.title(ctx, a), text: ev.text(ctx, a), choices, major: !!ev.major };
   }
 

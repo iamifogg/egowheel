@@ -10,7 +10,7 @@ const V7 = fs.readFileSync(path.join(__dirname, 'fixtures', 'v7-save.json'), 'ut
 test('a real v7 save migrates without losing the career or archive', () => {
   const g = createGame({ storage: { 'egowheel.save.v7': V7 } });
   const st = g.api.state, old = JSON.parse(V7);
-  assert.strictEqual(st.version, 8);
+  assert.strictEqual(st.version, 9);
   assert.strictEqual(st.archive.length, old.archive.length, 'archive preserved');
   assert.strictEqual(st.archive[0].name, old.archive[0].name);
   assert.strictEqual(st.run.name, old.run.name, 'current character preserved');
@@ -118,4 +118,35 @@ test('preview builds never write to the live game\'s storage keys', () => {
   const written = Array.from(g.storage.keys()).filter(k => !(k in live));
   assert.ok(written.length > 0);
   written.forEach(k => assert.ok(k.startsWith('egowheel.preview.'), 'preview only writes its own namespace: ' + k));
+});
+
+const V8 = fs.readFileSync(path.join(__dirname, 'fixtures', 'v8-preview-save.json'), 'utf8');
+
+test('a real v8 preview save (mid professional match) upgrades to v9 without losing anything', () => {
+  const g = createGame({ seed: 'v8up', storage: { 'egowheel.preview.save.v8': V8 } });
+  const st = g.api.state, old = JSON.parse(V8);
+  assert.strictEqual(st.version, 9);
+  assert.strictEqual(st.archive.length, old.archive.length, 'archive kept');
+  assert.strictEqual(st.run.name, old.run.name);
+  assert.deepStrictEqual(st.run.baseStats, old.run.baseStats, 'attributes kept');
+  assert.deepStrictEqual(st.run.development, old.run.development, 'development kept');
+  assert.strictEqual(st.run.career.totals.goals, old.run.career.totals.goals, 'statistics kept');
+  assert.strictEqual(Object.keys(st.run.career.relations).length, Object.keys(old.run.career.relations).length, 'relationship histories kept');
+  assert.deepStrictEqual(st.run.weapons.evolutions, old.run.weapons.evolutions, 'weapon evolutions kept');
+  assert.strictEqual(Object.keys(st.run.career.world.players).length, Object.keys(old.run.career.world.players).length, 'world kept');
+  assert.strictEqual(g.storage.get('egowheel.preview.save.v8'), V8, 'old save key left untouched');
+  assert.strictEqual(g.storage.get('egowheel.preview.backup.v8'), V8, 'backup copy written');
+  assert.ok(st.run.career.narrative && Array.isArray(st.run.career.narrative.arcs), 'new narrative defaults');
+});
+
+test('the upgraded v8 professional career can be played to retirement and archived', () => {
+  const g = createGame({ seed: 'v8play', storage: { 'egowheel.preview.save.v8': V8 } });
+  const a = g.api; a.EW_rng = () => g.EW.rng.next();
+  const { drive } = require('./autoplay');
+  drive(a, { maxSteps: 20000, continuePro: true });
+  assert.strictEqual(a.state.run.mode, 'complete', 'career reaches an end state');
+  const c = a.state.run.career;
+  if (!c.eliminated && c.postNelStarted) a.simulateCareerEpilogue();
+  a.archiveCareer();
+  assert.ok(a.state.archive.length >= 2, 'archived alongside the earlier career');
 });
