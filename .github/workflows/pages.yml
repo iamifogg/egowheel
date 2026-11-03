@@ -1,4 +1,7 @@
 name: Deploy EgoWheel to GitHub Pages
+# Publish the unchanged live game from main at /egowheel/, plus the isolated overhaul
+# from its development branch at /egowheel/preview/. Running on main satisfies the
+# github-pages environment branch restriction without changing it.
 on:
   push:
     branches: [main]
@@ -9,7 +12,7 @@ permissions:
   id-token: write
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   deploy:
     environment:
@@ -17,14 +20,34 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout unchanged live site
         uses: actions/checkout@v4
+        with:
+          ref: main
+          path: site
+      - name: Checkout isolated preview build
+        uses: actions/checkout@v4
+        with:
+          ref: claude/vibrant-ritchie-bn00ja
+          path: overhaul
+      - name: Assemble stable and preview sites
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Never publish a non-isolated preview by accident.
+          grep -Fq "EW.channel = 'preview'" overhaul/src/channel.js
+          grep -Fq "PREFIX='egowheel-preview-'" overhaul/service-worker.js
+          mkdir -p site/preview
+          rsync -a --exclude '.git' --exclude '.github' --exclude tests --exclude package.json overhaul/ site/preview/
+          PREVIEW_SHA="$(git -C overhaul rev-parse HEAD)"
+          printf "(function(r){var E=r.EW=r.EW||{};E.build=Object.assign(E.build||{},{version:'v25-preview',commit:'%s',date:'%s'});})(typeof globalThis!=='undefined'?globalThis:this);\n" "$PREVIEW_SHA" "$(date -u +%Y-%m-%dT%H:%MZ)" > site/preview/src/build-info.js
+          rm -rf site/.git site/.github
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: site
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
