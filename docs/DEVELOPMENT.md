@@ -53,3 +53,60 @@ Contributing causes, all fixed:
 
 ### Decisions for the owner
 - Player-creation wheels can still be re-spun (as before); only career wheels are locked.
+
+## Phase 1 — Living world & competition (v25)
+
+### Population (`src/data/characters.js`, `src/engine/world.js`)
+- 300 Blue Lock participants: 25 First Selection teams of 12 in 5 buildings (yours is Building 5,
+  Teams V–Z, matching the original team strengths). Named characters keep their identities
+  (position, archetype, weapon, potential, ego, personality, development style); the rest are
+  seeded procedural egoists with a position, weapon, strength, weakness, potential and dev style.
+- Club players (Kaiser, Ness, Lorenzo, Chevalier, Agi) and Japan U-20 (Sae, Sendou, Darai, Neru,
+  Niou, Aiku) exist as external players. Aiku joins Blue Lock for the NEL.
+- Same seed ⇒ same world (`?seed=` in the URL).
+
+### Background simulation
+- Every protagonist fixture advances the world: First Selection round-robins in all five
+  buildings; abstract matches for everyone else in later stages; NEL rounds for the other clubs.
+- The protagonist's real result is recorded into the world: teammate goals are credited to named
+  teammates (your assists link to the scorer), opponents receive ratings that reflect your defending.
+- Development: headroom × performance × stage multiplier, shaped by development style
+  (explosive early, late bloomers in the NEL, adaptive leaps after bad defeats, volatile noise).
+- Named characters can be eliminated. Eliminated players never appear in later casts (tested).
+
+### Rankings (`EW.world.rankScore`)
+`score = OVR + k_stage × (position-fair stage evaluation, shrunk by apps) + 1.2 × career evaluation
++ First Selection team ppg term + survival bonus.` Ego's evaluation weights goals/assists/defensive
+actions differently per role so centre-backs and holding midfielders are judged fairly.
+
+Consequences:
+- **First Selection**: top two teams per building, *or* your team's top scorer, *or* Ego's
+  individual evaluation (top 24 overall) survive. Live building tables are shown.
+- **Second Selection**: 2v2/3v3/4v4 casts are drawn from the living field. Win and you choose a
+  loser to join you; lose and the winners decide (survival odds include your rank). Your side
+  carries over, so you can lose a teammate or be taken by a former opponent. Field culls:
+  ~135 → 112 → 92 → 75 → 60.
+- **Third Selection**: rank ≤14 starts the U-20 match, 15–30 spins a tense selection wheel
+  (left out / bench (4 moments from 55') / starter), >30 is left out.
+- Rank movement nudges confidence (climbing builds belief, sliding hurts).
+
+### NEL auction (`src/engine/market.js`)
+- 8 matchdays (double round robin). Every NEL player is valued by the same function: ability,
+  potential, recency-weighted position-fair performance, volume, big-game displays, consistency,
+  each club's positional demand (Ubers love defenders, Bastard strikers, Barcha technicians…).
+  The highest club valuation is the bid and the bidding club is shown.
+- Qualification = top 23 Blue Lock players by final bid. 24th is eliminated, and the report says so.
+- Auction drama is derived from real changes: surprise club bids, value surges, break-ins to the
+  top 23, a new most-valuable player, rivals overtaking you, crossing the cutoff.
+
+### UI
+- Career dashboard (rank + movement, value or OVR, main rival) and a qualification strip with the
+  exact stakes for the current stage.
+- RANKS view: Blue Lock rankings (top 30 + your neighbourhood + fallen named players), building /
+  NEL tables, auction leaderboard with cutoff line, news feed. Every row opens a dossier.
+- Match report: scorers with assist links, standout player, rank and value movement, market news.
+
+### Balance notes
+- 100 Goal Challenge made role-aware (defenders lean on reactions/technique/composure); it was
+  eliminating ~45% of careers, mostly non-strikers. Now ~15%.
+- Careers migrated from v7 mid-run get a world fast-forwarded to their current stage.

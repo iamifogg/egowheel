@@ -852,7 +852,8 @@ function trainingOutcomeStage(){
 function secondSelectionSurvivalStage(){
  const p=state.run.pendingSurvival||{},r=p.report||{};
  const merit=(r.rating||5)*8+(r.goals||0)*18+(r.assists||0)*11+(r.dribbles||0)*2+((r.tackles||0)+(r.interceptions||0))*2.4+((r.blocks||0)+(r.clearances||0)+(r.recoveries||0))*1.7;
- const chosenBoost=clamp((merit-48)*.7,-16,32);
+ const rk=worldOf()?.players.me.rank||60;
+ const chosenBoost=clamp((merit-48)*.7+(45-rk)/5,-18,34);
  return{key:'survivalOutcome',chapter:'SECOND SELECTION',name:'Will They Choose You?',prompt:'Your team lost. The winners may take one player. Your individual performance changes the odds — but rejection ends the run.',mode:'weights',options:[
   weighted('Rejected','The winners see no reason to take you. Your Blue Lock run ends here.',Math.max(8,42-chosenBoost),{},'REJECTED',{survive:false,confidence:-12}),
   weighted('Barely Chosen','You survive, but only just. The loss follows you into the next stage.',Math.max(10,30+chosenBoost*.25),{},'BARELY',{survive:true,confidence:-7,form:-1}),
@@ -884,7 +885,11 @@ function resolveSurvivalOutcome(outcome){
  state.run.form=clamp(state.run.form+(meta.form||0),-3,3);
  state.run.pendingSurvivalResult=outcome;
  if(!meta.survive)careerLog('Second Selection: rejected by the winning side.');
- else careerLog('Second Selection: '+outcome.name+'. You remain in Blue Lock.');
+ else{
+  careerLog('Second Selection: '+outcome.name+'. You remain in Blue Lock.');
+  const f=c.fixtures.find(x=>x.id===state.run.pendingSurvival?.fixtureId),w=worldOf();
+  if(f?.cast&&w){c.squad=f.cast.opp.filter(id=>w.players[id]?.status==='active');careerLog('You join '+c.squad.map(id=>w.players[id].short).join(' & ')+'.');if(typeof onChosenByWinners==='function')onChosenByWinners(c.squad);}
+ }
 }
 const BETWEEN_GAME_OUTCOMES=[
  weighted('Focused Training Block','You get a proper development window before the next fixture.',27,{},'TRAIN',{kind:'training'}),
@@ -1264,24 +1269,16 @@ function challengeEffectiveStats(){
  return out;
 }
 function challengeQuality(stats=challengeEffectiveStats()){
- const ov=overall(stats);
- return clamp(
-  stats.finishing*.27+
-  stats.shotPower*.14+
-  stats.reactions*.16+
-  stats.technique*.10+
-  stats.control*.07+
-  stats.stamina*.08+
-  stats.ego*.05+
-  ov*.13+
-  state.run.form*.8+
-  (state.run.confidence-50)*.035,
-  25,105
- );
+ // Role-aware: everyone must score 100, but defenders and midfielders lean on reactions,
+ // technique and composure rather than pure finishing.
+ const ov=overall(stats),def=isDefensiveRole(),mid=isMidfieldRole();
+ const w=def?{finishing:.12,shotPower:.08,reactions:.2,technique:.14,control:.12,stamina:.1,ego:.08}:mid?{finishing:.18,shotPower:.1,reactions:.18,technique:.14,control:.1,stamina:.08,ego:.06}:{finishing:.27,shotPower:.14,reactions:.16,technique:.10,control:.07,stamina:.08,ego:.05};
+ const base=Object.entries(w).reduce((t,[k,v])=>t+stats[k]*v,0)/Object.values(w).reduce((a,b)=>a+b,0)*.87;
+ return clamp(base+ov*.13+state.run.form*.8+(state.run.confidence-50)*.035,25,105);
 }
 function challengePassChance(stats=challengeEffectiveStats()){
  const q=challengeQuality(stats);
- return clamp(.55+(q-68)*.025,.08,.92);
+ return clamp(.72+(q-66)*.022,.2,.95);
 }
 function challengeStage(){
  const q=challengeQuality(),pass=challengePassChance(),fail=1-pass;
@@ -1317,6 +1314,7 @@ function currentWheelStage(){
  if(state.run.mode==='breakthroughSpin')return breakthroughStage();
  if(state.run.mode==='challengeSpin')return challengeStage();
  if(state.run.mode==='survivalSpin')return secondSelectionSurvivalStage();
+ if(state.run.mode==='selectionSpin')return selectionStage();
  return BUILD_STAGES[state.run.buildIndex];
 }
 function layoutFor(stage){
@@ -1411,6 +1409,7 @@ function renderWheel(){
  else if(mode==='breakthroughSpin')$('#nextBtn').textContent='Return to Match';
  else if(mode==='challengeSpin')$('#nextBtn').textContent='View Challenge Result';
  else if(mode==='survivalSpin')$('#nextBtn').textContent=(picked?.meta?.survive?'Continue Second Selection':'Accept Elimination');
+ else if(mode==='selectionSpin')$('#nextBtn').textContent=(picked?.meta?.role==='out'?'Accept the Decision':'Continue to the U-20 Match');
  else if(mode==='nelSpin')$('#nextBtn').textContent='Enter Neo Egoist League';
  else $('#nextBtn').textContent=state.run.buildIndex===BUILD_STAGES.length-1?'Roll Starting Stats':'Next Build Stage';
  renderBuildStrip();
@@ -1434,6 +1433,7 @@ function renderBuildStrip(){
  }
  if(mode==='challengeSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">100 Goal Challenge</span>';return;}
  if(mode==='survivalSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Selection Survival</span>';return;}
+ if(mode==='selectionSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">U-20 Squad Decision</span>';return;}
  if(mode==='statSpin'){
   $('#stageStrip').innerHTML=ATTRS.map(([k,label],i)=>'<span class="stage-pill '+(state.run.selections['stat_'+k]?'done ':'')+(i===state.run.statIndex?'current':'')+'">'+(i+1)+'. '+esc(label)+'</span>').join('');
   return;
@@ -1521,7 +1521,8 @@ function preNelFixtures(team){
  ];
 }
 function nelFixtures(club){
- return Object.keys(NEL_DATA).filter(x=>x!==club).map((opp,i)=>({id:'nel'+i,stage:'Neo Egoist League',type:'match',team:club,opponent:opp,stars:NEL_DATA[opp].stars,strength:NEL_DATA[opp].strength,teamStrength:NEL_DATA[club].strength,venue:'NEL Match '+(i+1),importance:1.65}));
+ const opps=Object.keys(NEL_DATA).filter(x=>x!==club),order=[...opps,...opps.slice().reverse()];
+ return order.map((opp,i)=>({id:'nel'+i,stage:'Neo Egoist League',type:'match',team:club,opponent:opp,stars:NEL_DATA[opp].stars,strength:NEL_DATA[opp].strength,teamStrength:NEL_DATA[club].strength,venue:'NEL Matchday '+(i+1)+(i===order.length-1?' — Final Auction':''),importance:i<4?1.55:1.75}));
 }
 function postNelFixtures(club){
  const clubStrength=Math.max(NEL_DATA[club]?.strength||90,overall());
@@ -1558,6 +1559,7 @@ function startCareer(){
  const team=state.run.selections.firstTeam?.name||'Team Z';
  state.run.mode='career';
  state.run.career={fixtureIndex:0,fixtures:preNelFixtures(team),prepared:false,betweenDone:false,betweenEvent:null,trainingAvailable:false,prepPhase:'event',trainingKey:null,trainingResult:null,planKey:'balanced',history:[],recentRatings:[],log:['Entered Blue Lock with '+team+'.'],report:null,totals:{apps:0,goals:0,assists:0,shots:0,keyPasses:0,dribbles:0,tackles:0,interceptions:0,blocks:0,clearances:0,recoveries:0,aerialDuels:0,yellowCards:0,redCards:0,setPieceGoals:0,ratingTotal:0,nelApps:0,nelGoals:0,nelAssists:0,nelDefActions:0,nelRatingTotal:0},firstSelectionPoints:0,thirdSelection:{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0},bid:0,bidHistory:[],rival:null,postNelStarted:false,proClub:null,trophies:[],complete:false,eliminated:false,finalStatus:null,finalReason:null};
+ ensureWorld();
  state.run.energy=100;state.run.potentialBonus=state.run.potentialBonus||0;state.run.learnedWeapons=state.run.learnedWeapons||[];state.run.confidence=55;state.run.form=0;state.run.fitness=100;state.run.injury=null;state.run.lastChanges={};
  save();renderAll();toast('Blue Lock career started.');
 }
@@ -1920,7 +1922,7 @@ function chooseInjuryRoom(key){
  else{state.run.fitness=clamp(state.run.fitness+8,EW.injuries.FITNESS_FLOOR,100);state.run.confidence=clamp(state.run.confidence+2,0,100);}
  if(fixture.stage==='First Selection'){if(rep.result==='WIN')c.firstSelectionPoints+=3;else if(rep.result==='DRAW')c.firstSelectionPoints+=1;}
  state.run.confidence=clamp(state.run.confidence-2,0,100);
- c.report=rep;recordHistory();
+ c.report=rep;worldAfterFixture(fixture,rep);recordHistory();
  careerLog(fixture.stage+' (absent, injured): '+fixture.team+' '+rep.teamGoals+'–'+rep.oppGoals+' '+fixture.opponent+'.');
  save();renderAll();
 }
@@ -1972,6 +1974,137 @@ function matchMoments(rep,fixture){
  else if(!m.length)m.push('You contribute useful work across the match without one dominant headline moment.');
  return m;
 }
+
+// ===== LIVING WORLD INTEGRATION (src/engine/world.js, src/engine/market.js) =====
+function worldOf(){return state.run.career?.world||null;}
+function worldStageFor(stage){return({'First Selection':'first','Second Selection':'second','Third Selection':'third','U-20 Match':'u20','Neo Egoist League':'nel'})[stage]||'pro';}
+function syncMe(){
+ const w=worldOf();if(!w)return;const me=w.players.me;
+ me.name=state.run.name||me.name;me.short=(state.run.name||'You').split(' ').slice(-1)[0];me.ovr=overall();
+ me.pos=EW.world.groupOf(state.run.selections.position?.name);me.role=state.run.selections.position?.name||me.role;
+ me.weapon=state.run.selections.primaryWeapon?.name||'—';me.pot=potentialCeiling();me.conf=Math.round(state.run.confidence);me.form=state.run.form;
+}
+function teamStrengthTable(){const t={};Object.entries(TEAM_DATA).forEach(([k,v])=>t[k]=v.strength);return t;}
+function ensureWorld(){
+ const c=state.run.career;if(!c)return null;if(c.world)return c.world;
+ const team=state.run.selections.firstTeam?.name||'Team Z';
+ const order=c.fixtures.filter(f=>f.stage==='First Selection').map(f=>f.opponent);
+ c.world=EW.world.create(EW.rng.current,{protagonist:{name:state.run.name,positionName:state.run.selections.position?.name||'Centre Forward',ovr:overall(),team,weapon:state.run.selections.primaryWeapon?.name},teamStrengths:teamStrengthTable(),myOrder:order.length?order:null});
+ // Careers migrated mid-run get a world fast-forwarded to their current stage.
+ const f=currentFixture(),w=c.world,rng=EW.rng.current;
+ if(f&&f.stage!=='First Selection'){
+  for(let r=0;r<4;r++)EW.world.playFirstSelectionRound(w,rng,r);
+  w.schedule.forEach(rd=>rd.forEach(m=>{if(m.mine&&!m.done){const A=w.teams[m.a],B=w.teams[m.b];const res=EW.world.simulateMatch(w,rng,A.ids,B.ids,A.strength,B.strength,{});EW.world.applyResult(A,res.ga,res.gb);EW.world.applyResult(B,res.gb,res.ga);m.done=true;}}));
+  EW.world.resolveFirstSelection(w,rng,24);
+  EW.world.resetStageStats(w,worldStageFor(f.stage)==='nel'?'second':worldStageFor(f.stage));
+  const done=c.fixtures.slice(0,c.fixtureIndex).map(x=>x.id),cuts={goal100:112,'2v2':92,'3v3':75,'4v4':60,thirdA:48};
+  Object.entries(cuts).forEach(([id,n])=>{if(done.includes(id))EW.world.cull(w,rng,n,'Second Selection');});
+  if(f.stage==='Neo Egoist League'||c.postNelStarted){EW.world.cull(w,rng,36,'Third Selection');EW.world.setupNEL(w,rng,state.run.selections.nelClub?.name||'Bastard München',NEL_DATA);EW.market.updateAll(w,rng,{initial:true});}
+  careerLog('Living world generated for this migrated career.');
+ }
+ syncMe();EW.world.computeRankings(c.world);
+ return c.world;
+}
+function meanOvr(w,ids){const xs=(ids||[]).map(id=>w.players[id]?.ovr).filter(x=>typeof x==='number');return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:70;}
+function castNames(w,ids,n=4){return(ids||[]).filter(id=>id!=='me'&&w.players[id]).sort((a,b)=>(w.players[b].named-w.players[a].named)||(w.players[b].ovr-w.players[a].ovr)).slice(0,n).map(id=>w.players[id].name);}
+function ensureFixtureCast(fixture){
+ const c=state.run.career;if(!fixture||!c)return null;if(fixture.cast)return fixture.cast;
+ const w=ensureWorld();if(!w)return null;
+ const P=w.players,rng=EW.rng.current;let mine=null,opp=null;
+ fixture.baseStrength=fixture.baseStrength??fixture.strength;fixture.baseTeamStrength=fixture.baseTeamStrength??fixture.teamStrength;
+ if(fixture.stage==='First Selection'&&w.teams[fixture.team]&&w.teams[fixture.opponent]){
+  mine=w.teams[fixture.team].ids.slice();opp=w.teams[fixture.opponent].ids.slice();fixture.stars=castNames(w,opp);
+ }else if(['2v2','3v3','4v4','world5'].includes(fixture.id)){
+  const need={'2v2':1,'3v3':2,'4v4':3,world5:4}[fixture.id];
+  c.squad=(c.squad||[]).filter(id=>P[id]?.status==='active');
+  while(c.squad.length<need){const add=EW.world.pickCast(w,rng,1,P.me.ovr,c.squad)[0];if(!add)break;c.squad.push(add);}
+  c.squad=c.squad.slice(0,need);mine=['me',...c.squad];
+  if(fixture.id==='world5'){opp=[];fixture.team='Blue Lock Five';}
+  else{
+   const ref={'2v2':[70,66],'3v3':[74,70],'4v4':[71,71]}[fixture.id];
+   opp=EW.world.pickCast(w,rng,need+1,ref[0]+1,c.squad);
+   fixture.team=need===1?'You & '+P[c.squad[0]].short:'Your '+(need+1)+'-Man Side';
+   fixture.opponent=opp.map(id=>P[id].short).join(' / ');fixture.stars=opp.map(id=>P[id].name);
+   fixture.strength=Math.round(fixture.baseStrength+(meanOvr(w,opp)-ref[0])*.6);
+   fixture.teamStrength=Math.round(fixture.baseTeamStrength+(meanOvr(w,c.squad)-ref[1])*.5);
+  }
+ }else if(fixture.id==='thirdA'||fixture.id==='thirdB'){
+  const pool=EW.world.topRanked(w,22);
+  opp=rng.shuffle(pool).sort((a,b)=>(P[b].named-P[a].named)).slice(0,5);
+  mine=['me',...EW.world.topRanked(w,10,opp)];
+  fixture.stars=castNames(w,opp);fixture.opponent='Trial XI: '+castNames(w,opp,2).map(n=>n.split(' ').slice(-1)[0]).join(' & ');
+  fixture.strength=Math.round(fixture.baseStrength+(meanOvr(w,opp)-({thirdA:79,thirdB:75})[fixture.id])*.6);
+ }else if(fixture.id==='u20'){
+  mine=['me',...EW.world.topRanked(w,10)];opp=['sae','sendou','darai','aiku','neru','niou'].filter(id=>P[id]);
+ }else if(fixture.stage==='Neo Egoist League'&&w.nel?.clubs[fixture.team]&&w.nel.clubs[fixture.opponent]){
+  mine=w.nel.clubs[fixture.team].ids.slice();opp=w.nel.clubs[fixture.opponent].ids.slice();fixture.stars=castNames(w,opp);
+  fixture.strength=EW.world.nelClubStrength(w,fixture.opponent);fixture.teamStrength=EW.world.nelClubStrength(w,fixture.team);
+ }
+ if(!mine&&!opp)return null;
+ fixture.cast={mine:mine||['me'],opp:opp||[]};
+ return fixture.cast;
+}
+function worldAfterFixture(fixture,rep){
+ const w=ensureWorld(),c=state.run.career;if(!w||!fixture||!rep)return;
+ syncMe();
+ const rng=EW.rng.current,cast=ensureFixtureCast(fixture),me=w.players.me,beforeRank=me.rank,beforeBid=me.bid;
+ const stage=worldStageFor(fixture.stage);
+ if(w.stage!==stage&&stage!=='nel'&&stage!=='pro')EW.world.resetStageStats(w,stage);
+ let detail=null;
+ if((rep.type==='match'||rep.type==='absent')&&cast)detail=EW.world.recordProtagonistMatch(w,rng,cast.mine,cast.opp,rep,{oppStrength:fixture.strength,myStrength:fixture.teamStrength,oppName:fixture.opponent,myName:fixture.team,nel:stage==='nel',absent:rep.type==='absent'});
+ if(stage==='first'){
+  const r=c.fixtures.slice(0,c.fixtureIndex).filter(f=>f.stage==='First Selection').length;
+  if(w.teams[fixture.team]&&w.teams[fixture.opponent])EW.world.recordFirstSelectionResult(w,fixture.team,fixture.opponent,rep.teamGoals||0,rep.oppGoals||0);
+  EW.world.playFirstSelectionRound(w,rng,r);
+ }else if(stage==='nel'&&w.nel){
+  const mc=w.nel.clubs[fixture.team],oc=w.nel.clubs[fixture.opponent];
+  if(mc&&oc){EW.world.applyResult(mc,rep.teamGoals||0,rep.oppGoals||0);EW.world.applyResult(oc,rep.oppGoals||0,rep.teamGoals||0);}
+  EW.world.playNELRound(w,rng,fixture.team,fixture.opponent);
+ }else if(stage!=='pro'){
+  EW.world.backgroundRound(w,rng,{exclude:[...(cast?.mine||[]),...(cast?.opp||[])]});
+ }
+ const cuts={goal100:112,'2v2':92,'3v3':75,'4v4':60,thirdA:48};
+ if(cuts[fixture.id])EW.world.cull(w,rng,cuts[fixture.id],fixture.stage,[...(c.squad||[]),...(cast?.opp||[])]);
+ EW.world.computeRankings(w);
+ let drama=[];
+ if(stage==='nel'&&w.nel){drama=EW.market.updateAll(w,rng);c.bid=me.bid;c.bidHistory.push(c.bid);c.bidClub=me.bidClub;}
+ c.rankHistory=(c.rankHistory||[]).concat([{fx:c.fxNo||0,rank:me.rank,of:w.rankings.length,stage:fixture.stage}]).slice(-80);
+ rep.rankBefore=beforeRank;rep.rankAfter=me.rank;rep.rankOf=w.rankings.length;
+ if(stage==='nel'){rep.bidBefore=beforeBid;rep.bidAfter=me.bid;rep.marketPos=EW.market.position(w,'me');rep.cutoff=EW.market.cutoff(w);}
+ rep.scorers=detail?.scorers||null;rep.oppScorers=detail?.oppScorers||null;rep.standout=detail?.standout||null;
+ rep.news=drama.map(d=>d.text);
+ if(beforeRank&&me.rank&&rep.type==='match'){
+  const mv=beforeRank-me.rank,scale=Math.max(3,w.rankings.length/40),conf=clamp(Math.round(mv/scale),-3,4);
+  if(conf)state.run.confidence=clamp(state.run.confidence+conf,0,100);
+ }
+ c.bestRank=Math.min(c.bestRank||999,me.rank||999);
+}
+function qualificationStatus(){
+ const c=state.run.career,w=worldOf(),f=currentFixture();if(!c||!w||!f)return null;
+ const me=w.players.me,total=w.rankings.length;
+ if(f.stage==='First Selection'&&w.teams[me.team]){
+  const table=EW.world.standings(w,5),pos=table.findIndex(t=>t.name===me.team)+1,top=EW.world.teamTopScorer(w,w.teams[me.team]);
+  const lines=[me.team+' '+pos+(pos===1?'st':pos===2?'nd':pos===3?'rd':'th')+' in Building 5 ('+w.teams[me.team].pts+' pts) — top 2 qualify',
+   (top&&top.id==='me'?'You lead your team in goals ('+me.ss.g+')':'Team top scorer: '+(top?top.short+' ('+top.ss.g+')':'—')+' · you '+me.ss.g),
+   'Ego\'s evaluation: #'+me.rank+' of '+total+' (top 24 survive individually)'];
+  const safe=pos<=2||(top&&top.id==='me')||me.rank<=24;
+  return{tone:safe?'safe':'danger',label:safe?'ON COURSE':'AT RISK',lines};
+ }
+ if(f.stage==='Second Selection'){
+  const next={goal100:112,'2v2':92,'3v3':75,'4v4':60,world5:56}[f.id];
+  return{tone:me.rank<=(next||60)*.7?'safe':'warn',label:'SURVIVAL',lines:['Blue Lock rank #'+me.rank+' of '+total,next?'Field shrinks to ~'+next+' after this stage':'Exhibition: no cut',f.id==='goal100'?'Individual gate: 100 goals or elimination':'Lose and the winners decide whether to take you']};
+ }
+ if(f.stage==='Third Selection'||f.stage==='U-20 Match'){
+  const tone=me.rank<=14?'safe':me.rank<=30?'warn':'danger';
+  return{tone,label:me.rank<=14?'IN THE XI':me.rank<=30?'BORDERLINE':'OUTSIDE',lines:['Blue Lock rank #'+me.rank+' of '+total,'U-20 squad: top 14 certain, 15–30 borderline','Lose the U-20 match and the project ends']};
+ }
+ if(f.stage==='Neo Egoist League'&&w.nel){
+  const pos=EW.market.position(w,'me'),cut=EW.market.cutoff(w),gap=me.bid-cut,left=c.fixtures.filter((x,i)=>i>=c.fixtureIndex&&x.stage==='Neo Egoist League').length;
+  return{tone:pos<=18?'safe':pos<=EW.market.QUALIFY?'warn':'danger',label:pos<=EW.market.QUALIFY?'INSIDE TOP 23':'OUTSIDE TOP 23',lines:['Auction position #'+pos+' · ¥'+me.bid+'m','Cutoff (23rd): ¥'+cut+'m · '+(gap>=0?'+':'')+gap+'m',left+' NEL fixture'+(left===1?'':'s')+' left']};
+ }
+ return null;
+}
+
 function applyPostMatch(rep,fixture){
  const c=state.run.career,t=c.totals;
  if(rep.type==='match'){
@@ -2005,15 +2138,8 @@ function applyPostMatch(rep,fixture){
   for(let i=0;i<points;i++)changeStat(pick(growthPool),1);
  }
  if(fixture.stars?.length&&R()<.48){c.rival=pick(fixture.stars);careerLog(c.rival+' is emerging as a defining rival.');}
- if(fixture.stage==='Neo Egoist League')updateBid(rep);
+ worldAfterFixture(fixture,rep);
  careerLog(fixture.stage+': '+(rep.type==='challenge'?rep.result:(fixture.team+' '+rep.teamGoals+'–'+rep.oppGoals+' '+fixture.opponent))+' · rating '+rep.rating.toFixed(1));
-}
-function updateBid(rep){
- const c=state.run.career,stats=currentStats(),nt=c.totals,avgNel=nt.nelApps?nt.nelRatingTotal/nt.nelApps:rep.rating;
- const defensiveValue=(nt.nelDefActions||0)*(isDefensiveRole()?1.55:.65);
- const creationValue=(nt.keyPasses||0)*(isMidfieldRole()?0.65:.3);
- const base=Math.max(0,(overall(stats)-55)*2.1+nt.nelGoals*16+nt.nelAssists*10+defensiveValue+creationValue+(avgNel-6)*12+rand(-7,11));
- const next=Math.max(3,Math.round(base));c.bid=next;c.bidHistory.push(next);
 }
 function playFixture(){
  const c=state.run.career,fixture=currentFixture();if(!c||!fixture||c.report)return;repairPrepState();if(c.prepPhase!==PREP_PHASE.READY)return;
@@ -2023,8 +2149,10 @@ function playFixture(){
   delete state.run.selections.challengeOutcome;
   state.run.mode='challengeSpin';
  }else{
-  const targetSpins=contributionMomentCount();
-  state.run.pendingMatch={fixtureId:fixture.id,spinIndex:0,targetSpins,contributions:emptyMatchContribution()};
+  ensureFixtureCast(fixture);
+  const bench=fixture.id==='u20'&&c.u20Role==='bench';
+  const targetSpins=bench?4:contributionMomentCount();
+  state.run.pendingMatch={fixtureId:fixture.id,spinIndex:0,targetSpins,startMinute:bench?55:0,contributions:emptyMatchContribution()};
   state.run.pendingMatch.injuryRisk=planInjuryRisk(fixture);
   for(let i=0;i<12;i++)delete state.run.selections['contribution_'+i];
   state.run.mode='contributionSpin';
@@ -2051,19 +2179,35 @@ function advanceFixture(){
   return;
  }
 
+ // Winning a small-sided match: you choose who from the losing side joins you.
+ if(['2v2','3v3'].includes(fixture.id)&&rep.result==='WIN'&&!(c.draftDone||{})[fixture.id]){
+  const w=worldOf(),opts=(fixture.cast?.opp||[]).filter(id=>w?.players[id]?.status==='active');
+  if(opts.length){c.pendingDecision={type:'draft',fixtureId:fixture.id,options:opts};save();renderAll();toast('You won. Choose who joins your side.');return;}
+ }
  // First Selection: weak teams can still produce one surviving top individual.
  const nextFixture=c.fixtures[c.fixtureIndex+1];
  if(fixture.stage==='First Selection'&&(!nextFixture||nextFixture.stage!=='First Selection')){
-  const q=firstSelectionQualified();
-  if(!q.pass){
-   endRun('ELIMINATED — FIRST SELECTION','Your team failed to qualify and your individual output was not strong enough for the project’s individual survival route.');
+  const q=firstSelectionQualified(),w=ensureWorld();syncMe();
+  const res=(w&&EW.world.resolveFirstSelection(w,EW.rng.current,24).me)||{};
+  const teamPass=w?res.teamPass:q.teamPass;
+  if(!(teamPass||res.topScorer||res.egoPass||q.individualPass)){
+   endRun('ELIMINATED — FIRST SELECTION','Your team finished '+(res.position||'outside the top two')+(res.position?(res.position===3?'rd':'th'):'')+' in Building 5, you were not its top scorer, and Ego ranked you #'+(res.rank||'?')+' — outside the individual survival line.');
    return;
   }
-  careerLog(q.teamPass?'First Selection cleared through team results.':'First Selection survived through outstanding individual production.');
+  careerLog(teamPass?'First Selection cleared: your team finished in the top two.':res.topScorer?'First Selection survived as your team\'s top scorer.':'First Selection survived on Ego\'s individual evaluation (rank #'+res.rank+').');
+  if(w)EW.world.resetStageStats(w,'second');
  }
 
  // Third Selection can cost you the U-20 match without killing the whole run.
- if(fixture.id==='thirdB'){
+ if(fixture.id==='thirdB'&&worldOf()&&!c.u20Role){
+  const w=worldOf();syncMe();EW.world.computeRankings(w);const rk=w.players.me.rank;
+  const third=c.thirdSelection||{apps:0,ratingTotal:0};const avg=third.apps?third.ratingTotal/third.apps:rep.rating;
+  if(rk<=14){c.u20Role='starter';careerLog('Selected for the Blue Lock XI (rank #'+rk+').');}
+  else if(rk<=30){state.run.pendingSelection={rank:rk,avg};delete state.run.selections.selectionOutcome;state.run.mode='selectionSpin';wheelRotation=0;save();renderAll();toast('Borderline. Spin the selection decision.');return;}
+  else{c.u20Role='out';}
+ }
+ if(fixture.id==='thirdB'&&c.u20Role==='out'){skipU20(rep);return;}
+ if(fixture.id==='thirdB'&&!worldOf()){
   const third=c.thirdSelection||{apps:0,ratingTotal:0,goals:0,assists:0,defActions:0};
   const thirdAvg=third.apps?third.ratingTotal/third.apps:rep.rating;
   const defPerGame=third.apps?(third.defActions||0)/third.apps:0;
@@ -2109,9 +2253,46 @@ function advanceFixture(){
  }
  save();renderAll();
 }
+function skipU20(rep){
+ const c=state.run.career;
+ careerLog('Third Selection: you are not chosen for the Blue Lock XI. You watch the Japan U-20 match from the stands.');
+ const w=worldOf();if(w)EW.world.addNews(w,'The Blue Lock XI defeat Japan U-20. You were not in the squad.','world');
+ state.run.confidence=clamp(state.run.confidence-8,0,100);state.run.form=clamp(state.run.form-1,-3,3);
+ betweenFixtureRecovery();c.fixtureIndex+=2;resetMatchPreparation(c);
+ if(c.fixtureIndex>=c.fixtures.length){state.run.mode='nelSpin';wheelRotation=0;save();renderAll();return;}
+ save();renderAll();
+}
+function selectionStage(){
+ const p=state.run.pendingSelection||{rank:22,avg:6.8},edge=(22-p.rank)*2.6+(p.avg-7)*18;
+ return{key:'selectionOutcome',chapter:'THIRD SELECTION',name:'Does Ego Pick You?',prompt:'You are ranked #'+p.rank+' with a '+p.avg.toFixed(2)+' trial average. Borderline players live or die on this call.',mode:'weights',options:[
+  weighted('Left Out','Ego names the squad. Your name is not on it.',Math.max(6,34-edge),{},'LEFT OUT',{role:'out'}),
+  weighted('Named on the Bench','You are in the squad, but you must earn minutes from the bench.',36,{},'BENCH',{role:'bench'}),
+  weighted('Starting XI','Ego trusts your weapon from the first whistle.',Math.max(6,26+edge),{},'STARTER',{role:'starter'})
+ ]};
+}
+function resolveSelectionOutcome(outcome){
+ const c=state.run.career;if(!c||!outcome)return;
+ c.u20Role=outcome.meta?.role||'out';
+ careerLog('U-20 selection: '+outcome.name+'.');
+ if(c.u20Role!=='out')addMilestone('selection','Survived a borderline U-20 selection: '+outcome.name+'.');
+}
+function resolveDraft(id){
+ const c=state.run.career,d=c?.pendingDecision;if(!d||d.type!=='draft'||!d.options.includes(id))return;
+ c.squad=(c.squad||[]).concat([id]);c.draftDone=Object.assign({},c.draftDone,{[d.fixtureId]:true});c.pendingDecision=null;
+ const w=worldOf(),p=w?.players[id];
+ careerLog('You pick '+(p?.name||id)+' to join your side.');
+ if(typeof onDraftChoice==='function')onDraftChoice(id,d.options.filter(x=>x!==id));
+ advanceFixture();
+}
+function addMilestone(type,text){
+ const c=state.run.career;if(!c)return;c.milestones=c.milestones||[];
+ const f=currentFixture();
+ c.milestones.push({type,text,fx:c.fxNo||0,stage:f?.stage||''});c.milestones=c.milestones.slice(-60);
+}
 function enterNEL(){
  const club=state.run.selections.nelClub?.name;if(!club)return;
- const c=state.run.career;c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');save();renderAll();toast('Neo Egoist League begins.');
+ const c=state.run.career,w=ensureWorld();
+ if(w&&!w.nel){syncMe();EW.world.cull(w,EW.rng.current,36,'Third Selection');EW.world.setupNEL(w,EW.rng.current,club,NEL_DATA);EW.market.updateAll(w,EW.rng.current,{initial:true});c.bid=w.players.me.bid;c.bidHistory.push(c.bid);EW.world.addNews(w,'The NEL auction opens. Only the top '+EW.market.QUALIFY+' Blue Lock players by value will survive.','market');}c.fixtures=c.fixtures.concat(nelFixtures(club));state.run.mode='career';resetMatchPreparation(c);careerLog('Signed into '+club+' under '+NEL_DATA[club].master+'.');save();renderAll();toast('Neo Egoist League begins.');
 }
 function canContinueBeyondNEL(){
  const c=state.run.career;
@@ -2256,11 +2437,15 @@ function completeCareer(){
  const c=state.run.career,s=currentStats(),ov=overall(s),bid=c.bid||Math.max(5,Math.round((ov-50)*2+c.totals.goals*8+c.totals.assists*5));
  c.bid=bid;c.trophies=c.trophies||[];
  if(!c.postNelStarted){
-  if(bid<30){
-   c.complete=true;c.eliminated=true;c.finalStatus='ELIMINATED — NEL FINAL CUT';
-   c.finalReason='Your final ¥'+bid+'m bid is below the qualifying line. The market does not place you inside the final Blue Lock group.';
+  const w=worldOf(),pos=w&&w.nel?EW.market.position(w,'me'):(bid>=30?1:99),cut=w&&w.nel?EW.market.cutoff(w):30;
+  c.finalMarketPos=pos;c.finalCutoff=cut;
+  if(pos>EW.market.QUALIFY){
+   c.complete=true;c.eliminated=true;c.finalStatus='ELIMINATED — NEL FINAL CUT ('+pos+(pos===24?'th — one place short':'th')+')';
+   c.finalReason='Your final ¥'+bid+'m valuation ranks '+pos+'th. The 23rd place stood at ¥'+cut+'m. Only the top '+EW.market.QUALIFY+' continue.';
    state.run.mode='complete';careerLog(c.finalStatus+': '+c.finalReason);save();renderAll();toast(c.finalStatus);return;
   }
+  careerLog(pos>=21?'You survive the NEL by a hair: '+pos+'th place, ¥'+bid+'m.':'NEL auction complete: '+pos+(pos===1?'st':pos===2?'nd':pos===3?'rd':'th')+' at ¥'+bid+'m. You are in the top '+EW.market.QUALIFY+'.');
+  c.qualifiedPos=pos;
   startPostNelCareer();return;
  }
  const avg=c.totals.apps?c.totals.ratingTotal/c.totals.apps:0,trophies=c.trophies.length;
@@ -2327,13 +2512,13 @@ function renderCareer(){
  $('#fixtureCount').textContent=(c.fixtureIndex+1)+' / '+c.fixtures.length;$('#fixtureType').textContent=fixture.type.toUpperCase();
  $('#homeLabel').textContent=fixture.type==='challenge'?'PLAYER':'YOUR SIDE';$('#homeTeam').textContent=fixture.team;const roleNote=c.temporaryPosition?' · TEMP '+(positionStage.options.find(o=>o.name===c.temporaryPosition)?.short||c.temporaryPosition):'';$('#homeStars').textContent=fixture.type==='challenge'?'One attempt. 100 goals required.':'OVR '+overall()+' · '+(state.run.selections.primaryWeapon?.name||'No weapon')+roleNote;
  $('#awayTeam').textContent=fixture.opponent;$('#awayStars').textContent=(fixture.stars||[]).slice(0,4).join(' · ');$('#fixtureStageTag').textContent=fixture.stage;$('#fixtureVenue').textContent=fixture.venue;
- renderCondition();renderTraining();renderPlans();
+ renderCondition();renderTraining();renderPlans();renderDash();renderDecision();
  const inj=$('#injuryNotice');if(state.run.injury){inj.hidden=false;const ij=state.run.injury;inj.textContent=ij.name+(ij.out>0?' — unavailable for '+ij.out+' fixture(s)':' — playing limited ('+(ij.limited||0)+' fixture(s), −'+(ij.penalty||0)+' to effective attributes)')+(ij.rushed?' · rushed back':'')+'.';}else inj.hidden=true;
  repairPrepState();$('#playMatchBtn').disabled=c.prepPhase!==PREP_PHASE.READY;
  $('#playMatchBtn').textContent=fixture.type==='challenge'?'Spin 100 Goal Challenge':'Begin Contribution Spins';
  const goalRetry=canRetryRebalancedGoal100();
  $('#matchReport').hidden=!c.report;
- $('#advanceFixtureBtn').hidden=!c.report||goalRetry;
+ $('#advanceFixtureBtn').hidden=!c.report||goalRetry||!!c.pendingDecision;
  $('#retryGoal100Btn').hidden=!goalRetry;
  if(c.report)renderMatchReport(c.report,fixture);
  renderCareerLog();
@@ -2392,8 +2577,107 @@ function renderMatchReport(r,f){
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
  const defTotal=(r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0);
  const spins=(r.contributionLabels||[]).map(x=>'<span class="contribution-chip">'+esc(x)+'</span>').join('');
- $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+(r.decidedBy==='AET'?' · AET':r.decidedBy==='PENALTIES'&&r.shootout?' · '+r.shootout.team+'–'+r.shootout.opp+' pens':'')+'</small></div><div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>AERIAL <b>'+(r.aerialDuels||0)+'</b></span><span>YC <b>'+(r.yellowCards||0)+'</b></span><span>RC <b>'+(r.redCards||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>';
+ $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+(r.decidedBy==='AET'?' · AET':r.decidedBy==='PENALTIES'&&r.shootout?' · '+r.shootout.team+'–'+r.shootout.opp+' pens':'')+'</small></div><div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>AERIAL <b>'+(r.aerialDuels||0)+'</b></span><span>YC <b>'+(r.yellowCards||0)+'</b></span><span>RC <b>'+(r.redCards||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>'+reportWorldBlock(r);
 }
+function reportWorldBlock(r){
+ const parts=[];
+ if(r.scorers?.length||r.oppScorers?.length){
+  const fmt=x=>esc(x.id==='me'?'You':x.name.split(' ').slice(-1)[0])+(x.assist?' <small>('+(x.assist==='me'?'your assist':esc(worldOf()?.players[x.assist]?.short||''))+')</small>':'');
+  parts.push('<div class="scorers"><span>⚽ '+(r.scorers||[]).map(fmt).join(', ')+'</span>'+(r.oppScorers?.length?'<span class="opp">'+r.oppScorers.map(fmt).join(', ')+'</span>':'')+'</div>');
+ }
+ if(r.standout)parts.push('<p class="standout">Standout '+(r.standout.side==='mate'?'teammate':'opponent')+': <b>'+esc(r.standout.name)+'</b> ('+r.standout.r.toFixed(1)+')</p>');
+ const chips=[];
+ if(r.rankAfter)chips.push('<span>RANK <b>#'+r.rankAfter+'</b> '+moveTag(r.rankBefore,r.rankAfter)+'</span>');
+ if(r.bidAfter!=null){const d=r.bidAfter-(r.bidBefore||r.bidAfter);chips.push('<span>VALUE <b>¥'+r.bidAfter+'m</b> <span class="mv '+(d>0?'up':d<0?'down':'flat')+'">'+(d>0?'▲':d<0?'▼':'—')+(d?Math.abs(d):'')+'</span></span>');chips.push('<span>AUCTION <b>'+ordinal(r.marketPos)+'</b> · CUT ¥'+r.cutoff+'m</span>');}
+ if(chips.length)parts.push('<div class="performance-line world-line">'+chips.join('')+'</div>');
+ if(r.news?.length)parts.push('<div class="news-list compact">'+r.news.map(n=>'<div class="news market">'+esc(n)+'</div>').join('')+'</div>');
+ if(r.dramaLines?.length)parts.push('<div class="moment-list drama">'+r.dramaLines.map(m=>'<p>◆ '+esc(m)+'</p>').join('')+'</div>');
+ return parts.join('');
+}
+
+// ===== WORLD UI: dashboard, rankings, dossiers, decisions =====
+function moveTag(prev,cur){
+ if(!prev||!cur||prev===cur)return'<span class="mv flat" aria-label="no change">—</span>';
+ const d=prev-cur;return d>0?'<span class="mv up" aria-label="up '+d+'">▲'+d+'</span>':'<span class="mv down" aria-label="down '+(-d)+'">▼'+(-d)+'</span>';
+}
+function ordinal(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+function renderDash(){
+ const box=$('#careerDash');if(!box)return;const c=state.run.career,w=worldOf();
+ if(!c||!w){box.innerHTML='';return;}
+ const me=w.players.me,q=qualificationStatus(),f=currentFixture(),nel=!!w.nel&&f?.stage==='Neo Egoist League';
+ const rival=typeof mainRival==='function'?mainRival():null;
+ const tiles=[
+  '<div class="dash-tile rank"><span>BLUE LOCK RANK</span><strong>#'+(me.rank||'—')+'<small>/'+w.rankings.length+'</small>'+moveTag(me.prevRank,me.rank)+'</strong></div>',
+  nel?'<div class="dash-tile"><span>AUCTION VALUE</span><strong>¥'+me.bid+'m</strong>'+moveTag(me.prevBid?-me.prevBid:null,me.bid?-me.bid:null).replace(/▲(\d+)/,(m,d)=>'▲¥'+d+'m').replace(/▼(\d+)/,(m,d)=>'▼¥'+d+'m')+'</div>':'<div class="dash-tile"><span>OVERALL</span><strong>'+overall()+'</strong><em>'+esc(state.run.selections.primaryWeapon?.short||state.run.selections.primaryWeapon?.name||'')+'</em></div>',
+  '<div class="dash-tile"><span>MAIN RIVAL</span><strong class="small">'+esc(rival?rival.name:'None yet')+'</strong>'+(rival?'<em>'+esc(rival.status)+'</em>':'')+'</div>'
+ ];
+ box.innerHTML='<div class="dash-tiles">'+tiles.join('')+'</div>'+(q?'<div class="qual-strip '+q.tone+'"><b>'+esc(q.label)+'</b><span>'+q.lines.map(esc).join('</span><span>')+'</span></div>':'');
+}
+let rankTab=null;
+function defaultRankTab(){const w=worldOf();return w?.nel?'auction':'bluelock';}
+function playerRow(p,i,extra=''){
+ const me=p.isMe?' me':'',st=p.status==='eliminated'?' out':'';
+ return'<button type="button" class="rank-row'+me+st+'" data-player="'+esc(p.id)+'"><span class="rk">'+(i??'')+'</span><span class="nm"><b>'+esc(p.isMe?(state.run.name||'You')+' (YOU)':p.name)+'</b><small>'+esc(EW.world.GROUP_LABEL[p.pos]||p.pos)+' · '+esc(p.club||p.team||'')+(p.status==='eliminated'?' · eliminated ('+esc(p.elimStage||'')+')':'')+'</small></span><span class="ov">'+Math.round(p.ovr)+'</span>'+extra+'</button>';
+}
+function renderRanks(){
+ const box=$('#ranksContent');if(!box)return;const w=worldOf();
+ if(!w){box.innerHTML='<div class="empty-state">Start a career to enter the Blue Lock programme.</div>';return;}
+ rankTab=rankTab||defaultRankTab();
+ $$('#rankTabs .tab').forEach(t=>{t.classList.toggle('active',t.dataset.tab===rankTab);t.setAttribute('aria-selected',t.dataset.tab===rankTab?'true':'false');});
+ const P=w.players;
+ if(rankTab==='bluelock'){
+  const ids=w.rankings,meIdx=ids.indexOf('me'),show=new Set(ids.slice(0,30));
+  for(let i=Math.max(0,meIdx-3);i<=Math.min(ids.length-1,meIdx+3);i++)show.add(ids[i]);
+  let last=-1,html='<div class="rank-head"><span>#</span><span>PLAYER</span><span>OVR</span><span>SCORE</span><span>MOVE</span></div>';
+  ids.forEach((id,i)=>{if(!show.has(id))return;if(last>=0&&i>last+1)html+='<div class="rank-gap">· · ·</div>';last=i;const p=P[id];html+=playerRow(p,i+1,'<span class="sc">'+(p.score??'—')+'</span>'+moveTag(p.prevRank,p.rank));});
+  const elim=Object.values(P).filter(p=>p.named&&p.status==='eliminated');
+  html+=elim.length?'<div class="subhead"><div><span class="kicker">FALLEN</span><h3>Named egoists eliminated</h3></div></div>'+elim.map(p=>playerRow(p,'✕')).join(''):'';
+  box.innerHTML='<p class="rank-note">Stage-aware score: ability + Ego\'s position-fair evaluation of this stage + team results + survival. '+w.rankings.length+' egoists remain.</p>'+html;
+ }else if(rankTab==='standings'){
+  if(w.nel){
+   const clubs=Object.values(w.nel.clubs).sort((a,b)=>b.pts-a.pts||(b.gf-b.ga)-(a.gf-a.ga));
+   box.innerHTML='<div class="table-wrap"><table class="league"><thead><tr><th>Club</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead><tbody>'+clubs.map(t=>'<tr'+(t.ids.includes('me')?' class="me"':'')+'><td>'+esc(t.name)+'</td><td>'+(t.w+t.d+t.l)+'</td><td>'+t.w+'</td><td>'+t.d+'</td><td>'+t.l+'</td><td>'+(t.gf-t.ga)+'</td><td><b>'+t.pts+'</b></td></tr>').join('')+'</tbody></table></div>';
+  }else{
+   let html='';
+   [5,1,2,3,4].forEach(b=>{const table=EW.world.standings(w,b);html+='<div class="table-wrap"><h3 class="tbl-title">Building '+b+(b===5?' (yours)':'')+'</h3><table class="league"><thead><tr><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th><th>Top scorer</th></tr></thead><tbody>'+table.map((t,i)=>{const ts=EW.world.teamTopScorer(w,t);return'<tr class="'+(t.ids.includes('me')?'me ':'')+(i<2?'q':'')+'"><td>'+esc(t.name)+'</td><td>'+(t.w+t.d+t.l)+'</td><td>'+t.w+'</td><td>'+t.d+'</td><td>'+t.l+'</td><td>'+(t.gf-t.ga)+'</td><td><b>'+t.pts+'</b></td><td>'+esc(ts?(ts.isMe?'You':ts.short)+' ('+ts.ss.g+')':'—')+'</td></tr>';}).join('')+'</tbody></table></div>';});
+   box.innerHTML='<p class="rank-note">First Selection: the top two teams in each building qualify; every other team\'s top scorer survives individually.</p>'+html;
+  }
+ }else if(rankTab==='auction'){
+  if(!w.nel){box.innerHTML='<div class="empty-state">The auction opens when the Neo Egoist League begins.</div>';return;}
+  const board=EW.market.leaderboard(w),cut=EW.market.QUALIFY;
+  let html='<div class="rank-head auction"><span>#</span><span>PLAYER</span><span>OVR</span><span>BID</span><span>Δ</span></div>';
+  board.forEach((p,i)=>{
+   if(i===cut)html+='<div class="cutoff-line"><span>TOP '+cut+' CUTOFF · ¥'+EW.market.cutoff(w)+'m</span></div>';
+   const d=p.bid-(p.prevBid||p.bid),n=p.nel||{apps:0,g:0,a:0,d:0,rt:0};
+   html+=playerRow(p,i+1,'<span class="sc">¥'+p.bid+'m<small>'+esc(p.bidClub||'')+'</small></span><span class="mv '+(d>0?'up':d<0?'down':'flat')+'">'+(d>0?'▲':d<0?'▼':'—')+(d?Math.abs(d):'')+'</span>').replace('</small></span><span class="ov">',' · '+n.apps+' apps '+n.g+'G '+n.a+'A '+n.d+'D'+(n.apps?' · avg '+(n.rt/n.apps).toFixed(2):'')+'</small></span><span class="ov">');
+  });
+  const ext=Object.values(w.players).filter(p=>p.status==='external'&&p.club).sort((a,b)=>b.bid-a.bid);
+  html+='<div class="subhead"><div><span class="kicker">CLUB PLAYERS</span><h3>Valued, but not in the Blue Lock race</h3></div></div>'+ext.map(p=>playerRow(p,'',' <span class="sc">¥'+p.bid+'m</span>')).join('');
+  box.innerHTML='<p class="rank-note">Bids are each club\'s valuation of ability, potential, recent position-fair performances, big-game displays and consistency. Only the top '+cut+' Blue Lock players continue.</p>'+html;
+ }else{
+  box.innerHTML='<div class="news-list">'+(w.news.length?w.news.map(n=>'<div class="news '+esc(n.tag)+'"><span>'+esc(n.tag.toUpperCase())+'</span>'+esc(n.text)+'</div>').join(''):'<div class="empty-state">No news yet.</div>')+'</div>';
+ }
+}
+function openDossier(id){
+ const w=worldOf(),p=w?.players[id];if(!p)return;
+ if(p.isMe){state.ui.view='profileView';renderView();renderProfile();return;}
+ const pers=EW.data.PERSONALITIES[p.pers]||EW.data.PERSONALITIES.procedural,st=p.st,avg=st.apps?(st.rt/st.apps).toFixed(2):'—';
+ const prof=p.prof?Object.entries({SHOOT:p.prof.sh,PACE:p.prof.pa,DRIBBLE:p.prof.dr,PASS:p.prof.ps,VISION:p.prof.vi,DEFEND:p.prof.df,PHYSICAL:p.prof.ph}).map(([k,v])=>'<div class="stat detailed-stat"><span>'+k+'</span><strong>'+v+'</strong><i><b style="width:'+v+'%"></b></i></div>').join(''):'<p class="profile-sub">Scouting notes: strength — '+esc(p.strength||'—')+'; weakness — '+esc(p.weakness||'—')+'.</p>';
+ const rel=typeof relationFor==='function'?relationFor(id):null;
+ const relHtml=rel?'<div class="profile-block"><span class="kicker">RELATIONSHIP WITH YOU</span><h3>'+esc(rel.status)+'</h3>'+relationBars(rel)+(rel.moments?.length?'<div class="profile-timeline">'+rel.moments.slice(-5).reverse().map(m=>'<div class="timeline-row"><span>'+esc(m.stage||'')+'</span><strong>'+esc(m.text)+'</strong></div>').join('')+'</div>':'')+'</div>':'';
+ $('#dossierBody').innerHTML='<span class="kicker">'+(p.named?'NAMED EGOIST':'BLUE LOCK ENTRANT')+' · '+esc(p.status.toUpperCase())+'</span><h2 id="dossierName">'+esc(p.name)+'</h2><p class="profile-sub">'+esc(p.role||EW.world.GROUP_LABEL[p.pos])+' · '+esc(p.arch||pers.label)+' · Weapon: <b>'+esc(p.weapon||'—')+'</b><br>'+esc(p.club||p.team||'')+' · OVR '+Math.round(p.ovr)+(p.rank?' · Rank #'+p.rank:'')+(p.bid?' · ¥'+p.bid+'m':'')+' · Form '+(p.form>0?'+':'')+p.form+'</p><div class="stats-grid detailed">'+prof+'</div><div class="profile-block"><span class="kicker">CAREER</span><h3>'+st.apps+' apps · '+st.g+' G · '+st.a+' A · '+st.d+' DEF · avg '+avg+'</h3>'+(p.last?'<p class="profile-sub">Last match: '+p.last.r+' rating'+(p.last.opp?' vs '+esc(p.last.opp):'')+'</p>':'')+(p.ms.length?'<p class="profile-sub">'+p.ms.map(esc).join('<br>')+'</p>':'')+'<p class="profile-sub">Personality: '+esc(pers.label)+'</p></div>'+relHtml;
+ $('#dossierModal').hidden=false;$('#dossierClose').focus();
+}
+function closeDossier(){$('#dossierModal').hidden=true;}
+function renderDecision(){
+ const box=$('#decisionPanel');if(!box)return;const c=state.run.career,d=c?.pendingDecision,w=worldOf();
+ if(!d){box.hidden=true;box.innerHTML='';return;}
+ box.hidden=false;
+ if(d.type==='draft'){
+  box.innerHTML='<span class="kicker">SECOND SELECTION · YOUR CHOICE</span><h3>Choose who joins your side</h3><p>You won. One player from the losing side joins you for the next stage. The other stays behind.</p><div class="draft-grid">'+d.options.map(id=>{const p=w.players[id],rel=typeof relationFor==='function'?relationFor(id):null;return'<button type="button" class="draft-card" data-draft="'+esc(id)+'"><strong>'+esc(p.name)+'</strong><span>'+esc(EW.world.GROUP_LABEL[p.pos])+' · OVR '+Math.round(p.ovr)+' · '+esc(p.weapon||'')+'</span><em>'+esc((EW.data.PERSONALITIES[p.pers]||{}).label||'')+(rel?' · '+esc(rel.status)+' · compatibility '+Math.round(rel.compat):'')+'</em></button>';}).join('')+'</div>';
+ }else if(typeof renderSceneDecision==='function')renderSceneDecision(box,d);
+}
+
 function renderCareerLog(){const c=state.run.career;$('#careerLog').innerHTML=(c?.log||[]).slice(0,8).map(x=>'<div>'+esc(x)+'</div>').join('')||'<div>No career events yet.</div>';}
 
 function renderPlayer(){
@@ -2435,9 +2719,9 @@ function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.
 function renderAll(){
  repairPrepState();
  if(globalThis.__EGOWHEEL_TEST__?.headless)return;
- const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','learningRewardSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','breakthroughSpin','challengeSpin','survivalSpin','nelSpin'].includes(state.run.mode);
+ const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','learningRewardSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','breakthroughSpin','challengeSpin','survivalSpin','selectionSpin','nelSpin'].includes(state.run.mode);
  $('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
- renderCareer();renderPlayer();renderProfile();renderArchive();renderView();syncAudio();syncFastSpin();
+ renderCareer();renderPlayer();renderProfile();renderArchive();renderRanks();renderView();syncAudio();syncFastSpin();
  $('#quickBuildBtn').hidden=state.run.mode!=='build';
 }
 
@@ -2473,6 +2757,7 @@ function spinCurrent(){
   if(mode==='breakthroughSpin')resolveBreakthroughOutcome(chosen.opt);
   if(mode==='challengeSpin')resolveChallengeOutcome(chosen.opt);
   if(mode==='survivalSpin')resolveSurvivalOutcome(chosen.opt);
+  if(mode==='selectionSpin')resolveSelectionOutcome(chosen.opt);
   spinning=false;
   landSound(stage.mode==='rarity'?chosen.opt.rarity:'rare');
   if(!globalThis.__EGOWHEEL_TEST__?.headless){renderWheel();renderSpinResult();renderPlayer();}save();
@@ -2538,6 +2823,11 @@ function nextBuild(){
   state.run.pendingSurvival=null;state.run.pendingSurvivalResult=null;state.run.mode='career';wheelRotation=0;
   save();renderAll();return;
  }
+ if(mode==='selectionSpin'){
+  const c=state.run.career;state.run.pendingSelection=null;state.run.mode='career';wheelRotation=0;
+  if(c.u20Role==='out'){skipU20(c.report);return;}
+  advanceFixture();return;
+ }
  if(mode==='nelSpin'){enterNEL();return;}
  if(mode==='statSpin'){
   if(state.run.statIndex<ATTRS.length-1){state.run.statIndex++;wheelRotation=0;save();renderAll();return;}
@@ -2577,11 +2867,17 @@ function bind(){
  $('#advanceFixtureBtn').addEventListener('click',advanceFixture);$('#retryGoal100Btn').addEventListener('click',retryRebalancedGoal100);$('#continueProCareerBtn').addEventListener('click',continueProCareer);$('#simulateCareerEpilogueBtn').addEventListener('click',simulateCareerEpilogue);
  $('#archiveBtn').addEventListener('click',archiveCareer);$('#newRunBtn').addEventListener('click',()=>newRun(false));
  $('#stageStrip').addEventListener('click',e=>{const b=e.target.closest('[data-build]');if(!b||state.run.mode!=='build')return;const i=Number(b.dataset.build);if(i<=state.run.buildIndex||state.run.selections[BUILD_STAGES[i]?.key]){state.run.buildIndex=clamp(i,0,BUILD_STAGES.length-1);wheelRotation=0;renderAll();}});
- $$('.nav-button').forEach(b=>b.addEventListener('click',()=>{state.ui.view=b.dataset.view;renderView();if(state.ui.view==='profileView')renderProfile();if(state.ui.view==='archiveView')renderArchive();save();clickSound();}));
+ $$('.nav-button').forEach(b=>b.addEventListener('click',()=>{state.ui.view=b.dataset.view;renderView();if(state.ui.view==='ranksView')renderRanks();if(state.ui.view==='profileView')renderProfile();if(state.ui.view==='archiveView')renderArchive();save();clickSound();}));
  $('#exportBtn')?.addEventListener('click',exportBackup);
  $('#importBtn')?.addEventListener('click',()=>$('#importFile').click());
  $('#importFile')?.addEventListener('change',e=>{importBackup(e.target.files?.[0]);e.target.value='';});
  $('#fastSpinBtn')?.addEventListener('click',()=>{state.ui.fastSpin=!state.ui.fastSpin;save();syncFastSpin();toast(state.ui.fastSpin?'Quick animations on — outcomes unchanged.':'Full spin animations on.');});
+ $('#rankTabs')?.addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;rankTab=b.dataset.tab;renderRanks();clickSound();});
+ $('#ranksContent')?.addEventListener('click',e=>{const b=e.target.closest('[data-player]');if(b)openDossier(b.dataset.player);});
+ $('#dossierClose')?.addEventListener('click',closeDossier);
+ $('#dossierModal')?.addEventListener('click',e=>{if(e.target.id==='dossierModal')closeDossier();});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDossier();});
+ $('#decisionPanel')?.addEventListener('click',e=>{const b=e.target.closest('[data-draft]');if(b){resolveDraft(b.dataset.draft);return;}const sc=e.target.closest('[data-choice]');if(sc&&typeof chooseScene==='function')chooseScene(sc.dataset.choice);});
  $('#clearArchiveBtn').addEventListener('click',()=>{if(state.archive.length&&confirm('Delete all archived careers on this device?')){state.archive=[];save();renderArchive();}});
  $('#soundBtn').addEventListener('click',()=>{audioEnabled=!audioEnabled;localStorage.setItem(AUDIO_KEY,audioEnabled?'on':'off');if(audioEnabled){ensureAudio();clickSound();startMusic();}else stopMusic();syncAudio();});
 }
@@ -2593,6 +2889,9 @@ function exposeTestApi(){
   continueProCareer,simulateCareerEpilogue,archiveCareer,currentWheelStage,currentFixture,currentStats,effectiveStats,overall,
   layoutFor,choose,contributionStage,TRAINING_ACTIONS,MATCH_PLANS,save,load,renderAll,
   injuryBlocksFixture,injuryRoomOptions,chooseInjuryRoom,treatKnock,planInjuryRisk,registerInjury,
+  worldOf,ensureWorld,resolveDraft,qualificationStatus,
+  pendingDecision(){return !!state.run.career?.pendingDecision;},
+  resolveDecision(policy){const d=state.run.career.pendingDecision;if(d.type==='draft')resolveDraft(policy.pick?policy.pick(d.options.map(k=>({key:k}))):d.options[0]);else if(typeof chooseScene==='function')chooseScene(policy.scene?policy.scene(d.choices):d.choices[0].key);},
   forcePosition(name){const o=positionStage.options.find(x=>x.name===name);if(o){state.run.selections.position=o;}}
  });
 }

@@ -27,7 +27,7 @@ function playCareer(opts = {}) {
   if (opts.positionName && api.forcePosition) api.forcePosition(opts.positionName);
   if (opts.setup) opts.setup(api, game);
   const matches = [];
-  let steps = 0;
+  let steps = 0, lastReport = null;
   const max = opts.maxSteps || 6000;
   while (steps++ < max) {
     const s = api.state, m = s.run.mode, c = s.run.career;
@@ -36,12 +36,13 @@ function playCareer(opts = {}) {
       break;
     }
     if (m === 'career') {
+      if (api.pendingDecision && api.pendingDecision()) { api.resolveDecision(policy); continue; }
       if (c.report) {
-        if (c.report.type === 'match' || c.report.type === 'absent') { matches.push(c.report); if (opts.onMatch) opts.onMatch(c.report, s, api); }
+        if (c.report !== lastReport && (c.report.type === 'match' || c.report.type === 'absent')) { matches.push(c.report); if (opts.onMatch) opts.onMatch(c.report, s, api); }
+        lastReport = c.report;
         api.advanceFixture();
         continue;
       }
-      if (api.pendingDecision && api.pendingDecision()) { api.resolveDecision(policy); continue; }
       if (api.injuryBlocksFixture && api.injuryBlocksFixture()) { api.chooseInjuryRoom(policy.injury(api.injuryRoomOptions())); continue; }
       if (c.prepPhase === 'event') { api.startBetweenEvent(); continue; }
       if (c.prepPhase === 'training') { api.applyTraining(policy.training()); continue; }

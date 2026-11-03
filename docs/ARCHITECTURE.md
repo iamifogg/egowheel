@@ -47,7 +47,7 @@ Load order: `v8` → (corrupt? back up, try `v8.prev`) → highest legacy `vN` (
 ## Checklist
 - [x] Phase 0: map active paths, remove dead simulation, seeded RNG, injury rebuild, wheel lock,
       save migration + backups + export/import, Node test harness
-- [ ] Phase 1: living world, rankings, NEL market, top-23, selection pressure UI
+- [x] Phase 1: living world, rankings, NEL market, top-23, selection pressure UI
 - [ ] Phase 2: contextual match state, objectives, Flow, duels/devouring, weapon mastery & evolution
 - [ ] Phase 3: relationships, personalities, event director with choices, arcs
 - [ ] Phase 4: dashboard, dossiers, rivalry screens, dramatic match presentation, archive biography

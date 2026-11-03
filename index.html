@@ -98,6 +98,7 @@
                 <div class="fixture-count"><strong id="fixtureCount">1 / 16</strong><span id="fixtureType">MATCH</span></div>
               </div>
 
+              <div id="careerDash" class="career-dash" aria-live="polite"></div>
               <div class="condition-grid condition-grid-v20">
                 <div><span>CONFIDENCE</span><strong id="confidenceValue">50</strong><i><b id="confidenceBar"></b></i></div>
                 <div><span>FORM</span><strong id="formValue">0</strong><i><b id="formBar"></b></i></div>
@@ -146,6 +147,7 @@
                 </div>
               </div>
 
+              <div id="decisionPanel" class="decision-panel" hidden></div>
               <div id="matchReport" class="match-report" hidden aria-live="polite"></div>
               <button id="advanceFixtureBtn" class="button secondary full big" type="button" hidden>Continue Career</button>
               <button id="retryGoal100Btn" class="button primary full big" type="button" hidden>Retry 100 Goal Challenge — Keep This Player</button>
@@ -209,6 +211,17 @@
         </div>
       </section>
 
+      <section id="ranksView" class="view">
+        <div class="section-head"><div><span class="kicker">THE PROGRAMME</span><h1>Rankings</h1><p id="ranksIntro">Every egoist in Blue Lock is competing with you. Tap a player for their dossier.</p></div></div>
+        <div class="tab-row" role="tablist" id="rankTabs">
+          <button class="tab active" data-tab="bluelock" role="tab" type="button">Blue Lock</button>
+          <button class="tab" data-tab="standings" role="tab" type="button">Standings</button>
+          <button class="tab" data-tab="auction" role="tab" type="button">NEL Auction</button>
+          <button class="tab" data-tab="news" role="tab" type="button">News</button>
+        </div>
+        <div id="ranksContent" class="ranks-content"></div>
+      </section>
+
       <section id="profileView" class="view">
         <div class="section-head"><div><span class="kicker">CURRENT RUN</span><h1>Career Profile</h1></div></div>
         <div id="profileContent" class="profile-content"></div>
@@ -230,16 +243,26 @@
 
     <nav class="bottom-nav" aria-label="Primary navigation">
       <button class="nav-button active" data-view="runView"><span>◉</span>RUN</button>
+      <button class="nav-button" data-view="ranksView"><span>≡</span>RANKS</button>
       <button class="nav-button" data-view="profileView"><span>▤</span>PROFILE</button>
       <button class="nav-button" data-view="archiveView"><span>▦</span>ARCHIVE</button>
     </nav>
   </div>
 
+  <div id="dossierModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="dossierName">
+    <div class="modal-card">
+      <button id="dossierClose" class="icon-button modal-close" type="button" aria-label="Close dossier">✕</button>
+      <div id="dossierBody"></div>
+    </div>
+  </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <footer class="legal">Unofficial fan-made randomizer. Blue Lock and related names belong to their respective rights holders. No official artwork is used.</footer>
   <script src="./src/engine/rng.js?v=25" defer></script>
   <script src="./src/engine/injuries.js?v=25" defer></script>
   <script src="./src/engine/save.js?v=25" defer></script>
+  <script src="./src/data/characters.js?v=25" defer></script>
+  <script src="./src/engine/world.js?v=25" defer></script>
+  <script src="./src/engine/market.js?v=25" defer></script>
   <script src="./app.js?v=25" defer></script>
 </body>
 </html>

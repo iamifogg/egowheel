@@ -59,10 +59,13 @@
   }
 
   // The live generator used by the game. Replaceable for tests/debug seeds.
-  let live = createRng(Date.now() ^ Math.floor(Math.random() * 1e9));
+  let urlSeed = null;
+  try { const m = root.location && /[?&]seed=([^&#]+)/.exec(root.location.search || ''); if (m) urlSeed = decodeURIComponent(m[1]); } catch (_) {}
+  let live = createRng(urlSeed !== null ? urlSeed : (Date.now() ^ Math.floor(Math.random() * 1e9)));
   EW.rng = {
     createRng, hashSeed,
     get current() { return live; },
+    urlSeed,
     use(seedOrRng) { live = (seedOrRng && typeof seedOrRng.next === 'function') ? seedOrRng : createRng(seedOrRng); return live; },
     next: () => live.next()
   };
