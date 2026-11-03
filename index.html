@@ -8,7 +8,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icons/icon.svg">
   <link rel="apple-touch-icon" href="./icons/icon.svg">
-  <link rel="stylesheet" href="./styles.css?v=24">
+  <link rel="stylesheet" href="./styles.css?v=25">
   <title>EgoWheel</title>
 </head>
 <body>
@@ -23,6 +23,7 @@
         </div>
       </div>
       <div class="top-actions">
+        <button id="fastSpinBtn" class="icon-button" type="button" aria-label="Toggle quick spin animations" aria-pressed="false" title="Quick animations (outcomes unchanged)">⚡</button>
         <button id="soundBtn" class="icon-button" type="button" aria-label="Toggle sound">🔊</button>
         <span class="save-state"><i id="saveDot"></i><span id="saveText">Saved</span></span>
       </div>
@@ -117,6 +118,14 @@
                 <div id="betweenEventPanel" class="between-event-panel">
                   <p id="betweenEventText">Every gap between fixtures can change your run. Spin first; the outcome decides whether you train, learn from somebody, recover, suffer a setback or trigger something stranger.</p>
                   <button id="betweenGameBtn" class="button primary full" type="button">Spin Between-Game Event</button>
+                  <button id="treatKnockBtn" class="button ghost full" type="button" hidden>Reduce load &amp; treat the knock (skips this week's event)</button>
+                </div>
+
+                <div id="injuryRoomPanel" class="injury-room" hidden>
+                  <span class="kicker">MEDICAL ROOM</span>
+                  <strong id="injuryRoomTitle">You are not fit to play.</strong>
+                  <p id="injuryRoomText">Choose how you handle the recovery. Your team plays this fixture either way.</p>
+                  <div id="injuryRoomActions" class="action-grid"></div>
                 </div>
 
                 <div id="trainingChoicePanel" hidden>
@@ -208,7 +217,12 @@
       <section id="archiveView" class="view">
         <div class="section-head">
           <div><span class="kicker">SAVED PLAYERS</span><h1>Egoist Archive</h1><p>Completed careers are stored on this device.</p></div>
-          <button id="clearArchiveBtn" class="button ghost" type="button">Clear Archive</button>
+          <div class="archive-actions">
+            <button id="exportBtn" class="button secondary" type="button">Export Backup</button>
+            <button id="importBtn" class="button secondary" type="button">Import Backup</button>
+            <input id="importFile" type="file" accept="application/json,.json" hidden>
+            <button id="clearArchiveBtn" class="button ghost" type="button">Clear Archive</button>
+          </div>
         </div>
         <div id="archiveGrid" class="archive-grid"></div>
       </section>
@@ -223,6 +237,9 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <footer class="legal">Unofficial fan-made randomizer. Blue Lock and related names belong to their respective rights holders. No official artwork is used.</footer>
-  <script src="./app.js?v=24" defer></script>
+  <script src="./src/engine/rng.js?v=25" defer></script>
+  <script src="./src/engine/injuries.js?v=25" defer></script>
+  <script src="./src/engine/save.js?v=25" defer></script>
+  <script src="./app.js?v=25" defer></script>
 </body>
 </html>
