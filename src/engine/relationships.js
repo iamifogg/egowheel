@@ -16,7 +16,8 @@
     return {
       id: p.id, respect: clamp(Math.round(30 + (me.ovr - p.ovr) * 1.5), 5, 70), rivalry: 0,
       compat: clamp(Math.round(42 + pers.warmth * 22 + comp - pers.selfish * 10), 10, 85), trust: 25, hostility: Math.round(pers.volatility * 8),
-      read: 0, enc: { with: 0, against: 0, wins: 0, losses: 0, duels: 0, duelWins: 0, assistsTo: 0, assistsFrom: 0 },
+      read: 0, enc: { with: 0, against: 0, wins: 0, losses: 0, duels: 0, duelWins: 0, assistsTo: 0, assistsFrom: 0, goalsVs: 0, linked: 0, overtakes: 0, counters: 0 },
+      partnership: { stage: 0, xp: 0, technique: null, tension: 0 },
       moments: [], status: 'Stranger', arc: null, lastFx: -1
     };
   }
@@ -40,6 +41,21 @@
     return 'Stranger';
   }
 
+  /** All relevant identities at once (a partner can also be your fiercest rival). */
+  function identities(r) {
+    const out = [];
+    const ps = r.partnership || {};
+    if (ps.stage >= 1) out.push((['', 'Understanding', 'Partner', 'Combination Partner', 'Signature Partner', 'Synchronised Partner'])[ps.stage]);
+    else if (r.compat >= 62 && r.trust >= 55) out.push('Partner');
+    if (r.formerPartnerBroken) out.push('Former Partner');
+    if (r.rivalry >= 55) out.push(r.hostility >= 60 ? 'Nemesis' : 'Rival'); else if (r.rivalry >= 30) out.push('Emerging Rival');
+    if (r.respect >= 70) out.push('Deep Respect');
+    if (r.hostility >= 45) out.push('Hostile');
+    if ((r.read || 0) >= 3) out.push('Has Read You');
+    if (r.arc === 'conquered') out.push('Conquered');
+    if (r.eliminated) out.push('Eliminated');
+    return out.length ? out : [r.status || 'Acquaintance'];
+  }
   function moment(rel, text, meta = {}) {
     rel.moments.push(Object.assign({ text }, meta));
     rel.moments = rel.moments.slice(-14);
@@ -77,6 +93,6 @@
     return (VOICE[key] && VOICE[key][situation]) || VOICE.procedural[situation] || '';
   }
 
-  EW.relationships = { AXES, create, adjust, deriveStatus, moment, persOf, line, VOICE };
+  EW.relationships = { AXES, create, adjust, deriveStatus, identities, moment, persOf, line, VOICE };
   if (typeof module !== 'undefined' && module.exports) module.exports = EW.relationships;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

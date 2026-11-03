@@ -538,3 +538,16 @@ button:disabled{cursor:not-allowed}
 .choice-card .odds{font-size:.68rem;color:var(--text);font-weight:800;margin-top:4px}
 .odds-bar{display:flex;height:6px;background:#0f1a29;overflow:hidden}.odds-bar b{display:block;height:100%}.odds-bar .s{background:var(--up)}.odds-bar .m{background:var(--warn)}.odds-bar .f{background:var(--down)}
 .choice-card.risk-extreme{border-color:rgba(255,93,115,.45)}
+/* v26 critical moments + defining moments */
+.critical-panel{margin:0 0 10px;padding:12px;border:1px solid rgba(255,209,102,.5);background:linear-gradient(135deg,rgba(255,209,102,.12),rgba(8,12,20,.92))}
+.crit-head{display:flex;gap:10px;align-items:center;margin-bottom:8px}.crit-head strong{display:block;font-style:italic;text-transform:uppercase}.crit-head p{margin:2px 0 0;color:var(--muted);font-size:.78rem}
+.crit-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.moment-shell{text-align:center}
+.moment-card h2{font-size:2rem;margin:8px 0}.moment-card p{color:var(--muted);line-height:1.5}
+.moment-card.triumph{background:radial-gradient(circle at 50% 0,rgba(125,231,255,.25),transparent 60%)}
+.moment-card.tragedy{background:radial-gradient(circle at 50% 0,rgba(255,93,115,.22),transparent 60%)}
+.moment-portraits{display:flex;justify-content:center;align-items:center;gap:12px;margin:10px 0}
+.moment-vs{font-weight:1000;font-size:1.4rem;color:var(--muted)}
+.moment-modal .modal-card{animation:momentIn .6s ease-out}
+@keyframes momentIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.moment-modal .modal-card{animation:none}}

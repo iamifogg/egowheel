@@ -141,6 +141,11 @@
       const spec = SPECIAL[slot.family];
       if (spec && (!spec.roles || spec.roles(ctx))) out.push(Object.assign({ name, weight: spec.weight * scale, tags: fam.tags.concat(['star', 'evolved']) }, spec.effect(slot.tier)));
     }
+    if (W.awakened) {
+      const aw = W.awakened, fam = FAMILIES[aw.family] || FAMILIES.adapt;
+      out.push({ name: aw.name, weight: 1.2 + aw.level * 0.5, tags: fam.tags.concat(['star', 'awakened']), desc: 'Your awakened ego takes over the moment.',
+        contrib: ['defend', 'aerial'].includes(aw.family) ? { interceptions: 1, tackles: 1, blocks: 1, bonusRating: 1.1 + aw.level * 0.1, oppSuppress: 1 } : { goals: 1, shots: 1, keyPasses: 1, bonusRating: 1.35 + aw.level * 0.1 } });
+    }
     for (const combo of W.combos || []) {
       const def = COMBOS.find(c => c.key === combo); if (!def) continue;
       out.push({ name: def.name, weight: def.weight, tags: def.tags.concat(['star', 'combo']), desc: def.desc, contrib: def.contrib });

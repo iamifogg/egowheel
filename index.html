@@ -54,6 +54,7 @@
 
               <div id="matchHud" class="match-hud" hidden aria-live="polite"></div>
               <div id="duelPanel" class="duel-panel" hidden></div>
+              <div id="criticalPanel" class="critical-panel" hidden></div>
               <div class="wheel-shell" id="wheelShell">
                 <div class="wheel-pointer"><span></span></div>
                 <svg id="wheelSvg" viewBox="0 0 520 520" role="img" aria-label="EgoWheel player creation wheel">
@@ -265,6 +266,9 @@
       <div id="dossierBody"></div>
     </div>
   </div>
+  <div id="momentModal" class="modal moment-modal" hidden role="dialog" aria-modal="true" aria-label="Career-defining moment">
+    <div class="modal-card moment-shell"><div id="momentBody"></div><button id="momentClose" class="button primary full" type="button">Continue</button></div>
+  </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <footer class="legal">Unofficial fan-made randomizer. Blue Lock and related names belong to their respective rights holders. No official artwork is used.</footer>
   <script src="./src/channel.js?v=25" defer></script>
@@ -278,7 +282,12 @@
   <script src="./src/engine/weapons.js?v=25" defer></script>
   <script src="./src/engine/relationships.js?v=25" defer></script>
   <script src="./src/engine/decisions.js?v=26" defer></script>
-  <script src="./src/engine/director.js?v=25" defer></script>
+  <script src="./src/engine/director.js?v=26" defer></script>
+  <script src="./src/engine/pressure.js?v=26" defer></script>
+  <script src="./src/engine/arcs.js?v=26" defer></script>
+  <script src="./src/data/arc-templates.js?v=26" defer></script>
+  <script src="./src/engine/agency.js?v=26" defer></script>
+  <script src="./src/engine/partnerships.js?v=26" defer></script>
   <script src="./app.js?v=25" defer></script>
 </body>
 </html>

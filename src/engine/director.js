@@ -390,7 +390,7 @@
     if (!candidates.length) return null;
     const total = candidates.reduce((t, c) => t + c.w, 0);
     const hasMajor = candidates.some(c => c.ev.major);
-    let p = clamp(0.18 + total * 0.025 + (ctx.importance >= 1.6 ? 0.1 : 0), 0.15, 0.55);
+    let p = clamp(0.14 + total * 0.02 + (ctx.importance >= 1.6 ? 0.08 : 0), 0.12, 0.45);
     if (ctx.lastSceneFx === ctx.fxNo - 1 && !hasMajor) p *= 0.4;
     if (hasMajor) p = Math.max(p, 0.75);
     if (rng.next() > p) return null;
