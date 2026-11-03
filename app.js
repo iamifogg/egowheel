@@ -2498,12 +2498,18 @@ function counterPressureFor(fixture){
  fixture.cast.opp.forEach(id=>{const r=store[id];if(!r)return;const pers=EW.relationships.persOf(w.players[id]);v=Math.max(v,pers.analytic*Math.min(1,(r.read||0)/6)*.5+Math.min(.25,(r.enc?.counters||0)*.08));});
  return v?{[W.primary.family]:v}:null;
 }
+function partnershipHtml(id,r,p){
+ const ps=r.partnership||{};if(!ps.stage&&!r.formerPartnerBroken)return'';
+ const next=EW.partnerships.XP[ps.stage+1],pct=next?Math.min(100,Math.round(ps.xp/next*100)):100;
+ const tech=ps.stage>=4?EW.partnerships.techniqueFor(p,weaponsState()?.primary?.family):null;
+ return'<div class="partner-box"><span class="kicker">PARTNERSHIP</span><strong>'+esc(EW.partnerships.STAGES[ps.stage]||'Broken')+(r.formerPartnerBroken&&!ps.stage?' (ended)':'')+'</strong><i class="pbar"><b style="width:'+pct+'%"></b></i>'+(tech?'<em>Signature: '+esc(tech.name)+' — '+esc(tech.desc)+'</em>':ps.stage>=3?'<em>Combination play unlocked on the wheel.</em>':'')+(ps.tension>=3?'<em class="danger">Tension is building.</em>':'')+'</div>';
+}
 function renderRivals(){
  const box=$('#rivalsContent');if(!box)return;const w=worldOf(),store=relStore();
  if(!w){box.innerHTML='<div class="empty-state">Start a career to meet your rivals.</div>';return;}
  const list=Object.entries(store).map(([id,r])=>({id,r,p:w.players[id]})).filter(x=>x.p).sort((a,b)=>(b.r.rivalry+b.r.trust+b.r.compat/2)-(a.r.rivalry+a.r.trust+a.r.compat/2));
  if(!list.length){box.innerHTML='<div class="empty-state">Nobody knows your name yet. Play against named egoists to start relationships.</div>';return;}
- box.innerHTML=list.map(({id,r,p})=>{const e=r.enc;return'<article class="rival-card '+(r.status||'').toLowerCase().replace(/\s+/g,'-')+'"><button type="button" class="rival-head" data-player="'+esc(id)+'"><div><span class="kicker">'+esc(r.status)+'</span><h3>'+esc(p.name)+'</h3><small>'+esc(EW.world.GROUP_LABEL[p.pos])+' · '+esc(p.club||p.team||'')+' · OVR '+Math.round(p.ovr)+(p.rank&&p.status==='active'?' · #'+p.rank:'')+'</small></div><span class="rival-quote">'+(r.rivalry>=50?'“'+esc(EW.relationships.line(p,'rival'))+'”':'')+'</span></button>'+relationBars(r)+'<div class="rival-meta"><span>Played with <b>'+e.with+'</b></span><span>Against <b>'+e.against+'</b> ('+e.wins+'W '+e.losses+'L)</span><span>Duels <b>'+e.duelWins+'/'+e.duels+'</b></span><span>Assists to/from <b>'+e.assistsTo+'/'+e.assistsFrom+'</b></span>'+((r.read||0)>=2?'<span class="read">Has read your weapon ('+r.read+')</span>':'')+'</div>'+(r.moments.length?'<div class="profile-timeline">'+r.moments.slice(-4).reverse().map(m=>'<div class="timeline-row"><span>'+esc(m.stage||'')+'</span><strong>'+esc(m.text)+'</strong></div>').join(''):'')+(r.moments.length?'</div>':'')+'</article>';}).join('');
+ box.innerHTML=list.map(({id,r,p})=>{const e=r.enc;return'<article class="rival-card '+(r.status||'').toLowerCase().replace(/\s+/g,'-')+'"><button type="button" class="rival-head" data-player="'+esc(id)+'">'+portraitHtml(id,r.rivalry>=55?'confident':r.trust>=55?'elated':'neutral',56)+'<div><span class="kicker">'+esc(EW.relationships.identities(r).join(' · '))+'</span><h3>'+esc(p.name)+'</h3><small>'+esc(EW.world.GROUP_LABEL[p.pos])+' · '+esc(p.club||p.team||'')+' · OVR '+Math.round(p.ovr)+(p.rank&&p.status==='active'?' · #'+p.rank:'')+'</small></div><span class="rival-quote">'+(r.rivalry>=50?'“'+esc(EW.relationships.line(p,'rival'))+'”':'')+'</span></button>'+relationBars(r)+'<div class="rival-meta"><span>Played with <b>'+e.with+'</b></span><span>Against <b>'+e.against+'</b> ('+e.wins+'W '+e.losses+'L)</span><span>Duels <b>'+e.duelWins+'/'+e.duels+'</b></span><span>Assists to/from <b>'+e.assistsTo+'/'+e.assistsFrom+'</b></span>'+((r.read||0)>=2?'<span class="read">Has read your weapon ('+r.read+')</span>':'')+((r.enc.counters||0)?'<span class="read">Evolved to beat you ×'+r.enc.counters+'</span>':'')+'</div>'+partnershipHtml(id,r,p)+(r.moments.length?'<div class="profile-timeline">'+r.moments.slice(-4).reverse().map(m=>'<div class="timeline-row"><span>'+esc(m.stage||'')+'</span><strong>'+esc(m.text)+'</strong></div>').join(''):'')+(r.moments.length?'</div>':'')+'</article>';}).join('');
 }
 // ===== EVENT DIRECTOR (src/engine/director.js) =====
 function directorContext(fixture){
@@ -3304,7 +3310,7 @@ let rankTab=null;
 function defaultRankTab(){const w=worldOf();return w?.nel?'auction':'bluelock';}
 function playerRow(p,i,extra=''){
  const me=p.isMe?' me':'',st=p.status==='eliminated'?' out':'';
- return'<button type="button" class="rank-row'+me+st+'" data-player="'+esc(p.id)+'"><span class="rk">'+(i??'')+'</span><span class="nm"><b>'+esc(p.isMe?(state.run.name||'You')+' (YOU)':p.name)+'</b><small>'+esc(EW.world.GROUP_LABEL[p.pos]||p.pos)+' · '+esc(p.club||p.team||'')+(p.status==='eliminated'?' · eliminated ('+esc(p.elimStage||'')+')':'')+'</small></span><span class="ov">'+Math.round(p.ovr)+'</span>'+extra+'</button>';
+ return'<button type="button" class="rank-row'+me+st+'" data-player="'+esc(p.id)+'"><span class="rk">'+(i??'')+'</span><span class="nm">'+(p.named||p.isMe?portraitHtml(p.id,p.isMe?'confident':'neutral',26):'')+'<span class="nmt"><b>'+esc(p.isMe?(state.run.name||'You')+' (YOU)':p.name)+'</b><small>'+esc(EW.world.GROUP_LABEL[p.pos]||p.pos)+' · '+esc(p.club||p.team||'')+(p.status==='eliminated'?' · eliminated ('+esc(p.elimStage||'')+')':'')+'</small></span></span><span class="ov">'+Math.round(p.ovr)+'</span>'+extra+'</button>';
 }
 function renderRanks(){
  const box=$('#ranksContent');if(!box)return;const w=worldOf();
@@ -3336,7 +3342,7 @@ function renderRanks(){
   board.forEach((p,i)=>{
    if(i===cut)html+='<div class="cutoff-line"><span>TOP '+cut+' CUTOFF · ¥'+EW.market.cutoff(w)+'m</span></div>';
    const d=p.bid-(p.prevBid||p.bid),n=p.nel||{apps:0,g:0,a:0,d:0,rt:0};
-   html+=playerRow(p,i+1,'<span class="sc">¥'+p.bid+'m<small>'+esc(p.bidClub||'')+'</small></span><span class="mv '+(d>0?'up':d<0?'down':'flat')+'">'+(d>0?'▲':d<0?'▼':'—')+(d?Math.abs(d):'')+'</span>').replace('</small></span><span class="ov">',' · '+n.apps+' apps '+n.g+'G '+n.a+'A '+n.d+'D'+(n.apps?' · avg '+(n.rt/n.apps).toFixed(2):'')+'</small></span><span class="ov">');
+   html+=playerRow(p,i+1,'<span class="sc">¥'+p.bid+'m<small>'+esc(p.bidClub||'')+'</small></span><span class="mv '+(d>0?'up':d<0?'down':'flat')+'">'+(d>0?'▲':d<0?'▼':'—')+(d?Math.abs(d):'')+'</span>').replace('</small></span></span><span class="ov">',' · '+n.apps+' apps '+n.g+'G '+n.a+'A '+n.d+'D'+(n.apps?' · avg '+(n.rt/n.apps).toFixed(2):'')+'</small></span></span><span class="ov">');
   });
   const ext=Object.values(w.players).filter(p=>p.status==='external'&&p.club).sort((a,b)=>b.bid-a.bid);
   html+='<div class="subhead"><div><span class="kicker">CLUB PLAYERS</span><h3>Valued, but not in the Blue Lock race</h3></div></div>'+ext.map(p=>playerRow(p,'',' <span class="sc">¥'+p.bid+'m</span>')).join('');
@@ -3351,8 +3357,13 @@ function openDossier(id){
  const pers=EW.data.PERSONALITIES[p.pers]||EW.data.PERSONALITIES.procedural,st=p.st,avg=st.apps?(st.rt/st.apps).toFixed(2):'—';
  const prof=p.prof?Object.entries({SHOOT:p.prof.sh,PACE:p.prof.pa,DRIBBLE:p.prof.dr,PASS:p.prof.ps,VISION:p.prof.vi,DEFEND:p.prof.df,PHYSICAL:p.prof.ph}).map(([k,v])=>'<div class="stat detailed-stat"><span>'+k+'</span><strong>'+v+'</strong><i><b style="width:'+v+'%"></b></i></div>').join(''):'<p class="profile-sub">Scouting notes: strength — '+esc(p.strength||'—')+'; weakness — '+esc(p.weakness||'—')+'.</p>';
  const rel=typeof relationFor==='function'?relationFor(id):null;
- const relHtml=rel?'<div class="profile-block"><span class="kicker">RELATIONSHIP WITH YOU</span><h3>'+esc(rel.status)+'</h3>'+relationBars(rel)+(rel.moments?.length?'<div class="profile-timeline">'+rel.moments.slice(-5).reverse().map(m=>'<div class="timeline-row"><span>'+esc(m.stage||'')+'</span><strong>'+esc(m.text)+'</strong></div>').join('')+'</div>':'')+'</div>':'';
+ const relHtml=rel?'<div class="profile-block"><span class="kicker">RELATIONSHIP WITH YOU</span><h3>'+esc(EW.relationships.identities(rel).join(' · '))+'</h3>'+relationBars(rel)+(rel.moments?.length?'<div class="profile-timeline">'+rel.moments.slice(-5).reverse().map(m=>'<div class="timeline-row"><span>'+esc(m.stage||'')+'</span><strong>'+esc(m.text)+'</strong></div>').join('')+'</div>':'')+'</div>':'';
  $('#dossierBody').innerHTML='<span class="kicker">'+(p.named?'NAMED EGOIST':'BLUE LOCK ENTRANT')+' · '+esc(p.status.toUpperCase())+'</span><h2 id="dossierName">'+esc(p.name)+'</h2><p class="profile-sub">'+esc(p.role||EW.world.GROUP_LABEL[p.pos])+' · '+esc(p.arch||pers.label)+' · Weapon: <b>'+esc(p.weapon||'—')+'</b><br>'+esc(p.club||p.team||'')+' · OVR '+Math.round(p.ovr)+(p.rank?' · Rank #'+p.rank:'')+(p.bid?' · ¥'+p.bid+'m':'')+' · Form '+(p.form>0?'+':'')+p.form+'</p><div class="stats-grid detailed">'+prof+'</div><div class="profile-block"><span class="kicker">CAREER</span><h3>'+st.apps+' apps · '+st.g+' G · '+st.a+' A · '+st.d+' DEF · avg '+avg+'</h3>'+(p.last?'<p class="profile-sub">Last match: '+p.last.r+' rating'+(p.last.opp?' vs '+esc(p.last.opp):'')+'</p>':'')+(p.ms.length?'<p class="profile-sub">'+p.ms.map(esc).join('<br>')+'</p>':'')+'<p class="profile-sub">Personality: '+esc(pers.label)+'</p></div>'+relHtml;
+ const amb=p.amb?'<div class="profile-block"><span class="kicker">AMBITION</span><h3>'+esc(p.amb.label)+'</h3><i class="pbar"><b style="width:'+Math.round(p.amb.progress)+'%"></b></i>'+(p.amb.achieved?'<p class="profile-sub">Achieved.</p>':'')+'</div>':'';
+ const soc=w.social?EW.agency.socialFor(w,p.id).filter(x=>w.players[x.other]).slice(0,5):[];
+ const socHtml=soc.length?'<div class="profile-block"><span class="kicker">RELATIONSHIPS WITH OTHERS</span>'+soc.map(x=>'<p class="profile-sub">'+esc(x.kind)+' with <b>'+esc(w.players[x.other].name)+'</b></p>').join('')+'</div>':'';
+ $('#dossierBody').insertAdjacentHTML('afterbegin','<div class="dossier-portrait">'+portraitHtml(p.id,rel&&rel.rivalry>=50?'confident':'neutral',132)+'</div>');
+ $('#dossierBody').insertAdjacentHTML('beforeend',amb+socHtml);
  $('#dossierModal').hidden=false;$('#dossierClose').focus();
 }
 function closeDossier(){$('#dossierModal').hidden=true;}
@@ -3379,10 +3390,10 @@ function renderMatchHud(){
  hud.innerHTML='<div class="hud-min">'+minute+"'</div>"+'<div class="hud-score"><span>'+esc(f.team)+'</span><strong>'+ctx.tg+' – '+ctx.og+'</strong><span>'+esc(f.opponent)+'</span></div><div class="hud-meta"><span class="hud-mom" title="Momentum" aria-label="Momentum '+mom+'">'+bars+'</span><span class="hud-obj">'+esc(obj.name)+'</span>'+(ctx.flow?'<span class="hud-flow">FLOW</span>':'')+'</div>'+(p.flowJustTriggered?'<div class="flow-burst">FLOW STATE — '+esc(EW.weapons.flowExpression(weaponsState()).name)+'</div>':'');
  if(mode==='duelSpin'){
   const w=worldOf(),q=w?.players[p.duel?.oppId],W=weaponsState(),rel=typeof relationFor==='function'&&q?relationFor(q.id,true):null;
-  const side=(title,name,line1,line2,cls)=>'<div class="duel-side '+cls+'"><span>'+title+'</span><strong>'+esc(name)+'</strong><em>'+esc(line1)+'</em><small>'+esc(line2)+'</small></div>';
+  const side=(title,name,line1,line2,cls,pid,ex)=>'<div class="duel-side '+cls+'">'+portraitHtml(pid,ex,64,cls==='them')+'<div class="duel-txt"><span>'+title+'</span><strong>'+esc(name)+'</strong><em>'+esc(line1)+'</em><small>'+esc(line2)+'</small></div></div>';
   const approaches=!p.duel.approach?'<div class="duel-approaches">'+DUEL_APPROACHES.map(a=>{const o=duelOdds(a.key);return'<button type="button" class="training-action" data-duel="'+a.key+'"><strong>'+esc(a.name)+' · '+Math.round(o.p*100)+'%</strong><span>'+esc(a.desc)+'</span></button>';}).join('')+'</div>':'<p class="duel-chosen">Approach: <b>'+esc(DUEL_APPROACHES.find(a=>a.key===p.duel.approach).name)+'</b></p>';
   const myEvo=W?.primary?.tier?' · '+EW.weapons.evolutionName({family:W.primary.family,tier:W.primary.tier-1,name:W.primary.name}):'';
-  duel.innerHTML='<div class="duel-split">'+side('YOU',state.run.name||'You','OVR '+overall()+' · '+(W?.primary?.name||''),'Mastery L'+(W?.primary?.level||0)+myEvo,'me')+'<div class="duel-vs">VS</div>'+side(q?.named?'NAMED EGOIST':'OPPONENT',q?.name||'Their star','OVR '+Math.round(q?.ovr||0)+' · '+(q?.weapon||''),rel?rel.status+' · rivalry '+Math.round(rel.rivalry):((EW.data.PERSONALITIES[q?.pers]||{}).label||''),'them')+'</div>'+approaches;
+  duel.innerHTML='<div class="duel-split">'+side('YOU',state.run.name||'You','OVR '+overall()+' · '+(W?.primary?.name||''),'Mastery L'+(W?.primary?.level||0)+myEvo,'me','me','focused')+'<div class="duel-vs">VS</div>'+side(q?.named?'NAMED EGOIST':'OPPONENT',q?.name||'Their star','OVR '+Math.round(q?.ovr||0)+' · '+(q?.weapon||''),rel?rel.status+' · rivalry '+Math.round(rel.rivalry):((EW.data.PERSONALITIES[q?.pers]||{}).label||''),'them',q?.id,rel&&rel.rivalry>=50?'angry':'confident')+'</div>'+approaches;
  }
 }
 function renderObjectives(){
@@ -3396,11 +3407,71 @@ function timelineBlock(r){
  return'<div class="timeline">'+r.timeline.map(e=>'<div class="tl '+e.t+'"><b>'+e.m+"'</b><span>"+(icon[e.t]||'•')+'</span>'+esc(e.txt)+'</div>').join('')+'</div>';
 }
 
+// ===== v26 PIXEL-ART PRESENTATION =====
+function myAppearance(){
+ if(!state.run.appearance)state.run.appearance=Object.assign(EW.appearances.procedural('me-'+state.run.id),{number:11});
+ return EW.appearances.normalize(state.run.appearance);
+}
+function myKitName(){
+ const c=state.run.career,f=currentFixture();
+ if(c?.pro?.club)return /^Japan/.test(f?.team||'')?f.team:c.pro.club;
+ if(f&&/^Japan/.test(f.team||''))return f.team;
+ if(state.run.selections.nelClub&&worldOf()?.nel)return state.run.selections.nelClub.name;
+ if(f&&['2v2','3v3','4v4','world5','thirdA','thirdB','u20'].includes(f.id))return'Blue Lock';
+ return state.run.selections.firstTeam?.name||'Blue Lock';
+}
+function appearanceFor(id){
+ if(id==='me')return{a:myAppearance(),kit:EW.appearances.kitFor(myKitName())};
+ const w=worldOf(),p=w?.players[id];
+ if(!p)return{a:EW.appearances.procedural(String(id||'x')),kit:EW.appearances.kitFor('Blue Lock')};
+ const a=Object.assign({},EW.appearances.forPlayer(p));
+ return{a,kit:EW.appearances.kitFor(p.club||p.team||'Blue Lock')};
+}
+function portraitSrc(id,ex){const x=appearanceFor(id);return EW.sprites.portrait(x.a,ex||'neutral',x.kit);}
+function portraitHtml(id,ex,size,mirror){
+ const s=size||48,src=portraitSrc(id,ex),h=Math.round(s*1.1);
+ if(!src)return'<span class="px-portrait px-fallback" style="width:'+s+'px;height:'+h+'px" aria-hidden="true"></span>';
+ return'<img class="px-portrait'+(mirror?' mirror':'')+'" src="'+src+'" width="'+s+'" height="'+h+'" alt="" loading="lazy">';
+}
+function expressionsFor(d,r){
+ const cat=d.cat||'';let me='focused',them='neutral';
+ if(r){if(r.hostility>=45||r.rivalry>=60)them='angry';else if(r.rivalry>=35)them='confident';else if(r.trust>=55)them='elated';}
+ if(/selection|personal/.test(cat))me='frustrated';
+ if(/team/.test(cat)&&r&&r.trust>=50&&r.hostility<30)them='frustrated';
+ if(/initiated/.test(cat))them=r&&r.rivalry>=35?'confident':'elated';
+ if(/pro/.test(cat))me='focused';
+ return{me,them};
+}
+const SCENE_ENV={rivalry:'corridor',team:'locker',personal:'training',selection:'corridor',market:'office',pro:'office',initiated:'pitch',story:'corridor',exceptional:'pitch',life:'apartment'};
+function sceneStageHtml(d,p,r){
+ const env=EW.sprites.env(SCENE_ENV[d.cat]||'corridor');
+ const ex=expressionsFor(d,r);
+ return'<div class="scene-stage" style="'+(env?'background-image:url('+env+')':'')+'"><div class="scene-actor-px me">'+portraitHtml('me',ex.me,96)+'<span>'+esc((state.run.name||'You').split(' ').slice(-1)[0])+'</span></div>'+(p?'<button type="button" class="scene-actor-px them" data-player="'+esc(p.id)+'">'+portraitHtml(p.id,ex.them,96,true)+'<span>'+esc(p.short)+(r?' · '+esc(EW.relationships.identities(r).slice(0,2).join(' · ')):'')+'</span></button>':'')+'</div>';
+}
+function openAvatarEditor(){
+ const c=state.run.career,pro=c?.pro;
+ EW.avatarEditor.open({appearance:myAppearance(),kit:EW.appearances.kitFor(myKitName()),title:pro?'STYLIST & BARBER':'A FACE FOR YOUR EGO',
+  cash:pro?pro.finances.cash:null,priceFor:pro?avatarPrice:null,
+  onSave:(a,cost)=>{if(pro&&cost>0){if(!spend('style-'+(c.fxNo||0)+'-'+Object.keys(a).filter(k=>a[k]!==myAppearance()[k]).join('.'),'New look',cost,'lifestyle')){toast('Not enough money.');return;}}
+   state.run.appearance=a;save();renderAll();toast('Appearance saved.');}});
+}
+function avatarPrice(k,v,orig){
+ const owned=state.run.career?.pro?.lifestyle?.owned||[];
+ if(v===orig)return 0;
+ if(k==='hairTip'&&v!=='none')return 300;
+ if(k==='hairStyle'||k==='hairLen')return 80;
+ if(k==='hairColor')return 150;
+ if(k==='accessory'&&v!=='none')return owned.includes('acc_'+v)?0:({headband:40,glasses:600,earring:1200,hairclip:30,wristband:60})[v]||0;
+ if(k==='mark'&&v==='paint')return 20;
+ return 0;
+}
+
 function renderCareerLog(){const c=state.run.career;$('#careerLog').innerHTML=(c?.log||[]).slice(0,8).map(x=>'<div>'+esc(x)+'</div>').join('')||'<div>No career events yet.</div>';}
 
 function renderPlayer(){
  const stats=currentStats(),c=state.run.career,e=c?.epilogue?.completed?c.epilogue:null,ov=e?.peakOvr||overall(stats),baseTot=c?.totals||{apps:0,goals:0,assists:0,ratingTotal:0},tot=e?e.lifetime:baseTot;
- $('#playerTitle').textContent=state.run.name||'Unnamed Egoist';$('#playerName').value=state.run.name||'';$('#overallBadge').textContent=(e?'PEAK ':'OVR ')+ov;
+ $('#playerTitle').textContent=state.run.name||'Unnamed Egoist';
+ const mp=$('#myPortrait');if(mp)mp.innerHTML=portraitHtml('me',c?.complete&&c?.eliminated?'defeated':'confident',88);$('#playerName').value=state.run.name||'';$('#overallBadge').textContent=(e?'PEAK ':'OVR ')+ov;
  const naturalPos=state.run.selections.position?.short||state.run.selections.position?.name||'—';const tempPos=c?.temporaryPosition?(positionStage.options.find(o=>o.name===c.temporaryPosition)?.short||c.temporaryPosition):null;$('#identityPosition').textContent=tempPos?(naturalPos+' → '+tempPos):naturalPos;$('#identityHeight').textContent=state.run.selections.height?(playerHeight()+' cm'):'—';$('#identityFirstTeam').textContent=state.run.selections.firstTeam?.name||'—';$('#identityNel').textContent=e?(e.club||state.run.selections.nelClub?.name||'—'):(state.run.selections.nelClub?.name||'—');$('#identityBid').textContent=c?.bid?'¥'+c.bid+'m':'—';
  $('#totalApps').textContent=tot.apps||0;$('#totalGoals').textContent=tot.goals||0;$('#totalAssists').textContent=tot.assists||0;const totalDef=e?(tot.defActions||0):((tot.tackles||0)+(tot.interceptions||0)+(tot.blocks||0)+(tot.clearances||0)+(tot.recoveries||0));$('#totalDefActions').textContent=totalDef;$('#avgRating').textContent=e?e.averageRating:(tot.apps?(tot.ratingTotal/tot.apps).toFixed(2):'—');
  const archSel=state.run.selections.archetype;
@@ -3496,7 +3567,7 @@ function evolveSound(){[392,523,659,880,1175].forEach((f,i)=>tone(f,i*.06,.26,.0
 function renderArchive(){
  const g=$('#archiveGrid');if(!state.archive.length){g.innerHTML='<div class="empty-state">No completed careers yet.</div>';return;}
  const n=v=>v===null||v===undefined?'—':v;
- g.innerHTML=state.archive.map(p=>'<article class="archive-card'+(p.eliminated?' elim':'')+'"><span class="kicker">'+(p.retirementAge?'PEAK ':'OVR ')+n(p.overall)+(p.position?' · '+esc(p.position):'')+'</span><h3>'+esc(p.name)+'</h3><div class="archive-meta">'+esc(p.status)+' · '+(p.retirementAge?'Retired '+p.retirementAge+' · ':'')+(p.club?esc(p.club):'No NEL club')+'<br>'+(p.bid?'¥'+p.bid+'m · ':'')+n(p.goals)+' goals · '+n(p.assists)+' assists · '+n(p.defActions)+' defensive actions'+(p.trophies!==undefined?'<br>'+p.trophies+' major honours'+(p.awards?' · '+p.awards+' individual awards':''):'')+(p.reason?'<br><em>'+esc(p.reason)+'</em>':'')+'</div>'+(p.summary?biographyHtml(p.summary,true):'<p class="archive-legacy">Archived before v25: detailed biography not recorded.</p>')+'</article>').join('');
+ g.innerHTML=state.archive.map(p=>'<article class="archive-card'+(p.eliminated?' elim':'')+'">'+(p.appearance?'<img class="px-portrait archive-px" src="'+EW.sprites.portrait(EW.appearances.normalize(p.appearance),p.eliminated?'defeated':'elated',EW.appearances.kitFor(p.club||'Blue Lock'))+'" width="64" height="70" alt="">':'')+'<span class="kicker">'+(p.retirementAge?'PEAK ':'OVR ')+n(p.overall)+(p.position?' · '+esc(p.position):'')+'</span><h3>'+esc(p.name)+'</h3><div class="archive-meta">'+esc(p.status)+' · '+(p.retirementAge?'Retired '+p.retirementAge+' · ':'')+(p.club?esc(p.club):'No NEL club')+'<br>'+(p.bid?'¥'+p.bid+'m · ':'')+n(p.goals)+' goals · '+n(p.assists)+' assists · '+n(p.defActions)+' defensive actions'+(p.trophies!==undefined?'<br>'+p.trophies+' major honours'+(p.awards?' · '+p.awards+' individual awards':''):'')+(p.reason?'<br><em>'+esc(p.reason)+'</em>':'')+'</div>'+(p.summary?biographyHtml(p.summary,true):'<p class="archive-legacy">Archived before v25: detailed biography not recorded.</p>')+'</article>').join('');
 }
 function recordHistory(){
  const c=state.run.career,f=currentFixture(),r=c?.report;if(!c||!f||!r)return;
@@ -3655,7 +3726,7 @@ function archiveCareer(){
  if(!c.eliminated&&c.postNelStarted&&!e){toast('Simulate the rest of this career before archiving.');return;}
  const t=e?e.lifetime:c.totals,def=e?(t.defActions||0):((t.tackles||0)+(t.interceptions||0)+(t.blocks||0)+(t.clearances||0)+(t.recoveries||0));
  state.archive.unshift({id:state.run.id,name:state.run.name,overall:e?e.peakOvr:overall(),status:c.finalStatus,eliminated:!!c.eliminated,reason:c.finalReason||null,bid:c.bid,goals:t.goals||0,assists:t.assists||0,apps:t.apps||0,defActions:def,club:e?.club||state.run.selections.nelClub?.name||null,retirementAge:e?.retirementAge||null,trophies:e?e.honours.length+(c.trophies||[]).length:(c.trophies||[]).length,awards:e?.awards.length||0,savedAt:Date.now()});
- state.archive[0].summary=careerSummary();state.archive[0].position=state.run.selections.position?.name||null;state.archive[0].weapon=state.run.selections.primaryWeapon?.name||null;
+ state.archive[0].summary=careerSummary();state.archive[0].appearance=myAppearance();state.archive[0].position=state.run.selections.position?.name||null;state.archive[0].weapon=state.run.selections.primaryWeapon?.name||null;
  save();renderArchive();toast(state.run.name+' archived.');newRun(true);
 }
 
@@ -3663,6 +3734,7 @@ function bind(){
  document.addEventListener('pointerdown',()=>{if(audioEnabled){ensureAudio();startMusic();}},{once:true});
  $('#spinBtn').addEventListener('click',spinCurrent);$('#nextBtn').addEventListener('click',nextBuild);$('#quickBuildBtn').addEventListener('click',quickBuild);
  $('#playerName').addEventListener('input',e=>{state.run.name=e.target.value.slice(0,36);renderPlayer();save();});
+ $('#editLookBtn')?.addEventListener('click',openAvatarEditor);
  $('#randomNameBtn').addEventListener('click',()=>{state.run.name=randomName();renderPlayer();save();clickSound();});
  $('#betweenGameBtn').addEventListener('click',startBetweenEvent);
  $('#treatKnockBtn').addEventListener('click',treatKnock);

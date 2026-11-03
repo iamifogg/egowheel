@@ -170,9 +170,11 @@
 
           <aside class="player-card panel">
             <div class="player-card-head">
-              <div>
+              <div id="myPortrait" class="my-portrait" aria-hidden="true"></div>
+              <div class="pc-title">
                 <span class="kicker">LIVE PLAYER DOSSIER</span>
                 <h2 id="playerTitle">Unnamed Egoist</h2>
+                <button id="editLookBtn" class="button compact secondary" type="button">Edit Look</button>
               </div>
               <span id="overallBadge" class="overall-badge">OVR 50</span>
             </div>
@@ -288,6 +290,9 @@
   <script src="./src/data/arc-templates.js?v=26" defer></script>
   <script src="./src/engine/agency.js?v=26" defer></script>
   <script src="./src/engine/partnerships.js?v=26" defer></script>
+  <script src="./src/art/sprite-renderer.js?v=26" defer></script>
+  <script src="./src/art/character-appearances.js?v=26" defer></script>
+  <script src="./src/ui/avatar-editor.js?v=26" defer></script>
   <script src="./app.js?v=25" defer></script>
 </body>
 </html>

@@ -551,3 +551,37 @@ button:disabled{cursor:not-allowed}
 .moment-modal .modal-card{animation:momentIn .6s ease-out}
 @keyframes momentIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.moment-modal .modal-card{animation:none}}
+/* ===== v26 pixel art ===== */
+.px-portrait{image-rendering:pixelated;image-rendering:crisp-edges;display:inline-block;vertical-align:middle;background:linear-gradient(180deg,#16233d,#0b1424);border:1px solid #23395e}
+.px-portrait.mirror{transform:scaleX(-1)}
+.px-fallback{background:#16233d}
+.rank-row .nm{display:flex;align-items:center;gap:8px}.rank-row .nm .px-portrait{flex:0 0 auto;border-radius:3px}.rank-row .nm b,.rank-row .nm small{display:block}
+.rank-row .nm>b{flex:0 1 auto}
+.my-portrait .px-portrait{border:2px solid var(--blue);box-shadow:0 0 18px rgba(21,152,255,.3)}
+.player-card-head{align-items:center;gap:12px}.pc-title{flex:1;min-width:0}.pc-title .button{margin-top:4px}
+.scene-stage{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;min-height:150px;padding:10px 14px 6px;margin:6px 0 8px;background-size:cover;background-position:center;image-rendering:pixelated;border:1px solid #23395e;position:relative}
+.scene-stage::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(5,7,11,.55));pointer-events:none}
+.scene-actor-px{display:flex;flex-direction:column;align-items:center;gap:3px;z-index:1;background:none;border:0;color:var(--text);padding:0;cursor:pointer;font:inherit}
+.scene-actor-px span{font-size:.62rem;font-weight:800;letter-spacing:.06em;background:rgba(5,7,11,.8);padding:2px 6px;max-width:180px;text-align:center}
+.scene-actor-px .px-portrait{border:2px solid rgba(125,231,255,.5)}.scene-actor-px.them .px-portrait{border-color:rgba(255,93,115,.55)}
+.duel-side{display:flex;align-items:center;gap:8px}.duel-side.them{flex-direction:row-reverse}.duel-txt{min-width:0;display:grid;gap:2px}
+.dossier-portrait{float:right;margin:0 0 8px 10px}
+.rival-head{align-items:flex-start;gap:10px}.rival-head>div{flex:1;min-width:0}
+.partner-box{margin:8px 0;padding:8px;border:1px solid rgba(70,224,138,.35);background:rgba(70,224,138,.06)}
+.partner-box strong{display:block}.partner-box em{display:block;font-style:normal;font-size:.72rem;color:var(--muted)}.partner-box em.danger{color:var(--down)}
+.pbar{display:block;height:5px;background:#0f1a29;margin:4px 0}.pbar b{display:block;height:100%;background:linear-gradient(90deg,#46e08a,#7de7ff)}
+.archive-px{float:right;margin-left:8px}
+.av-modal .modal-card{width:min(760px,100%)}
+.av-layout{display:grid;grid-template-columns:180px 1fr;gap:16px;margin-top:8px}
+.av-preview{display:flex;flex-direction:column;align-items:center;gap:6px}.av-img{width:160px;height:176px;border:2px solid var(--blue)}
+.av-ex,.av-ctl{display:flex;align-items:center;gap:6px}.av-ex span{min-width:70px;text-align:center;font-size:.72rem;text-transform:capitalize;color:var(--muted)}
+.av-ctl b{min-width:90px;text-align:center;font-size:.8rem}
+.av-ex button,.av-ctl button{width:32px;height:32px;border:1px solid var(--line);background:#0a1018;color:var(--text);cursor:pointer}
+.av-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(24,38,58,.7)}
+.av-row>span{font-size:.72rem;font-weight:800;letter-spacing:.06em;color:var(--blue2)}.av-row em{color:var(--warn);font-style:normal}
+.av-swatches{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:70%}
+.av-swatches .sw{width:22px;height:22px;border:2px solid #0a1018;cursor:pointer;padding:0}.av-swatches .sw.on{outline:2px solid #fff}.av-swatches .sw.none{background:repeating-linear-gradient(45deg,#333 0 3px,#555 3px 6px)}
+.av-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:12px}
+.av-cost{margin:10px 0 0;font-size:.78rem;color:var(--muted)}.av-cost.over{color:var(--down)}
+@media (max-width:620px){.av-layout{grid-template-columns:1fr}.av-img{width:128px;height:141px}.scene-stage{min-height:120px}.scene-stage .px-portrait{width:72px!important;height:79px!important}.dossier-portrait{float:none;text-align:center}}
+.nmt{display:flex;flex-direction:column;min-width:0}.nmt b,.nmt small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
