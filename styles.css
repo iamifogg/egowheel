@@ -530,3 +530,4 @@ button:disabled{cursor:not-allowed}
 
 /* Global: the hidden attribute must always win over component display rules. */
 [hidden]{display:none!important}
+.build-badge{display:inline-block;margin-left:6px;padding:1px 6px;background:#ffd166;color:#1a1200;font-weight:900;letter-spacing:.1em;border-radius:3px}

@@ -267,3 +267,18 @@ Known remaining issues:
   area stayed visible under the career-complete screen. Added `[hidden]{display:none!important}`.
 - Verified in Chromium at 390px and 1280px: no console errors, no horizontal scroll; offline reload
   via the service worker loads every engine and starts a career.
+
+## Preview deployment (for owner testing)
+- URL: `https://iamifogg.github.io/egowheel/preview/` — deployed by `.github/workflows/preview.yml`
+  on every push to the overhaul branch. The live game at `/egowheel/` is re-published from `main`
+  unchanged. The yellow **PREVIEW** badge in the header shows the deployed commit.
+- Isolation (same origin as the live game, so this matters):
+  - `src/channel.js` sets `EW.channel = 'preview'`. Saves, backups and audio settings use the
+    `egowheel.preview.*` namespace. The live keys (`egowheel.save.v7`, `egowheel.audio.v1`) are only
+    ever *read*: on first visit the preview copies your live v24 career so you can test migration,
+    and never writes back. Tested (`preview builds never write to the live game's storage keys`).
+  - The preview service worker uses the `egowheel-preview-*` cache namespace, is scoped to
+    `/egowheel/preview/`, and only deletes its own old caches.
+- A push to `main` redeploys the live site without `/preview/`; re-run the preview workflow.
+- Before merging: set `EW.channel = 'stable'`, restore the stable cache naming, delete
+  `preview.yml`. Stable saves then use `egowheel.save.v8` and migrate from v7 with a backup.

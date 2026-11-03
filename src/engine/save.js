@@ -11,10 +11,13 @@
   const EW = root.EW = root.EW || {};
 
   const VERSION = 8;
-  const KEY = 'egowheel.save.v8';
-  const PREV_KEY = 'egowheel.save.v8.prev';
-  const LEGACY_KEY_RE = /^egowheel\.save\.v(\d+)$/;
-  const BACKUP_PREFIX = 'egowheel.backup.';
+  // Preview builds use their own namespace so they can never overwrite live data on a shared origin.
+  const PREVIEW = EW.channel === 'preview';
+  const NS = PREVIEW ? 'egowheel.preview.' : 'egowheel.';
+  const KEY = NS + 'save.v8';
+  const PREV_KEY = KEY + '.prev';
+  const LEGACY_KEY_RE = /^egowheel\.save\.v(\d+)$/; // live saves: only ever READ by a preview build
+  const BACKUP_PREFIX = NS + 'backup.';
 
   function isObj(v) { return v && typeof v === 'object' && !Array.isArray(v); }
 
@@ -118,8 +121,8 @@
       const raw = storage.getItem(key);
       const parsed = tryParse(raw);
       if (!isObj(parsed)) { backup(storage, 'corrupt.v' + v + '.' + Date.now(), raw); continue; }
-      backup(storage, 'v' + v, raw);
-      notes.push('Migrated your v' + v + ' save to v' + VERSION + ' (original kept as backup).');
+      if (!PREVIEW) backup(storage, 'v' + v, raw);
+      notes.push(PREVIEW ? 'Preview: copied your existing v' + v + ' career into the preview. Your live save was only read, never changed.' : 'Migrated your v' + v + ' save to v' + VERSION + ' (original kept as backup).');
       return { state: normalize(parsed, defaults), notes, migratedFrom: v };
     }
     return { state: defaults.state(), notes };
@@ -146,6 +149,6 @@
     return normalize(st, defaults);
   }
 
-  EW.save = { VERSION, KEY, PREV_KEY, BACKUP_PREFIX, load, save, normalize, exportJSON, importJSON, legacyKeys };
+  EW.save = { VERSION, NS, PREVIEW, KEY, PREV_KEY, BACKUP_PREFIX, load, save, normalize, exportJSON, importJSON, legacyKeys };
   if (typeof module !== 'undefined' && module.exports) module.exports = EW.save;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

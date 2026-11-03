@@ -4,9 +4,9 @@ const EW=globalThis.EW||{};
 const R=()=>EW.rng?EW.rng.next():Math.random();
 
 const STORAGE_KEY=EW.save?EW.save.KEY:'egowheel.save.v8';
-const AUDIO_KEY='egowheel.audio.v1';
+const AUDIO_KEY=(EW.channel==='preview'?'egowheel.preview.':'egowheel.')+'audio.v1';
 const VERSION=EW.save?EW.save.VERSION:8;
-const BUILD_ID='v25';
+const BUILD_ID=EW.build?.version||'v25';
 const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -3508,6 +3508,7 @@ function importBackup(file){
  reader.onload=()=>{try{const next=EW.save.importJSON(String(reader.result),{state:defaultState,run:defaultRun});if(!confirm('Replace the current career and archive with this backup?'))return;state=next;save();renderAll();toast('Backup imported.');}catch(e){toast(e.message||'Import failed.');}};
  reader.readAsText(file);
 }
-function init(){exposeTestApi();bind();renderAll();if(loadNotes.length)toast(loadNotes.join(' '));if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}
+function renderBuildBadge(){const b=$('#buildBadge');if(!b)return;if(EW.channel!=='preview'){b.hidden=true;return;}b.hidden=false;const bi=EW.build||{};b.textContent='PREVIEW '+(bi.commit&&bi.commit!=='local'?bi.commit.slice(0,7):'local');b.title='Overhaul preview build'+(bi.date?' deployed '+bi.date:'')+'. Saves are separate from the live game.';}
+function init(){exposeTestApi();bind();renderBuildBadge();renderAll();if(loadNotes.length)toast(loadNotes.join(' '));if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}
 init();
 })();

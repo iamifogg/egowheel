@@ -17,7 +17,7 @@ test('a real v7 save migrates without losing the career or archive', () => {
   assert.deepStrictEqual(st.run.baseStats, old.run.baseStats, 'attributes preserved');
   assert.strictEqual(st.run.career.totals.apps, old.run.career.totals.apps, 'statistics preserved');
   assert.strictEqual(st.run.career.fixtureIndex, old.run.career.fixtureIndex, 'progression preserved');
-  assert.strictEqual(g.storage.get('egowheel.backup.v7'), V7, 'raw v7 backup kept');
+  assert.strictEqual(g.storage.get('egowheel.save.v7'), V7, 'live v7 save left exactly as it was');
 });
 
 test('the migrated career remains playable to the end', () => {
@@ -54,11 +54,12 @@ test('corrupt current save falls back to previous copy and is backed up', () => 
   const good = createGame({ seed: 'c1' });
   good.api.quickBuild();
   for (let i = 0; i < 10; i++) good.api.save();
-  const prev = good.storage.get('egowheel.save.v8.prev');
+  const K = good.EW.save.KEY, P = good.EW.save.PREV_KEY;
+  const prev = good.storage.get(P);
   assert.ok(prev, 'rolling backup written');
-  const g = createGame({ storage: { 'egowheel.save.v8': '{broken', 'egowheel.save.v8.prev': prev } });
+  const g = createGame({ storage: { [K]: '{broken', [P]: prev } });
   assert.strictEqual(g.api.state.run.name, JSON.parse(prev).run.name);
-  assert.ok(Array.from(g.storage.keys()).some(k => k.startsWith('egowheel.backup.corrupt.')));
+  assert.ok(Array.from(g.storage.keys()).some(k => k.startsWith(good.EW.save.BACKUP_PREFIX + 'corrupt.')));
 });
 
 test('export/import round trip', () => {
@@ -88,4 +89,33 @@ test('archiving stores a career biography built from real events', () => {
   assert.ok(Array.isArray(entry.summary.milestones) && entry.summary.milestones.length >= 1, 'milestones recorded');
   assert.strictEqual(entry.summary.goals, c.totals.goals, 'biography numbers match recorded totals');
   a.renderAll();
+});
+
+test('preview builds never write to the live game\'s storage keys', () => {
+  const { playCareer } = require('./autoplay');
+  const live = { 'egowheel.save.v7': V7, 'egowheel.audio.v1': 'on' };
+  const g = createGame({ seed: 'iso', storage: Object.assign({}, live) });
+  assert.strictEqual(g.EW.channel, 'preview');
+  const a = g.api;
+  // play a while, archive, clear, export — everything a tester might do
+  let n = 0;
+  while (n++ < 400 && a.state.run.mode !== 'complete') {
+    const s = a.state, c = s.run.career;
+    if (s.run.mode === 'career') {
+      if (a.pendingDecision()) { a.resolveDecision({}); continue; }
+      if (c.report) { a.advanceFixture(); continue; }
+      if (a.injuryBlocksFixture()) { a.chooseInjuryRoom('rest'); continue; }
+      if (c.prepPhase === 'event') { a.startBetweenEvent(); continue; }
+      if (c.prepPhase === 'training') { a.applyTraining('film'); continue; }
+      a.playFixture(); continue;
+    }
+    if (a.pendingWheelChoice()) { a.resolveWheelChoice({}); continue; }
+    const st = a.currentWheelStage();
+    if (!s.run.selections[st.key]) a.spinCurrent(); else a.nextBuild();
+  }
+  a.newRun(true); a.save();
+  for (const [k, v] of Object.entries(live)) assert.strictEqual(g.storage.get(k), v, 'live key untouched: ' + k);
+  const written = Array.from(g.storage.keys()).filter(k => !(k in live));
+  assert.ok(written.length > 0);
+  written.forEach(k => assert.ok(k.startsWith('egowheel.preview.'), 'preview only writes its own namespace: ' + k));
 });
