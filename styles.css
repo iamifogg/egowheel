@@ -489,3 +489,26 @@ button:disabled{cursor:not-allowed}
 .weapon-row small{font-size:.64rem;color:var(--faint)}
 .objective-grid .plan-button span{font-size:.7rem}
 @media (max-width:620px){.duel-approaches{grid-template-columns:1fr}.hud-min{font-size:1.3rem;min-width:44px}.hud-score strong{font-size:1.2rem}}
+
+/* ===== v25: rivals, scenes ===== */
+.rivals-content{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;max-width:1200px}
+.rival-card{padding:14px;border:1px solid var(--line);background:linear-gradient(160deg,rgba(13,19,29,.96),rgba(6,9,14,.98));border-left:4px solid var(--faint)}
+.rival-card.rival,.rival-card.respected-rival,.rival-card.emerging-rival{border-left-color:var(--warn)}
+.rival-card.nemesis{border-left-color:var(--down);box-shadow:inset 0 0 40px rgba(255,93,115,.08)}
+.rival-card.partner,.rival-card.trusted-partner{border-left-color:var(--up)}
+.rival-card.conquered-rival{border-left-color:var(--cyan)}
+.rival-card.eliminated{opacity:.55}
+.rival-head{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;background:none;border:0;color:var(--text);padding:0;cursor:pointer}
+.rival-head h3{margin:2px 0;font-style:italic;text-transform:uppercase;letter-spacing:-.02em}
+.rival-head small{color:var(--muted);font-size:.7rem}
+.rival-quote{font-size:.72rem;color:var(--muted);font-style:italic;max-width:46%;text-align:right}
+.rel-bars{display:grid;gap:4px;margin:10px 0}
+.rel-bar{display:grid;grid-template-columns:100px 1fr 28px;gap:8px;align-items:center;font-size:.6rem;letter-spacing:.12em;color:var(--muted);font-weight:800}
+.rel-bar i{display:block;height:6px;background:#0f1a29}.rel-bar i b{display:block;height:100%}
+.rel-bar em{font-style:normal;text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+.rel-bar.respect b{background:#65c9ff}.rel-bar.rivalry b{background:var(--warn)}.rel-bar.compat b{background:#b786ff}.rel-bar.trust b{background:var(--up)}.rel-bar.hostility b{background:var(--down)}
+.rival-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.7rem;color:var(--muted)}
+.rival-meta b{color:var(--text)}.rival-meta .read{color:var(--down);font-weight:800}
+.scene-actor{display:flex;flex-direction:column;align-items:flex-start;margin:6px 0 8px;padding:8px 12px;border:1px solid #2a6bb0;background:rgba(5,9,15,.7);color:var(--text);cursor:pointer;clip-path:polygon(0 0,100% 0,94% 100%,0 100%)}
+.scene-actor span{font-size:.68rem;color:var(--blue2)}
+.moment-list.drama p{color:var(--warn)}

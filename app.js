@@ -1319,6 +1319,7 @@ function currentWheelStage(){
  if(state.run.mode==='challengeSpin')return challengeStage();
  if(state.run.mode==='survivalSpin')return secondSelectionSurvivalStage();
  if(state.run.mode==='selectionSpin')return selectionStage();
+ if(state.run.mode==='sceneSpin')return sceneStage();
  return BUILD_STAGES[state.run.buildIndex];
 }
 function layoutFor(stage){
@@ -1414,6 +1415,7 @@ function renderWheel(){
  else if(mode==='duelSpin'){const p=state.run.pendingMatch||{};$('#nextBtn').textContent=(p.endedEarly||(p.spinIndex||0)>=(p.targetSpins||6)-1)?'Resolve Match':'Next Match Moment';}
  else if(mode==='challengeSpin')$('#nextBtn').textContent='View Challenge Result';
  else if(mode==='survivalSpin')$('#nextBtn').textContent=(picked?.meta?.survive?'Continue Second Selection':'Accept Elimination');
+ else if(mode==='sceneSpin')$('#nextBtn').textContent='Return to Preparation';
  else if(mode==='selectionSpin')$('#nextBtn').textContent=(picked?.meta?.role==='out'?'Accept the Decision':'Continue to the U-20 Match');
  else if(mode==='nelSpin')$('#nextBtn').textContent='Enter Neo Egoist League';
  else $('#nextBtn').textContent=state.run.buildIndex===BUILD_STAGES.length-1?'Roll Starting Stats':'Next Build Stage';
@@ -1438,6 +1440,7 @@ function renderBuildStrip(){
  }
  if(mode==='challengeSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">100 Goal Challenge</span>';return;}
  if(mode==='survivalSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Selection Survival</span>';return;}
+ if(mode==='sceneSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">Decision Outcome</span>';return;}
  if(mode==='selectionSpin'){$('#stageStrip').innerHTML='<span class="stage-pill current">U-20 Squad Decision</span>';return;}
  if(mode==='statSpin'){
   $('#stageStrip').innerHTML=ATTRS.map(([k,label],i)=>'<span class="stage-pill '+(state.run.selections['stat_'+k]?'done ':'')+(i===state.run.statIndex?'current':'')+'">'+(i+1)+'. '+esc(label)+'</span>').join('');
@@ -1637,17 +1640,19 @@ function repairPrepState(){
   completePrepEvent(c);
  }
  setPrepPhase(c,c.prepPhase);
+ if(c.prepPhase===PREP_PHASE.EVENT&&!c.sceneChecked&&worldOf())maybeScene();
 }
 function resetMatchPreparation(c){
  if(!c)return;
  c.betweenEvent=null;c.trainingKey=null;c.trainingResult=null;c.prepResolution=null;c.tempMatchBonus=null;c.planKey='balanced';c.report=null;c.temporaryPosition=null;
+ c.sceneChecked=false;c.forceDuel=null;c.lastScene=null;if(c.pendingDecision?.type==='scene')c.pendingDecision=null;
  state.run.pendingBetweenFollowup=null;
  setPrepPhase(c,PREP_PHASE.EVENT);
 }
 function startBetweenEvent(){
  const c=state.run.career;if(!c||c.report)return;
  repairPrepState();
- if(c.prepPhase!==PREP_PHASE.EVENT)return;
+ if(c.prepPhase!==PREP_PHASE.EVENT||c.pendingDecision)return;
  delete state.run.selections.betweenGame;
  state.run.mode='betweenSpin';wheelRotation=0;save();renderAll();clickSound();
 }
@@ -1795,6 +1800,8 @@ function duelCandidate(fixture){
  const q=w.players[best];return(q.named||(rel(best)?.rivalry||0)>=40)?best:null;
 }
 function scheduleDuel(p,fixture){
+ const c=state.run.career,forced=c?.forceDuel&&fixture?.cast?.opp?.includes(c.forceDuel)?c.forceDuel:null;
+ if(forced){const n=p.targetSpins||6;return{oppId:forced,at:clamp(int(2,n-2),1,n-1),approach:null,done:false,forced:true};}
  const id=duelCandidate(fixture);if(!id)return null;
  const r=typeof relationFor==='function'?relationFor(id,true):null,obj=currentObjective();
  let chance=.2+(r?r.rivalry/250:0)+((fixture.importance||1)>=1.6?.1:0);
@@ -1913,6 +1920,7 @@ function duelOdds(approach){
  else if(approach==='adapt')my=(s.vision+s.reactions+s.technique)/3-6+(['Adaptation Addict','Puzzle Solver','Devourer','World Devourer','Evolution Addict','Chameleon'].includes(ego)?6:0)+(state.run.selections.primaryWeapon?.name==='Chameleon Technique'?4:0);
  else{const keys=def?['defense','physical','reactions','speed']:['dribbling','passing','shotPower','speed','technique'];const vals=keys.filter(k=>!fam.stats.includes(k)).map(k=>s[k]||50).sort((a,b)=>b-a);my=((vals[0]||50)+(vals[1]||vals[0]||50))/2-2+Math.min(4,Math.max(0,(their-o.weakVal)*.15));}
  my+=(state.run.confidence-50)*.06+state.run.form*.8;
+ const cc=state.run.career;my+=(cc?.duelBonus?.[q?.id]||0)*.6;if(approach==='adapt')my+=(cc?.adaptBonus?.[q?.id]||0)*.6;
  return{p:1/(1+Math.exp(-(my-their)/8)),my:Math.round(my),their:Math.round(their),opp:q,type:def?'defend':'attack',weak:o.weak};
 }
 function duelStage(){
@@ -1948,6 +1956,7 @@ function resolveDuelOutcome(outcome){
  if(key==='decisive')state.run.confidence=clamp(state.run.confidence+3,0,100);
  p.ctx.timeline.push({m:minute,t:'duel',txt:'Duel vs '+(q?.short||'their star')+': '+outcome.name+(d.approach==='adapt'&&(key==='win'||key==='decisive')?' (adapted)':'')});
  if(typeof onDuelResult==='function')onDuelResult(d.oppId,key,d.approach);
+ const cc=state.run.career;if(cc?.duelBonus)delete cc.duelBonus[d.oppId];if(cc?.adaptBonus)delete cc.adaptBonus[d.oppId];
 }
 function applyContribution(p,outcome,tags){
  const target=p.contributions||(p.contributions=emptyMatchContribution()),add=outcome.meta?.contrib||{};
@@ -1956,7 +1965,7 @@ function applyContribution(p,outcome,tags){
  const fixture=currentFixture();
  if(p.ctx&&fixture)playSegment(p,fixture,tags,add);
  const W=weaponsState();
- if(W&&!tags.includes('injury')){const mult=(currentObjective().xp||1)*(p.ctx?.flow?2:1)*((fixture?.importance||1)>=1.6?1.3:1);EW.weapons.award(W,tags,{mult});}
+ if(W&&!tags.includes('injury')){const mult=(state.run.career?.xpMultNext||1)*(currentObjective().xp||1)*(p.ctx?.flow?2:1)*((fixture?.importance||1)>=1.6?1.3:1);EW.weapons.award(W,tags,{mult});}
 }
 
 function resolveContributionOutcome(outcome){
@@ -2064,7 +2073,8 @@ function finalizeContributionMatch(){
 }
 function afterMatchWeapons(rep,fixture,p){
  const W=weaponsState();if(!W)return;rep.weaponLines=[];
- const evos=EW.weapons.tryEvolve(W,Object.assign({rating:rep.rating,importance:fixture.importance||1},p.evo||{}),EW.rng.current);
+ const cc=state.run.career,trig=Object.assign({rating:rep.rating,importance:fixture.importance||1},p.evo||{});if(cc.evoTriggerNext){trig.adapted=true;cc.evoTriggerNext=false;}cc.xpMultNext=null;
+ const evos=EW.weapons.tryEvolve(W,trig,EW.rng.current);
  evos.forEach(ev=>{
   rep.weaponLines.push('WEAPON EVOLUTION: '+ev.base+' → '+ev.name+' (through '+ev.how+').');
   addMilestone('evolution',ev.base+' evolved into '+ev.name+' through '+ev.how+'.');
@@ -2283,6 +2293,15 @@ function ensureFixtureCast(fixture){
   mine=w.nel.clubs[fixture.team].ids.slice();opp=w.nel.clubs[fixture.opponent].ids.slice();fixture.stars=castNames(w,opp);
   fixture.strength=EW.world.nelClubStrength(w,fixture.opponent);fixture.teamStrength=EW.world.nelClubStrength(w,fixture.team);
  }
+ else if(worldStageFor(fixture.stage)==='pro'&&w.nel){
+  const clubIds=n=>(w.nel.clubs[n]?.ids||[]).filter(id=>id!=='me'&&['active','external'].includes(P[id]?.status));
+  if(/^Japan/.test(fixture.team))mine=['me',...Object.values(P).filter(x=>x.blueLock&&x.status==='active'&&!x.isMe).sort((a,b)=>b.ovr-a.ovr).slice(0,10).map(x=>x.id)];
+  else mine=['me',...clubIds(P.me.club)];
+  const map={'Paris X Gen':'Paris X Gen','Ubers':'Ubers'},key=Object.keys(map).find(k=>fixture.opponent.includes(k));
+  opp=key?clubIds(map[key]):[];
+  if(/Germany/.test(fixture.opponent)&&P.kaiser)opp=['kaiser','ness'].filter(id=>P[id]);
+  if(opp.length){const extra=castNames(w,opp,3);fixture.stars=Array.from(new Set([...extra,...(fixture.stars||[])])).slice(0,4);}
+ }
  if(!mine&&!opp)return null;
  fixture.cast={mine:mine||['me'],opp:opp||[]};
  return fixture.cast;
@@ -2321,6 +2340,11 @@ function worldAfterFixture(fixture,rep){
   if(conf)state.run.confidence=clamp(state.run.confidence+conf,0,100);
  }
  c.bestRank=Math.min(c.bestRank||999,me.rank||999);
+ relationsAfterMatch(fixture,rep);
+ Object.entries(relStore()).forEach(([id,r])=>{if(w.players[id]?.status==='eliminated'&&!r.eliminated){r.eliminated=true;EW.relationships.adjust(r,{});if(r.rivalry>=40||r.trust>=55){const l=w.players[id].name+', your '+(r.rivalry>=40?'rival':'partner')+', has been eliminated.';(c.pendingDrama=c.pendingDrama||[]).push(l);careerLog(l);}}});
+ rep.dramaLines=(c.pendingDrama||[]).slice();c.pendingDrama=[];
+ c.lastObjective=rep.objective;
+ mainRival();
 }
 function qualificationStatus(){
  const c=state.run.career,w=worldOf(),f=currentFixture();if(!c||!w||!f)return null;
@@ -2346,6 +2370,207 @@ function qualificationStatus(){
   return{tone:pos<=18?'safe':pos<=EW.market.QUALIFY?'warn':'danger',label:pos<=EW.market.QUALIFY?'INSIDE TOP 23':'OUTSIDE TOP 23',lines:['Auction position #'+pos+' · ¥'+me.bid+'m','Cutoff (23rd): ¥'+cut+'m · '+(gap>=0?'+':'')+gap+'m',left+' NEL fixture'+(left===1?'':'s')+' left']};
  }
  return null;
+}
+
+// ===== RELATIONSHIPS (src/engine/relationships.js) =====
+function relStore(){const c=state.run.career;if(!c)return{};c.relations=c.relations||{};return c.relations;}
+function relationFor(id,peek){
+ const w=worldOf(),p=w?.players[id];if(!p||p.isMe||!p.named)return null;
+ const store=relStore();if(!store[id]){if(peek)return null;store[id]=EW.relationships.create(p,w.players.me);}
+ const r=store[id];if(p.status==='eliminated'&&!r.eliminated){r.eliminated=true;EW.relationships.adjust(r,{});}
+ return r;
+}
+function relationBars(rel){
+ const ax=[['respect','RESPECT'],['rivalry','RIVALRY'],['compat','COMPATIBILITY'],['trust','TRUST'],['hostility','HOSTILITY']];
+ return'<div class="rel-bars">'+ax.map(([k,l])=>'<div class="rel-bar '+k+'"><span>'+l+'</span><i><b style="width:'+Math.round(rel[k])+'%"></b></i><em>'+Math.round(rel[k])+'</em></div>').join('')+'</div>';
+}
+function relAdjust(id,delta,momentText){
+ const r=relationFor(id);if(!r)return null;const before=r.status;
+ EW.relationships.adjust(r,delta||{});
+ const f=currentFixture();
+ if(momentText)EW.relationships.moment(r,momentText,{stage:f?.stage||'',fx:state.run.career?.fxNo||0});
+ if(r.status!==before)onStatusChange(id,r,before);
+ return r;
+}
+function onStatusChange(id,r,before){
+ const c=state.run.career,p=worldOf()?.players[id];if(!c||!p)return;
+ const notable=['Rival','Respected Rival','Nemesis','Partner','Trusted Partner','Strained','Conquered Rival'];
+ if(!notable.includes(r.status))return;
+ const line=p.name+' is now your '+r.status.toLowerCase()+'.';
+ c.pendingDrama=(c.pendingDrama||[]).concat([line]);careerLog(line);
+ c.flags=c.flags||{};
+ if(/Rival|Nemesis/.test(r.status)&&!c.flags.firstRival){c.flags.firstRival=id;addMilestone('rival','First serious rival: '+p.name+'.');}
+ if(/Partner/.test(r.status)&&!c.flags.firstPartner){c.flags.firstPartner=id;addMilestone('partner','First real partnership: '+p.name+'.');}
+}
+function mainRival(){
+ const w=worldOf();if(!w)return null;const store=relStore();
+ const best=Object.entries(store).filter(([id,r])=>r.rivalry>=30&&w.players[id]).sort((a,b)=>(b[1].rivalry+(b[1].eliminated?-40:0))-(a[1].rivalry+(a[1].eliminated?-40:0)))[0];
+ if(!best)return null;const c=state.run.career;c.rival=w.players[best[0]].name;
+ return{id:best[0],name:w.players[best[0]].name,status:best[1].status,rel:best[1]};
+}
+function relationsAfterMatch(fixture,rep){
+ const w=worldOf(),c=state.run.career;if(!w||!fixture?.cast||rep.type!=='match')return;
+ const mates=fixture.cast.mine.filter(id=>w.players[id]?.named),opps=fixture.cast.opp.filter(id=>w.players[id]?.named);
+ const res=rep.result==='WIN'?1:rep.result==='LOSS'?-1:0,myDef=(rep.tackles||0)+(rep.interceptions||0)+(rep.blocks||0)+(rep.clearances||0)+(rep.recoveries||0);
+ const W=weaponsState(),famTags=EW.weapons.FAMILIES[W?.primary?.family]?.tags||[],weaponUses=(rep.contributionLabels||[]).filter(l=>(OUTCOME_TAGS[l]||[]).some(t=>famTags.includes(t))).length;
+ c.lastAssistedBy=null;
+ mates.forEach(id=>{
+  const r=relationFor(id);if(!r)return;r.enc.with++;const pers=EW.relationships.persOf(w.players[id]);
+  const fed=(rep.scorers||[]).filter(s=>s.id===id&&s.assist==='me').length,fedMe=(rep.scorers||[]).filter(s=>s.id==='me'&&s.assist===id).length;
+  const d={trust:res>0?2:0,compat:res>0?1:0};
+  if(fed){d.trust+=6*fed;d.compat+=4*fed;r.enc.assistsTo+=fed;}
+  if(fedMe){d.trust+=4;d.compat+=3;r.enc.assistsFrom+=fedMe;c.lastAssistedBy=id;}
+  if(rep.rating>=8)d.respect=4;if(rep.rating<5.8)d.respect=-3;
+  if(pers.selfish>.8&&(rep.goals||0)>0&&!fedMe)d.rivalry=3;
+  relAdjust(id,d,fed?'Scored from your pass vs '+fixture.opponent+'.':fedMe?'Set up your goal vs '+fixture.opponent+'.':null);
+ });
+ opps.forEach(id=>{
+  const r=relationFor(id);if(!r)return;r.enc.against++;const q=w.players[id],pers=EW.relationships.persOf(q);
+  if(res>0)r.enc.wins++;else if(res<0)r.enc.losses++;
+  const d={rivalry:2+(rep.goals||0)*4*(.6+pers.pride*.6),respect:(rep.goals||0)*3+(rep.rating>=7.8?4:0)};
+  const attacker=['CF','WG','AM'].includes(q.pos);
+  if(isDefensiveRole()&&attacker&&myDef>=4){d.rivalry+=3;d.respect+=4;}
+  if(rep.standout?.id===id&&rep.rating<6.2){d.rivalry+=5;d.respect-=5;c.flags=c.flags||{};c.flags['beatenBy_'+id]=true;}
+  if(rep.rating>=8.2&&res>0&&pers.pride>.7){d.hostility=4;}
+  if(weaponUses>=2&&pers.analytic>=.6)d.read=1;
+  const txt=(rep.goals||0)>=2?'You scored '+rep.goals+' against them.':rep.standout?.id===id&&rep.rating<6.2?'They dominated you.':res>0&&rep.rating>=7.8?'You beat them, and played well doing it.':null;
+  relAdjust(id,d,txt);
+ });
+ // Ranking overtakes: named players you pass notice you.
+ Object.entries(relStore()).forEach(([id,r])=>{const q=w.players[id];if(!q||q.status!=='active'||!q.rank||!q.prevRank)return;const me=w.players.me;
+  if(me.prevRank>q.prevRank&&me.rank<q.rank){const pers=EW.relationships.persOf(q);relAdjust(id,{rivalry:3+pers.pride*4},'You overtook them in the rankings.');}});
+}
+function onDuelResult(id,key,approach){
+ const w=worldOf(),c=state.run.career,q=w?.players[id];const r=relationFor(id);if(!r||!q)return;const pers=EW.relationships.persOf(q);
+ r.enc.duels++;c.flags=c.flags||{};
+ const won=key==='decisive'||key==='win',lost=key==='beaten'||key==='humiliated';
+ if(won){r.enc.duelWins++;delete c.flags['beatenBy_'+id];}
+ const d=won?{rivalry:10+pers.pride*6,respect:key==='decisive'?10:6,hostility:key==='decisive'&&pers.pride>.8?6:0,read:approach==='force'&&pers.analytic>=.6?1:0}:lost?{rivalry:9,respect:key==='humiliated'?-8:-3}:{rivalry:5,respect:3};
+ if(lost)c.flags['beatenBy_'+id]=true;
+ const say=won?EW.relationships.line(q,'lostTo'):lost?EW.relationships.line(q,'beatYou'):'';
+ relAdjust(id,d,(won?'You won a duel':lost?'They won a duel':'A drawn duel')+(say?': "'+say+'"':'.'));
+ if(c.flags.decisive===id){
+  delete c.flags.decisive;
+  if(won){r.arc='conquered';q.pot=Math.max(q.ovr,q.pot-2);raisePotential(2);state.run.confidence=clamp(state.run.confidence+8,0,100);addMilestone('rivalry','Settled the rivalry with '+q.name+' in a decisive duel.');EW.world.addNews(w,(state.run.name||'An egoist')+' wins the decisive duel against '+q.name+'.','star');}
+  else if(lost){r.arc='lost';q.pot=Math.min(99,q.pot+2);state.run.confidence=clamp(state.run.confidence-8,0,100);addMilestone('setback','Lost the decisive duel to '+q.name+'. The rivalry now defines them.');EW.world.addNews(w,q.name+' wins the decisive duel against '+(state.run.name||'their rival')+'.','star');}
+  EW.relationships.adjust(r,{});
+ }
+}
+function onDraftChoice(id,others){
+ relAdjust(id,{trust:12,compat:6,respect:4},'You chose them to join your side.');
+ const p=worldOf()?.players[id];if(p)state.run.career.pendingDrama=(state.run.career.pendingDrama||[]).concat(['"'+EW.relationships.line(p,'partner')+'" — '+p.short]);
+ others.forEach(o=>relAdjust(o,{respect:-4,rivalry:10,hostility:4},'You picked someone else over them.'));
+}
+function onChosenByWinners(ids){ids.forEach(id=>relAdjust(id,{trust:8,respect:6},'They chose you after beating you.'));}
+function relationMatchModifier(fixture){
+ const w=worldOf();if(!w||!fixture?.cast)return null;const store=relStore(),temp=state.run.career?.tempMatchBonus||{};
+ const mates=fixture.cast.mine.filter(id=>store[id]),opps=fixture.cast.opp.filter(id=>store[id]);
+ let create=1,assistDown=1,star=1,card=1;
+ mates.forEach(id=>{const r=store[id],pers=EW.relationships.persOf(w.players[id]);if(/Partner/.test(r.status))create*=1+r.compat/400;if(r.hostility>=45&&pers.selfish>=.7)assistDown*=.88;});
+ opps.forEach(id=>{const r=store[id],pers=EW.relationships.persOf(w.players[id]);if(r.rivalry>=50){star*=1.06;if(pers.volatility>.6)card*=1.12;}});
+ const perf=temp.performance||0,cardRisk=temp.cardRisk?1.4:1,errDown=temp.errorDown?.8:1;
+ return(tags,name)=>{let m=1;const neg=tags.includes('neg');
+  if(!neg&&(tags.includes('create')||tags.includes('pass')))m*=create;
+  if(name==='Assist')m*=assistDown;if(tags.includes('star')&&!neg)m*=star;if(tags.includes('card'))m*=card*cardRisk;
+  if(neg)m*=Math.max(.5,1-perf*2)*errDown;else if(!tags.includes('quiet'))m*=1+perf*2;
+  return m;};
+}
+function relationSlices(opts,fixture,total){
+ const w=worldOf();if(!w||!fixture?.cast)return;const store=relStore();
+ const partner=fixture.cast.mine.filter(id=>store[id]&&/Partner/.test(store[id].status)).sort((a,b)=>store[b].compat-store[a].compat)[0];
+ if(!partner)return;const p=w.players[partner],r=store[partner];
+ opts.push(weighted('Combination Play','A one-two with '+p.short+' rips the defence open.',total*.025*(r.compat/60),{},'COMBO '+p.short.toUpperCase().slice(0,8),{contrib:{keyPasses:1,assists:1,bonusRating:.75},tags:['pass','create','combo'],partner}));
+}
+function counterPressureFor(fixture){
+ const w=worldOf(),W=weaponsState();if(!w||!W?.primary||!fixture?.cast)return null;const store=relStore();let v=0;
+ fixture.cast.opp.forEach(id=>{const r=store[id];if(!r)return;const pers=EW.relationships.persOf(w.players[id]);v=Math.max(v,pers.analytic*Math.min(1,(r.read||0)/6)*.5);});
+ return v?{[W.primary.family]:v}:null;
+}
+function renderRivals(){
+ const box=$('#rivalsContent');if(!box)return;const w=worldOf(),store=relStore();
+ if(!w){box.innerHTML='<div class="empty-state">Start a career to meet your rivals.</div>';return;}
+ const list=Object.entries(store).map(([id,r])=>({id,r,p:w.players[id]})).filter(x=>x.p).sort((a,b)=>(b.r.rivalry+b.r.trust+b.r.compat/2)-(a.r.rivalry+a.r.trust+a.r.compat/2));
+ if(!list.length){box.innerHTML='<div class="empty-state">Nobody knows your name yet. Play against named egoists to start relationships.</div>';return;}
+ box.innerHTML=list.map(({id,r,p})=>{const e=r.enc;return'<article class="rival-card '+(r.status||'').toLowerCase().replace(/\s+/g,'-')+'"><button type="button" class="rival-head" data-player="'+esc(id)+'"><div><span class="kicker">'+esc(r.status)+'</span><h3>'+esc(p.name)+'</h3><small>'+esc(EW.world.GROUP_LABEL[p.pos])+' · '+esc(p.club||p.team||'')+' · OVR '+Math.round(p.ovr)+(p.rank&&p.status==='active'?' · #'+p.rank:'')+'</small></div><span class="rival-quote">'+(r.rivalry>=50?'“'+esc(EW.relationships.line(p,'rival'))+'”':'')+'</span></button>'+relationBars(r)+'<div class="rival-meta"><span>Played with <b>'+e.with+'</b></span><span>Against <b>'+e.against+'</b> ('+e.wins+'W '+e.losses+'L)</span><span>Duels <b>'+e.duelWins+'/'+e.duels+'</b></span><span>Assists to/from <b>'+e.assistsTo+'/'+e.assistsFrom+'</b></span>'+((r.read||0)>=2?'<span class="read">Has read your weapon ('+r.read+')</span>':'')+'</div>'+(r.moments.length?'<div class="profile-timeline">'+r.moments.slice(-4).reverse().map(m=>'<div class="timeline-row"><span>'+esc(m.stage||'')+'</span><strong>'+esc(m.text)+'</strong></div>').join(''):'')+(r.moments.length?'</div>':'')+'</article>';}).join('');
+}
+// ===== EVENT DIRECTOR (src/engine/director.js) =====
+function directorContext(fixture){
+ const c=state.run.career,w=worldOf();if(!c||!w)return null;
+ const cast=ensureFixtureCast(fixture)||{mine:[],opp:[]},me=w.players.me,s=currentStats();
+ const ranked=ATTR_KEYS.filter(k=>k!=='ego'&&k!=='weakFoot').map(k=>[k,s[k]]).sort((a,b)=>a[1]-b[1]),label=k=>(ATTRS.find(a=>a[0]===k)||[k,k])[1].toLowerCase();
+ const nel=w.nel&&fixture.stage==='Neo Egoist League'?(()=>{const board=EW.market.leaderboard(w),pos=board.findIndex(p=>p.id==='me')+1;return{pos,cutoff:EW.market.cutoff(w),bid:me.bid,bidClub:me.bidClub,club:me.club,left:c.fixtures.filter((x,i)=>i>=c.fixtureIndex&&x.stage==='Neo Egoist League').length,near:board.slice(Math.max(0,pos-3),pos+2).map(p=>p.id).filter(id=>id!=='me')};})():null;
+ const q=qualificationStatus(),hist=c.events||{};
+ const atRisk=!!q&&q.tone==='danger'&&(fixture.stage!=='First Selection'||c.fixtures.filter((x,i)=>i>=c.fixtureIndex&&x.stage==='First Selection').length<=2);
+ return{stage:fixture.stage,worldStage:worldStageFor(fixture.stage),fxNo:c.fxNo||0,importance:fixture.importance||1,rank:me.rank,prevRank:me.prevRank,total:w.rankings.length,
+  lastRating:c.recentRatings?.slice(-1)[0],ratings:c.recentRatings||[],form:state.run.form,conf:state.run.confidence,fitness:state.run.fitness,role:roleGroup(),myPos:me.pos,
+  egoStyle:state.run.selections.egoStyle?.name||'',mates:cast.mine.filter(id=>id!=='me'),opps:cast.opp,rels:relStore(),players:w.players,flags:c.flags||{},
+  last:hist.last||{},counts:hist.counts||{},lastCat:hist.lastCat,lastSceneFx:hist.lastSceneFx,W:weaponsState(),stats:s,
+  weakKey:ranked[0][0],weakLabel:label(ranked[0][0]),strongKey:ranked[ranked.length-1][0],nel,atRisk,riskText:q?q.lines.join(' · ')+'. If this goes wrong, your run could end.':'',
+  lastResult:c.history?.length?(c.history[c.history.length-1].summary||'').split(' ')[0]:null,lastObjective:c.lastObjective,lastAssistedBy:c.lastAssistedBy};
+}
+function maybeScene(){
+ const c=state.run.career,f=currentFixture();if(!c||!f||c.report||c.pendingDecision||c.sceneChecked)return;
+ c.sceneChecked=true;if(f.type!=='match'||injuryBlocksFixture(f)){save();return;}
+ const ctx=directorContext(f);if(!ctx)return;
+ const sc=EW.director.choose(ctx,EW.rng.current);
+ if(sc)c.pendingDecision=Object.assign({type:'scene'},sc);
+ save(); // persist the decision so a reload cannot re-roll the scene
+}
+function renderSceneDecision(box,d){
+ const w=worldOf(),p=d.actor?w?.players[d.actor]:null,r=p?relationFor(p.id,true):null;
+ box.innerHTML='<span class="kicker">'+esc(d.cat.toUpperCase())+(d.major?' · MAJOR':'')+'</span><h3>'+esc(d.title)+'</h3>'+(p?'<button type="button" class="scene-actor" data-player="'+esc(p.id)+'"><strong>'+esc(p.name)+'</strong><span>'+esc(r?r.status:(EW.data.PERSONALITIES[p.pers]||{}).label||'')+' · OVR '+Math.round(p.ovr)+'</span></button>':'')+'<p>'+esc(d.text)+'</p><div class="draft-grid">'+d.choices.map(ch=>'<button type="button" class="draft-card" data-choice="'+esc(ch.key)+'"><strong>'+esc(ch.label)+' · '+Math.round(ch.odds*100)+'%</strong><span>'+esc(ch.hint)+'</span></button>').join('')+'</div>';
+}
+function chooseScene(key){
+ const c=state.run.career,d=c?.pendingDecision;if(!d||d.type!=='scene'||state.run.mode==='sceneSpin')return;
+ const ch=d.choices.find(x=>x.key===key);if(!ch)return;
+ state.run.pendingScene={scene:d,choice:ch};delete state.run.selections.sceneOutcome;state.run.mode='sceneSpin';wheelRotation=0;save();renderAll();clickSound();
+}
+function sceneStage(){
+ const ps=state.run.pendingScene||{choice:{odds:.5,label:'?'},scene:{title:'Scene'}},pr=ps.choice.odds;
+ return{key:'sceneOutcome',chapter:'DECISION · '+ps.scene.title.toUpperCase(),name:ps.choice.label,prompt:'You made your choice. Attributes, ego and relationships set the odds: '+Math.round(pr*100)+'% to go your way.',mode:'weights',options:[
+  weighted('Success',ps.choice.success?.text||'It works.',pr*70,{},'SUCCESS',{tier:'success'}),
+  weighted('Mixed',ps.choice.mixed?.text||'Partly.',30,{},'MIXED',{tier:'mixed'}),
+  weighted('Backfire',ps.choice.fail?.text||'It goes wrong.',(1-pr)*70,{},'BACKFIRE',{tier:'fail'})]};
+}
+function resolveSceneOutcome(outcome){
+ const c=state.run.career,ps=state.run.pendingScene;if(!c||!ps||!outcome)return;
+ const tier=outcome.meta?.tier||'mixed',eff=ps.choice[tier]||{},d=ps.scene;
+ applySceneEffects(eff,d.actor);
+ c.events=c.events||{history:[],last:{},counts:{}};const h=c.events;
+ h.last[d.id]=c.fxNo||0;h.counts[d.id]=(h.counts[d.id]||0)+1;h.lastCat=d.cat;h.lastSceneFx=c.fxNo||0;
+ h.history.push({id:d.id,actor:d.actor,choice:ps.choice.key,tier,fx:c.fxNo||0,stage:currentFixture()?.stage||''});h.history=h.history.slice(-80);
+ if(d.actor)relAdjust(d.actor,{},d.title+': '+ps.choice.label+' ('+outcome.name.toLowerCase()+').');
+ careerLog(d.title+' — '+ps.choice.label+': '+outcome.name+'.');
+ c.lastScene={title:d.title,choice:ps.choice.label,result:outcome.name,text:eff.text||''};
+ c.pendingDecision=null;
+}
+function applySceneEffects(eff,actor){
+ const c=state.run.career;if(!c||!eff)return;c.flags=c.flags||{};state.run.lastChanges={};
+ if(eff.conf)state.run.confidence=clamp(state.run.confidence+eff.conf,0,100);
+ if(eff.form)state.run.form=clamp(state.run.form+eff.form,-3,3);
+ if(eff.fitness)state.run.fitness=clamp(state.run.fitness+eff.fitness,EW.injuries.FITNESS_FLOOR,100);
+ Object.entries(eff.stats||{}).forEach(([k,v])=>changeStat(k,v));
+ if(eff.potential)raisePotential(eff.potential);
+ if(eff.rel&&actor)relAdjust(actor,eff.rel);
+ Object.entries(eff.relOther||{}).forEach(([id,dl])=>relAdjust(id,dl));
+ if(eff.flag&&actor){const r=relationFor(actor);if(r)r.noticed=true;}
+ if(eff.clearFlag)delete c.flags[eff.clearFlag];
+ if(eff.temp){c.tempMatchBonus=c.tempMatchBonus||{};Object.entries(eff.temp).forEach(([k,v])=>c.tempMatchBonus[k]=(c.tempMatchBonus[k]||0)+v);}
+ if(eff.duelForce)c.forceDuel=eff.duelForce;
+ if(eff.decisive)c.flags.decisive=eff.decisive;
+ if(eff.duelBonus){c.duelBonus=c.duelBonus||{};Object.entries(eff.duelBonus).forEach(([k,v])=>c.duelBonus[k]=(c.duelBonus[k]||0)+v);}
+ if(eff.adaptBonus){c.adaptBonus=c.adaptBonus||{};Object.entries(eff.adaptBonus).forEach(([k,v])=>c.adaptBonus[k]=(c.adaptBonus[k]||0)+v);}
+ const W=weaponsState();
+ if(eff.xpBonus&&W?.primary){W.primary.xp+=eff.xpBonus;W.primary.level=EW.weapons.levelFor(W.primary.xp);}
+ if(eff.xpMult)c.xpMultNext=eff.xpMult;
+ if(eff.objective)c.objectiveKey=eff.objective;
+ if(eff.readReset){const r=relationFor(eff.readReset);if(r)r.read=0;}
+ if(eff.readHalf){const r=relationFor(eff.readHalf);if(r)r.read=Math.floor((r.read||0)/2);}
+ if(eff.evolveTrigger)c.evoTriggerNext=true;
+ if(eff.milestone)addMilestone('event',eff.milestone);
+ if(eff.rivalsNotice)Object.entries(relStore()).forEach(([id,r])=>{if(r.rivalry>=20)relAdjust(id,{rivalry:eff.rivalsNotice});});
+ if(eff.bidBoost){const w=worldOf();if(w?.players.me){w.players.me.bid+=eff.bidBoost;c.bid=w.players.me.bid;}}
+ if(eff.clubTrust){const w=worldOf(),f=currentFixture();(f?.cast?.mine||[]).filter(id=>w.players[id]?.named).forEach(id=>relAdjust(id,{trust:eff.clubTrust}));}
 }
 
 function applyPostMatch(rep,fixture){
@@ -2380,7 +2605,6 @@ function applyPostMatch(rep,fixture){
   const points=Math.max(0,Math.round(growthBudget*(.82+importance*.16)));
   for(let i=0;i<points;i++)changeStat(pick(growthPool),1);
  }
- if(fixture.stars?.length&&R()<.48){c.rival=pick(fixture.stars);careerLog(c.rival+' is emerging as a defining rival.');}
  worldAfterFixture(fixture,rep);
  careerLog(fixture.stage+': '+(rep.type==='challenge'?rep.result:(fixture.team+' '+rep.teamGoals+'–'+rep.oppGoals+' '+fixture.opponent))+' · rating '+rep.rating.toFixed(1));
 }
@@ -2786,7 +3010,10 @@ function renderTraining(){
   $('#injuryRoomActions').innerHTML=injuryRoomOptions().map(o=>'<button type="button" class="training-action" data-injury="'+o.key+'"><strong>'+esc(o.name)+'</strong><span>'+esc(o.desc)+'</span></button>').join('');
  }
  const knock=state.run.injury&&!(state.run.injury.out>0)&&(state.run.injury.limited||0)>0;
- $('#treatKnockBtn').hidden=!(knock&&phase===PREP_PHASE.EVENT);
+ $('#treatKnockBtn').hidden=!(knock&&phase===PREP_PHASE.EVENT)||!!c.pendingDecision;
+ $('#betweenGameBtn').disabled=!!c.pendingDecision;
+ if(phase===PREP_PHASE.EVENT&&c.pendingDecision?.type==='scene')$('#betweenEventText').textContent='Resolve the situation above first.';
+ if(phase===PREP_PHASE.EVENT&&c.lastScene&&!c.pendingDecision)$('#betweenEventText').textContent=c.lastScene.title+' → '+c.lastScene.result+'. '+c.lastScene.text+' Now spin the between-game event.';
  if(phase===PREP_PHASE.READY){
   repairPrepResolution(c);
   const r=c.prepResolution||{event:c.betweenEvent||'Between-game event',outcome:'Resolved',detail:''};
@@ -2921,6 +3148,8 @@ function renderDecision(){
  const box=$('#decisionPanel');if(!box)return;const c=state.run.career,d=c?.pendingDecision,w=worldOf();
  if(!d){box.hidden=true;box.innerHTML='';return;}
  box.hidden=false;
+ const anchor=d.type==='scene'?$('#prepArea'):$('#matchReport');
+ if(anchor&&anchor.parentNode&&box.nextElementSibling!==anchor&&typeof anchor.parentNode.insertBefore==='function')anchor.parentNode.insertBefore(box,anchor);
  if(d.type==='draft'){
   box.innerHTML='<span class="kicker">SECOND SELECTION · YOUR CHOICE</span><h3>Choose who joins your side</h3><p>You won. One player from the losing side joins you for the next stage. The other stays behind.</p><div class="draft-grid">'+d.options.map(id=>{const p=w.players[id],rel=typeof relationFor==='function'?relationFor(id):null;return'<button type="button" class="draft-card" data-draft="'+esc(id)+'"><strong>'+esc(p.name)+'</strong><span>'+esc(EW.world.GROUP_LABEL[p.pos])+' · OVR '+Math.round(p.ovr)+' · '+esc(p.weapon||'')+'</span><em>'+esc((EW.data.PERSONALITIES[p.pers]||{}).label||'')+(rel?' · '+esc(rel.status)+' · compatibility '+Math.round(rel.compat):'')+'</em></button>';}).join('')+'</div>';
  }else if(typeof renderSceneDecision==='function')renderSceneDecision(box,d);
@@ -3003,10 +3232,10 @@ function renderView(){const v=state.ui.view||'runView';$$('.view').forEach(x=>x.
 function renderAll(){
  repairPrepState();
  if(globalThis.__EGOWHEEL_TEST__?.headless)return;
- const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','learningRewardSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','duelSpin','breakthroughSpin','challengeSpin','survivalSpin','selectionSpin','nelSpin'].includes(state.run.mode);
+ const wheelMode=['build','statSpin','trainingSpin','betweenSpin','learnSpin','learningRewardSpin','positionExperimentSpin','injuryEventSpin','egoEventSpin','weaponEventSpin','contributionSpin','duelSpin','breakthroughSpin','challengeSpin','survivalSpin','selectionSpin','sceneSpin','nelSpin'].includes(state.run.mode);
  $('#setupPanel').hidden=!wheelMode;if(wheelMode){renderWheel();renderSpinResult();}
  renderMatchHud();
- renderCareer();renderPlayer();renderProfile();renderArchive();renderRanks();renderView();syncAudio();syncFastSpin();
+ renderCareer();renderPlayer();renderProfile();renderArchive();renderRanks();renderRivals();renderView();syncAudio();syncFastSpin();
  $('#quickBuildBtn').hidden=state.run.mode!=='build';
 }
 
@@ -3045,6 +3274,7 @@ function spinCurrent(){
   if(mode==='challengeSpin')resolveChallengeOutcome(chosen.opt);
   if(mode==='survivalSpin')resolveSurvivalOutcome(chosen.opt);
   if(mode==='selectionSpin')resolveSelectionOutcome(chosen.opt);
+  if(mode==='sceneSpin')resolveSceneOutcome(chosen.opt);
   spinning=false;
   landSound(stage.mode==='rarity'?chosen.opt.rarity:'rare');
   if(!globalThis.__EGOWHEEL_TEST__?.headless){renderWheel();renderSpinResult();renderPlayer();renderMatchHud();}save();
@@ -3118,6 +3348,7 @@ function nextBuild(){
   state.run.pendingSurvival=null;state.run.pendingSurvivalResult=null;state.run.mode='career';wheelRotation=0;
   save();renderAll();return;
  }
+ if(mode==='sceneSpin'){state.run.pendingScene=null;state.run.mode='career';wheelRotation=0;save();renderAll();return;}
  if(mode==='selectionSpin'){
   const c=state.run.career;state.run.pendingSelection=null;state.run.mode='career';wheelRotation=0;
   if(c.u20Role==='out'){skipU20(c.report);return;}
@@ -3164,7 +3395,7 @@ function bind(){
  $('#advanceFixtureBtn').addEventListener('click',advanceFixture);$('#retryGoal100Btn').addEventListener('click',retryRebalancedGoal100);$('#continueProCareerBtn').addEventListener('click',continueProCareer);$('#simulateCareerEpilogueBtn').addEventListener('click',simulateCareerEpilogue);
  $('#archiveBtn').addEventListener('click',archiveCareer);$('#newRunBtn').addEventListener('click',()=>newRun(false));
  $('#stageStrip').addEventListener('click',e=>{const b=e.target.closest('[data-build]');if(!b||state.run.mode!=='build')return;const i=Number(b.dataset.build);if(i<=state.run.buildIndex||state.run.selections[BUILD_STAGES[i]?.key]){state.run.buildIndex=clamp(i,0,BUILD_STAGES.length-1);wheelRotation=0;renderAll();}});
- $$('.nav-button').forEach(b=>b.addEventListener('click',()=>{state.ui.view=b.dataset.view;renderView();if(state.ui.view==='ranksView')renderRanks();if(state.ui.view==='profileView')renderProfile();if(state.ui.view==='archiveView')renderArchive();save();clickSound();}));
+ $$('.nav-button').forEach(b=>b.addEventListener('click',()=>{state.ui.view=b.dataset.view;renderView();if(state.ui.view==='ranksView')renderRanks();if(state.ui.view==='rivalsView')renderRivals();if(state.ui.view==='profileView')renderProfile();if(state.ui.view==='archiveView')renderArchive();save();clickSound();}));
  $('#exportBtn')?.addEventListener('click',exportBackup);
  $('#importBtn')?.addEventListener('click',()=>$('#importFile').click());
  $('#importFile')?.addEventListener('change',e=>{importBackup(e.target.files?.[0]);e.target.value='';});
@@ -3174,7 +3405,8 @@ function bind(){
  $('#dossierClose')?.addEventListener('click',closeDossier);
  $('#dossierModal')?.addEventListener('click',e=>{if(e.target.id==='dossierModal')closeDossier();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDossier();});
- $('#decisionPanel')?.addEventListener('click',e=>{const b=e.target.closest('[data-draft]');if(b){resolveDraft(b.dataset.draft);return;}const sc=e.target.closest('[data-choice]');if(sc&&typeof chooseScene==='function')chooseScene(sc.dataset.choice);});
+ $('#rivalsContent')?.addEventListener('click',e=>{const b=e.target.closest('[data-player]');if(b)openDossier(b.dataset.player);});
+ $('#decisionPanel')?.addEventListener('click',e=>{const pa=e.target.closest('[data-player]');if(pa){openDossier(pa.dataset.player);return;}const b=e.target.closest('[data-draft]');if(b){resolveDraft(b.dataset.draft);return;}const sc=e.target.closest('[data-choice]');if(sc&&typeof chooseScene==='function')chooseScene(sc.dataset.choice);});
  $('#clearArchiveBtn').addEventListener('click',()=>{if(state.archive.length&&confirm('Delete all archived careers on this device?')){state.archive=[];save();renderArchive();}});
  $('#soundBtn').addEventListener('click',()=>{audioEnabled=!audioEnabled;localStorage.setItem(AUDIO_KEY,audioEnabled?'on':'off');if(audioEnabled){ensureAudio();clickSound();startMusic();}else stopMusic();syncAudio();});
 }
@@ -3189,7 +3421,7 @@ function exposeTestApi(){
   worldOf,ensureWorld,resolveDraft,qualificationStatus,objectiveOptions,chooseObjective,chooseDuelApproach,duelOdds,weaponsState,flowChance,
   pendingWheelChoice(){return state.run.mode==='duelSpin'&&!state.run.pendingMatch?.duel?.approach;},
   resolveWheelChoice(policy){chooseDuelApproach(policy.duel?policy.duel(DUEL_APPROACHES):'force');},
-  pendingDecision(){return !!state.run.career?.pendingDecision;},
+  pendingDecision(){return !!state.run.career?.pendingDecision&&state.run.mode==='career';},relStore,relationFor,mainRival,directorContext,ensureFixtureCast,
   resolveDecision(policy){const d=state.run.career.pendingDecision;if(d.type==='draft')resolveDraft(policy.pick?policy.pick(d.options.map(k=>({key:k}))):d.options[0]);else if(typeof chooseScene==='function')chooseScene(policy.scene?policy.scene(d.choices):d.choices[0].key);},
   forcePosition(name){const o=positionStage.options.find(x=>x.name===name);if(o){state.run.selections.position=o;}}
  });

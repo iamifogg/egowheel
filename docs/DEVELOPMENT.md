@@ -169,3 +169,49 @@ Invented report lines (random "duel with X") were removed; only real events are 
 ### Known balance issues (for Phase 5)
 - Centre-backs average higher ratings (≈7.7) and too many goals (≈0.3/app) vs forwards (≈7.0).
 - Senior World Cup won too often; attribute growth still generous.
+
+## Phase 3 — Rivalries, personalities & emergent drama (v25)
+
+### Relationships (`src/engine/relationships.js`)
+- Every named footballer you encounter gets a persistent record: respect, rivalry, compatibility,
+  trust, hostility (independent 0–100 axes), encounter history (with/against, W-L, duels, assists
+  to/from), "has read your weapon" counter, and up to 14 remembered moments.
+- Status is derived: Stranger → Acquaintance → Emerging Rival → Rival / Respected Rival → Nemesis;
+  Partner / Trusted Partner; Strained; Conquered Rival; Eliminated.
+- Formation is credible: scoring against them (proud characters react harder), being dominated by
+  them (creates a *revenge* memory), duels, overtaking them in the rankings, drafting or snubbing
+  them in the Second Selection, being chosen by them, assists between you.
+- The old random "X is emerging as a defining rival" overwrite (48% after every match) is gone;
+  the main rival is the highest-rivalry relationship.
+
+### Mechanical effects
+- Partners on your side boost creation and add a **Combination Play** wheel slice.
+- Selfish, hostile teammates suppress your assists.
+- Rivals on the other side raise star moments; volatile ones raise card risk.
+- **Analytic characters read your weapon** (Isagi, Rin, Karasu, Niko, Aiku…): each time you force
+  it against them the read grows; it counters your mastery in matches and duels against them, which
+  can force you to adapt (Example C from the brief).
+- **Decisive confrontations**: once a rivalry is intense, a big fixture can stake it all on one duel.
+  Win and the rivalry is settled (your potential +2, theirs −2). Lose and theirs rises instead.
+
+### Personalities & voice
+33 personality profiles (selfishness, analytic reading, pride, warmth, volatility) drive behaviour;
+each main personality has its own short lines for noticing you, beating you, losing to you, offering
+a partnership, reading your weapon, refusing to pass. Original writing, no quotes from the source.
+
+### Event director (`src/engine/director.js`)
+- 20 conditional scenes across rivalry, team, personal, selection, market and exceptional
+  categories. Each has an actor chosen from the real state, prerequisites, a weight, a cooldown,
+  repetition decay and category variety.
+- Pacing: ~0.35 scenes per fixture (measured), more around high-stakes fixtures; major scenes
+  (decisive rivalry, last chance, cutoff race) are almost guaranteed when their conditions hold.
+- Choices show odds computed from attributes, ego style and relationships; the chosen option is
+  resolved on the wheel (Success / Mixed / Backfire). Effects are persistent: relationship axes,
+  guaranteed duels, duel/adaptation bonuses, temporary match modifiers, mastery, potential, forced
+  objectives, read resets, evolution triggers, milestones.
+- Memory: event history, per-event last fixture and counts, narrative flags (e.g. `beatenBy_<id>`,
+  `decisive`, first rival/partner). Scenes are saved the moment they are decided (no reload re-rolls).
+
+### Professional continuity
+Pro fixtures against Paris X Gen / Ubers use the real NEL rosters (your rivals are there); Japan
+fixtures put the best surviving Blue Lock players on your side; club fixtures use your NEL club.
