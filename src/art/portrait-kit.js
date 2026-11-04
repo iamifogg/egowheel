@@ -1,7 +1,12 @@
-/* EgoWheel — portrait drawing kit: the shared "hand" of the art style.
- * Every portrait (bespoke or procedural) uses these routines so the cast looks like one artist drew it:
- * 1px dark-tinted line art, light from the upper left, 2–3 tone cel shading, anime eyes with heavy upper
- * lashes, a shaded iris, pupil and two catchlights. Characters supply their own geometry and palettes.
+/* EgoWheel — portrait drawing kit ("reference style").
+ * Art bible (shared by every portrait, named or generated):
+ *   • 96×128 native canvas, tight head-and-shoulders crop, three-quarter view; realistic skull size,
+ *     shoulders run off the frame.
+ *   • Strict palette per portrait: flat background, ONE dark ink (line art and dark hair), one skin tone,
+ *     one or two hair tones, ONE accent colour (eyes, lips/blush, clothing details) and a light/white.
+ *   • Clean 1px ink lines, flat fills, almost no shading; a single hair highlight band at most.
+ *   • Large simple eyes: heavy upper lid, dark iris with an accent-tinted lower half, two white catchlights.
+ * Characters supply geometry + palette; these routines only draw in the shared style.
  */
 (function (root) {
   'use strict';
@@ -9,156 +14,90 @@
   const PA = () => EW.portraitArt;
   const f = n => Math.round(n * 100) / 100;
 
-  /** Expression → modifiers shared by every face (characters may override per expression). */
   const EXPR = {
-    neutral:    { open: 1, lid: 0, look: 0, browIn: 0, browOut: 0, iris: 1 },
-    focused:    { open: 0.78, lid: 0.15, look: 0, browIn: 2, browOut: 0, iris: 0.95 },
-    confident:  { open: 0.86, lid: 0.1, look: 0, browIn: -0.5, browOut: -1, iris: 1, browRaise: 1 },
-    angry:      { open: 0.82, lid: 0.12, look: 0, browIn: 3.2, browOut: -1.2, iris: 0.8, slant: 1 },
-    frustrated: { open: 0.9, lid: 0.05, look: 0.6, browIn: -2.4, browOut: 1, iris: 0.92, sweat: true },
-    smirk:      { open: 0.84, lid: 0.12, look: 0, browIn: 0.6, browOut: -0.4, iris: 1, wink: true, browRaise: 1.6 },
-    surprised:  { open: 1.28, lid: 0, look: 0, browIn: -3, browOut: -3, iris: 0.78 },
-    defeated:   { open: 0.55, lid: 0.45, look: 1.4, browIn: -2.6, browOut: 1.2, iris: 1, shadow: true },
-    elated:     { closed: true, browIn: -1.5, browOut: -1.5, blush: true },
-    flow:       { open: 1.05, lid: 0, look: 0, browIn: 1.6, browOut: -0.6, iris: 0.9, glow: true }
+    neutral:    { open: 1 },
+    focused:    { open: 0.72, browIn: 1.8 },
+    confident:  { open: 0.85, browIn: -0.4, browOut: -0.8 },
+    angry:      { open: 0.75, browIn: 2.8, browOut: -1, slant: 1, iris: 0.82 },
+    frustrated: { open: 0.9, browIn: -2.2, browOut: 0.8, sweat: true, look: 0.8 },
+    smirk:      { open: 0.8, browIn: 0.4, browOut: -0.6, raise: 1.4 },
+    surprised:  { open: 1.3, browIn: -2.6, browOut: -2.6, iris: 0.74 },
+    defeated:   { open: 0.55, browIn: -2.2, browOut: 1.2, look: 1.6, lid: true },
+    elated:     { closed: true, browIn: -1.4, browOut: -1.4, blush: true },
+    flow:       { open: 1.05, browIn: 1.4, browOut: -0.4, glow: true }
   };
 
   /**
-   * Anime eye. o: { cx, cy, w, h, side(-1 viewer-left / 1 viewer-right), tilt (outer corner up, px), irisR,
-   *   iris:[dark, mid, light], lash, skin:{base, sh, line}, ex (EXPR entry), lowerLash, slit, liner, id, heavyLid, lashW }
+   * Eye. o: { cx, cy, w, h, dir (-1 = outer corner points left, 1 = right), tilt, ink, iris, accent, white, ex,
+   *   lowerLash, slit, liner, lid (0..1 heavy lid), look (-1..1 horizontal gaze) }
    */
   function eye(o) {
-    const P = PA(), e = o.ex || EXPR.neutral, s = o.side, id = o.id;
-    const w = o.w, h = o.h * (e.open ?? 1), xi = o.cx - s * w / 2, xo = o.cx + s * w / 2, tilt = (o.tilt || 0) - (e.slant ? 1.2 : 0);
-    const yi = o.cy + (e.slant ? 0.6 : 0), yo = o.cy - tilt;
-    let out = '';
+    const P = PA(), e = o.ex || EXPR.neutral, d = o.dir, ink = o.ink;
+    const w = o.w, h = o.h * (e.open ?? 1), xi = o.cx - d * w / 2, xo = o.cx + d * w / 2;
+    const slant = e.slant ? 1.3 : 0, yi = o.cy + slant * 0.6, yo = o.cy - (o.tilt || 0) - slant * 0.4;
     if (e.closed) {
-      // happy closed eye: an upward arc with a small outer flick
-      out += P.path('M' + f(xi) + ',' + f(yi + 0.5) + ' Q' + f(o.cx) + ',' + f(o.cy - o.h * 0.9) + ' ' + f(xo) + ',' + f(yo + 0.5), 'none', { stroke: o.lash, w: o.lashW || 1.6 });
-      out += P.path('M' + f(xo) + ',' + f(yo + 0.5) + ' l' + f(s * 1.6) + ',' + f(1.2), 'none', { stroke: o.lash, w: 1 });
-      return out;
+      return P.path('M' + f(xi) + ',' + f(o.cy) + ' Q' + f(o.cx) + ',' + f(o.cy - o.h * 0.9) + ' ' + f(xo) + ',' + f(yo), 'none', { stroke: ink, w: 1.4 })
+        + P.path('M' + f(xo) + ',' + f(yo) + ' l' + f(d * 1.5) + ',1', 'none', { stroke: ink, w: 1 });
     }
-    const upCx1 = xi + s * w * 0.22, upCy1 = o.cy - h * (e.slant ? 0.7 : 1.05), upCx2 = xo - s * w * 0.22, upCy2 = o.cy - h * 1.05 - tilt;
-    const up = 'M' + f(xi) + ',' + f(yi) + ' C' + f(upCx1) + ',' + f(upCy1) + ' ' + f(upCx2) + ',' + f(upCy2) + ' ' + f(xo) + ',' + f(yo);
-    const lo = 'C' + f(xo - s * w * 0.18) + ',' + f(o.cy + h * 0.62) + ' ' + f(xi + s * w * 0.28) + ',' + f(o.cy + h * 0.6) + ' ' + f(xi) + ',' + f(yi);
-    const shape = up + ' ' + lo + 'Z';
-    const defs = P.clip(id, shape);
-    out += P.path(shape, '#f7f4f6');
-    // iris
-    const r = o.irisR * (e.iris ?? 1), icx = o.cx + s * (o.lookX || 0) - s * 0.3, icy = o.cy + h * 0.05 + (e.look || 0) * 0.8 + (e.lid || 0) * h * 0.4;
-    out += P.ellipse(icx, icy, r * 0.86, r, o.iris[1], { clip: id });
-    out += P.ellipse(icx, icy - r * 0.55, r * 0.9, r * 0.62, o.iris[0], { clip: id });
-    out += P.ellipse(icx, icy + r * 0.55, r * 0.6, r * 0.38, o.iris[2], { clip: id });
-    if (o.slit) out += P.ellipse(icx, icy, r * 0.18, r * 0.78, '#1a0f14', { clip: id });
-    else out += P.ellipse(icx, icy, r * 0.36, r * 0.48, o.iris[3] || '#15121c', { clip: id });
-    if (e.glow) { out += P.ellipse(icx, icy + r * 0.3, r * 0.5, r * 0.3, '#9ff3ff', { clip: id }); }
-    // catchlights
-    out += P.rect(icx - s * r * 0.55 - 0.6, icy - r * 0.6, 1.6, 1.8, '#ffffff', { clip: id });
-    out += P.rect(icx + s * r * 0.3 - 0.4, icy + r * 0.35, 1, 1, '#ffffff', { clip: id });
-    // shadow under the upper lid
-    out += P.path(up + ' L' + f(xo) + ',' + f(yo + 1.3) + ' C' + f(upCx2) + ',' + f(upCy2 + 1.6) + ' ' + f(upCx1) + ',' + f(upCy1 + 1.6) + ' ' + f(xi) + ',' + f(yi + 1.1) + 'Z', o.iris[0], { clip: id, op: 0.55 });
-    // heavy lid (sleepy / defeated / bored characters)
-    const lid = Math.max(o.heavyLid || 0, e.lid || 0);
-    if (lid > 0.05) {
-      const ly = (t) => o.cy - h * (1.05 - lid * 1.4);
-      out += P.path('M' + f(xi - s) + ',' + f(yi - 4) + ' L' + f(xo + s) + ',' + f(yo - 4) + ' L' + f(xo) + ',' + f(ly() - tilt * 0.5) + ' Q' + f(o.cx) + ',' + f(ly() - 0.6) + ' ' + f(xi) + ',' + f(ly() + 0.3) + 'Z', o.skin.base, { clip: id });
-      out += P.path('M' + f(xi) + ',' + f(ly() + 0.3) + ' Q' + f(o.cx) + ',' + f(ly() - 0.6) + ' ' + f(xo) + ',' + f(ly() - tilt * 0.5), 'none', { stroke: o.lash, w: o.lashW || 1.6 });
-    } else {
-      out += P.path(up, 'none', { stroke: o.lash, w: o.lashW || 1.7 });
-    }
-    // lid crease
-    out += P.path('M' + f(xi + s * w * 0.15) + ',' + f(o.cy - h * 1.25 - 1.2) + ' Q' + f(o.cx + s * w * 0.1) + ',' + f(o.cy - h * 1.55 - 1.4) + ' ' + f(xo - s * w * 0.05) + ',' + f(yo - h * 0.55 - 1.2), 'none', { stroke: o.skin.sh, w: 0.8 });
-    // outer lash flick
-    out += P.path('M' + f(xo - s * 1.5) + ',' + f(yo - 0.6) + ' L' + f(xo + s * 1.9) + ',' + f(yo - 1.6 - (o.flick || 0)) + ' L' + f(xo + s * 0.2) + ',' + f(yo + 0.8) + 'Z', o.lash);
-    if (o.liner) out += P.path('M' + f(xo - s * w * 0.35) + ',' + f(o.cy + h * 0.55) + ' Q' + f(xo) + ',' + f(o.cy + h * 0.3) + ' ' + f(xo + s * 2.2) + ',' + f(yo - 1.2), 'none', { stroke: o.liner, w: 1 });
-    // lower lid line
-    out += P.path('M' + f(xo) + ',' + f(yo + 0.4) + ' C' + f(xo - s * w * 0.18) + ',' + f(o.cy + h * 0.62) + ' ' + f(xi + s * w * 0.5) + ',' + f(o.cy + h * 0.66) + ' ' + f(xi + s * w * 0.35) + ',' + f(o.cy + h * 0.6), 'none', { stroke: o.lowerLash ? o.lash : o.skin.line, w: o.lowerLash ? 1 : 0.7, op: o.lowerLash ? 1 : 0.8 });
-    if (o.lowerLash) out += P.path('M' + f(xo - s * w * 0.12) + ',' + f(o.cy + h * 0.6) + ' l' + f(s * 0.8) + ',' + f(1.4) + ' M' + f(xo - s * w * 0.32) + ',' + f(o.cy + h * 0.68) + ' l' + f(s * 0.4) + ',' + f(1.4), 'none', { stroke: o.lash, w: 0.8 });
-    return '<defs>' + defs + '</defs>' + out;
-  }
-
-  /** Eyebrow from inner (x,y) toward the outside. o: { x, y, side, len, th, arch, col, ex, tilt } */
-  function brow(o) {
-    const P = PA(), e = o.ex || EXPR.neutral, s = o.side;
-    let inY = o.y + (e.browIn || 0), outY = o.y - (o.tilt || 0) + (e.browOut || 0);
-    if (e.browRaise && s === (o.raiseSide || 1)) { inY -= e.browRaise; outY -= e.browRaise * 1.2; }
-    const xo = o.x + s * o.len, mx = o.x + s * o.len * 0.55, my = Math.min(inY, outY) - (o.arch || 1);
-    const th = o.th || 1.6;
-    const top = 'M' + f(o.x) + ',' + f(inY) + ' Q' + f(mx) + ',' + f(my) + ' ' + f(xo) + ',' + f(outY);
-    const bot = ' L' + f(xo - s * 0.6) + ',' + f(outY + th * 0.6) + ' Q' + f(mx) + ',' + f(my + th) + ' ' + f(o.x) + ',' + f(inY + th) + 'Z';
-    return P.path(top + bot, o.col) + P.path(top, 'none', { stroke: o.col, w: 0.9 });
-  }
-
-  /** Mouth by expression. o: { x, y, w, line, lip, inner, teeth, tongue, ex, style } — styles flavour per character. */
-  function mouth(o, exName) {
-    const P = PA(), x = o.x, y = o.y, w = o.w || 6, L = o.line, st = o.style || {};
-    const kind = st[exName] || exName;
-    const teeth = o.teeth || '#f6f2ef', inner = o.inner || '#5b1e2c', tongue = o.tongue || '#d8697a';
-    switch (kind) {
-      case 'confident': return P.path('M' + f(x - w / 2) + ',' + f(y) + ' Q' + f(x) + ',' + f(y + 2) + ' ' + f(x + w / 2) + ',' + f(y - 1), 'none', { stroke: L, w: 1 });
-      case 'smirk': return P.path('M' + f(x - w / 2) + ',' + f(y + 0.5) + ' Q' + f(x + w * 0.1) + ',' + f(y + 1.2) + ' ' + f(x + w / 2 + 1) + ',' + f(y - 2), 'none', { stroke: L, w: 1 }) + P.path('M' + f(x + w / 2 + 1) + ',' + f(y - 2) + ' l0.8,-0.6', 'none', { stroke: L, w: 0.8 });
-      case 'sneer': return P.path('M' + f(x - w / 2) + ',' + f(y + 0.5) + ' L' + f(x + w / 2 + 1) + ',' + f(y - 1.6) + ' L' + f(x + w / 2 - 1) + ',' + f(y + 1.6) + ' L' + f(x - w * 0.1) + ',' + f(y + 1.4) + 'Z', inner, { stroke: L, w: 0.9 }) + P.rect(x - w * 0.1, y - 0.6, w * 0.55, 1.2, teeth);
-      case 'angry': return P.path('M' + f(x - w / 2 - 1) + ',' + f(y) + ' L' + f(x + w / 2 + 1) + ',' + f(y) + ' L' + f(x + w / 2) + ',' + f(y + 3) + ' L' + f(x - w / 2) + ',' + f(y + 3) + 'Z', teeth, { stroke: L, w: 1 }) + P.path('M' + f(x - w / 2) + ',' + f(y + 1.5) + ' L' + f(x + w / 2) + ',' + f(y + 1.5), 'none', { stroke: '#c9c0bd', w: 0.6 });
-      case 'frustrated': return P.path('M' + f(x - w / 2 - 0.5) + ',' + f(y + 1) + ' Q' + f(x - w / 4) + ',' + f(y - 0.5) + ' ' + f(x) + ',' + f(y + 0.6) + ' Q' + f(x + w / 4) + ',' + f(y + 1.6) + ' ' + f(x + w / 2 + 0.5) + ',' + f(y), 'none', { stroke: L, w: 1 });
-      case 'surprised': return P.ellipse(x, y + 1, 1.6, 2.1, inner, { stroke: L, w: 0.9 });
-      case 'defeated': return P.path('M' + f(x - w / 2) + ',' + f(y + 1.2) + ' Q' + f(x) + ',' + f(y - 1) + ' ' + f(x + w / 2) + ',' + f(y + 1.2), 'none', { stroke: L, w: 1 });
-      case 'elated': return P.path('M' + f(x - w / 2 - 1) + ',' + f(y - 0.6) + ' Q' + f(x) + ',' + f(y) + ' ' + f(x + w / 2 + 1) + ',' + f(y - 0.6) + ' Q' + f(x + w * 0.35) + ',' + f(y + 5) + ' ' + f(x) + ',' + f(y + 5) + ' Q' + f(x - w * 0.35) + ',' + f(y + 5) + ' ' + f(x - w / 2 - 1) + ',' + f(y - 0.6) + 'Z', inner, { stroke: L, w: 1 })
-        + P.path('M' + f(x - w / 2) + ',' + f(y + 0.2) + ' Q' + f(x) + ',' + f(y + 1.1) + ' ' + f(x + w / 2) + ',' + f(y + 0.2) + ' L' + f(x + w / 2 - 0.5) + ',' + f(y + 1.4) + ' L' + f(x - w / 2 + 0.5) + ',' + f(y + 1.4) + 'Z', teeth) + P.ellipse(x, y + 3.8, w * 0.26, 1.2, tongue);
-      case 'manic': { const ww = w + 4; return P.path('M' + f(x - ww / 2) + ',' + f(y - 1.5) + ' Q' + f(x) + ',' + f(y + 0.5) + ' ' + f(x + ww / 2) + ',' + f(y - 1.5) + ' Q' + f(x + ww * 0.3) + ',' + f(y + 6) + ' ' + f(x) + ',' + f(y + 6) + ' Q' + f(x - ww * 0.3) + ',' + f(y + 6) + ' ' + f(x - ww / 2) + ',' + f(y - 1.5) + 'Z', inner, { stroke: L, w: 1 })
-        + P.path('M' + f(x - ww / 2 + 1) + ',' + f(y - 0.8) + ' L' + f(x + ww / 2 - 1) + ',' + f(y - 0.8) + ' L' + f(x + ww / 2 - 2) + ',' + f(y + 0.8) + ' L' + f(x - ww / 2 + 2) + ',' + f(y + 0.8) + 'Z', teeth) + P.path('M' + f(x - 1.5) + ',' + f(y + 3) + ' Q' + f(x) + ',' + f(y + 8.5) + ' ' + f(x + 1.8) + ',' + f(y + 3) + 'Z', tongue, { stroke: L, w: 0.7 })
-        + P.path('M' + f(x - ww / 2 + 2) + ',' + f(y + 0.8) + ' l0.6,1.3 l0.6,-1.3 M' + f(x + ww / 2 - 3.2) + ',' + f(y + 0.8) + ' l0.6,1.3 l0.6,-1.3', teeth); }
-      case 'flow': return P.path('M' + f(x - w / 2) + ',' + f(y) + ' Q' + f(x) + ',' + f(y + 1.6) + ' ' + f(x + w / 2) + ',' + f(y) + ' Q' + f(x) + ',' + f(y + 2.6) + ' ' + f(x - w / 2) + ',' + f(y) + 'Z', inner, { stroke: L, w: 0.9 });
-      case 'flat': return P.path('M' + f(x - w * 0.35) + ',' + f(y) + ' L' + f(x + w * 0.35) + ',' + f(y), 'none', { stroke: L, w: 0.9 });
-      case 'softsmile': return P.path('M' + f(x - w * 0.35) + ',' + f(y) + ' Q' + f(x) + ',' + f(y + 1.2) + ' ' + f(x + w * 0.4) + ',' + f(y - 0.3), 'none', { stroke: L, w: 0.9 });
-      case 'focused': return P.path('M' + f(x - w * 0.4) + ',' + f(y + 0.3) + ' L' + f(x + w * 0.4) + ',' + f(y - 0.1), 'none', { stroke: L, w: 1 });
-      default: return P.path('M' + f(x - w * 0.42) + ',' + f(y) + ' Q' + f(x) + ',' + f(y + 0.7) + ' ' + f(x + w * 0.42) + ',' + f(y), 'none', { stroke: L, w: 0.95 });
-    }
-  }
-
-  /**
-   * Torso, neck and kit. o: { cx, neckTop, neckW, chinY, shoulderY, shoulderW, slope, build, skin:{base,sh,dk,line}, kit:{main,trim,dark}, collar, number, lean }
-   */
-  function body(o) {
-    const P = PA(), k = o.kit || { main: '#1d3f78', trim: '#f2f2f2', dark: '#132a52' }, sk = o.skin, cx = o.cx, nw = o.neckW, sy = o.shoulderY, sw = o.shoulderW, sl = o.slope || 6;
-    const km = k.main, kd = k.dark || P.mix(km, '#000000', 0.38), kl = P.mix(km, '#ffffff', 0.16), line = P.mix(kd, '#05060c', 0.55);
-    let out = '';
-    // neck with jaw shadow
-    out += P.path('M' + f(cx - nw) + ',' + f(o.neckTop) + ' L' + f(cx - nw - 0.5) + ',' + f(sy + 4) + ' L' + f(cx + nw + 0.5) + ',' + f(sy + 4) + ' L' + f(cx + nw) + ',' + f(o.neckTop) + 'Z', sk.base, { stroke: sk.line, w: 1 });
-    out += P.path('M' + f(cx - nw) + ',' + f(o.chinY - 2) + ' Q' + f(cx) + ',' + f(o.chinY + 5) + ' ' + f(cx + nw) + ',' + f(o.chinY - 3) + ' L' + f(cx + nw) + ',' + f(o.chinY + 6) + ' Q' + f(cx) + ',' + f(o.chinY + 9) + ' ' + f(cx - nw) + ',' + f(o.chinY + 5) + 'Z', sk.sh);
-    out += P.path('M' + f(cx + nw * 0.35) + ',' + f(o.chinY + 4) + ' L' + f(cx + nw) + ',' + f(o.chinY + 2) + ' L' + f(cx + nw + 0.4) + ',' + f(sy + 3) + ' L' + f(cx + nw * 0.5) + ',' + f(sy + 3) + 'Z', sk.sh);
-    if (o.adam) out += P.path('M' + f(cx - 0.5) + ',' + f(o.chinY + 9) + ' q1,1.5 0,3', 'none', { stroke: sk.dk, w: 0.8 });
-    // torso
-    const tl = cx - sw, tr = cx + sw;
-    const torso = 'M' + f(cx - nw - 1) + ',' + f(sy) + ' C' + f(cx - nw - 6) + ',' + f(sy + 1) + ' ' + f(tl + 4) + ',' + f(sy + sl - 2) + ' ' + f(tl) + ',' + f(sy + sl + 4) + ' L' + f(tl - 4) + ',' + 128 + ' L' + f(tr + 4) + ',' + 128 + ' L' + f(tr) + ',' + f(sy + sl + 4) + ' C' + f(tr - 4) + ',' + f(sy + sl - 2) + ' ' + f(cx + nw + 6) + ',' + f(sy + 1) + ' ' + f(cx + nw + 1) + ',' + f(sy) + 'Z';
-    out += P.path(torso, km, { stroke: line, w: 1 });
-    // light / shade planes
-    out += P.path('M' + f(tl) + ',' + f(sy + sl + 4) + ' C' + f(tl + 4) + ',' + f(sy + sl - 2) + ' ' + f(cx - nw - 6) + ',' + f(sy + 1) + ' ' + f(cx - nw - 1) + ',' + f(sy) + ' L' + f(cx - nw - 3) + ',' + f(sy + 6) + ' C' + f(tl + 8) + ',' + f(sy + sl + 3) + ' ' + f(tl + 4) + ',' + f(sy + sl + 10) + ' ' + f(tl + 2) + ',128 L' + f(tl - 4) + ',128Z', kl);
-    out += P.path('M' + f(tr) + ',' + f(sy + sl + 4) + ' L' + f(tr + 4) + ',128 L' + f(tr - 7) + ',128 C' + f(tr - 5) + ',' + f(sy + sl + 14) + ' ' + f(tr - 3) + ',' + f(sy + sl + 8) + ' ' + f(tr - 6) + ',' + f(sy + sl + 4) + 'Z', kd);
-    // shoulder seams / trim
-    out += P.path('M' + f(tl + 3) + ',' + f(sy + sl + 1) + ' C' + f(tl + 7) + ',' + f(sy + sl + 6) + ' ' + f(tl + 7) + ',' + f(sy + sl + 14) + ' ' + f(tl + 5) + ',' + f(sy + sl + 22), 'none', { stroke: k.trim, w: 1.2 });
-    out += P.path('M' + f(tr - 3) + ',' + f(sy + sl + 1) + ' C' + f(tr - 7) + ',' + f(sy + sl + 6) + ' ' + f(tr - 7) + ',' + f(sy + sl + 14) + ' ' + f(tr - 5) + ',' + f(sy + sl + 22), 'none', { stroke: P.mix(k.trim, kd, 0.35), w: 1.2 });
-    // folds
-    out += P.path('M' + f(cx + nw + 4) + ',' + f(sy + 8) + ' q4,6 3,14', 'none', { stroke: kd, w: 1 });
-    out += P.path('M' + f(cx - nw - 5) + ',' + f(sy + 9) + ' q-3,7 -1,15', 'none', { stroke: P.mix(km, kd, 0.5), w: 1 });
-    // collar
-    const c = o.collar || 'v';
-    if (c === 'v') {
-      out += P.path('M' + f(cx - nw - 1.5) + ',' + f(sy - 0.5) + ' L' + f(cx) + ',' + f(sy + 9) + ' L' + f(cx + nw + 1.5) + ',' + f(sy - 0.5) + ' L' + f(cx + nw - 0.5) + ',' + f(sy - 1) + ' L' + f(cx) + ',' + f(sy + 6.5) + ' L' + f(cx - nw + 0.5) + ',' + f(sy - 1) + 'Z', k.trim, { stroke: line, w: 0.8 });
-      out += P.path('M' + f(cx - nw + 0.5) + ',' + f(sy - 1) + ' L' + f(cx) + ',' + f(sy + 6.5) + ' L' + f(cx + nw - 0.5) + ',' + f(sy - 1) + 'Z', sk.sh);
-    } else if (c === 'polo') {
-      out += P.path('M' + f(cx - nw - 2) + ',' + f(sy - 2) + ' L' + f(cx - 1) + ',' + f(sy + 7) + ' L' + f(cx - nw - 7) + ',' + f(sy + 5) + 'Z', k.trim, { stroke: line, w: 0.8 });
-      out += P.path('M' + f(cx + nw + 2) + ',' + f(sy - 2) + ' L' + f(cx + 1) + ',' + f(sy + 7) + ' L' + f(cx + nw + 7) + ',' + f(sy + 5) + 'Z', P.mix(k.trim, kd, 0.25), { stroke: line, w: 0.8 });
-    } else {
-      out += P.path('M' + f(cx - nw - 2) + ',' + f(sy - 0.5) + ' Q' + f(cx) + ',' + f(sy + 5) + ' ' + f(cx + nw + 2) + ',' + f(sy - 0.5), 'none', { stroke: k.trim, w: 2 });
-    }
-    if (o.number) {
-      out += '<text x="' + f(cx + sw * 0.45) + '" y="' + f(sy + 24) + '" font-family="monospace" font-weight="bold" font-size="9" fill="' + k.trim + '" text-anchor="middle">' + o.number + '</text>';
-    }
+    const up = 'M' + f(xi) + ',' + f(yi) + ' C' + f(xi + d * w * 0.25) + ',' + f(o.cy - h * (e.slant ? 0.75 : 1.05)) + ' ' + f(xo - d * w * 0.25) + ',' + f(o.cy - h * 1.05 - (o.tilt || 0)) + ' ' + f(xo) + ',' + f(yo);
+    const lo = ' C' + f(xo - d * w * 0.2) + ',' + f(o.cy + h * 0.7) + ' ' + f(xi + d * w * 0.3) + ',' + f(o.cy + h * 0.65) + ' ' + f(xi) + ',' + f(yi) + 'Z';
+    const id = o.id, shape = up + lo;
+    let out = '<defs>' + P.clip(id, shape) + '</defs>' + P.path(shape, o.white);
+    const r = h * 0.95 * (e.iris ?? 1) * (o.irisScale || 1), gaze = (o.look || 0) + (e.look ? 0 : 0);
+    const icx = o.cx + gaze * w * 0.18, icy = o.cy + 0.3 + (e.look || 0) * 0.7 + (o.lid || e.lid ? h * 0.25 : 0);
+    out += P.ellipse(icx, icy, Math.min(w * 0.36, r * 0.82), r, o.iris, { clip: id });
+    out += P.ellipse(icx, icy + r * 0.55, Math.min(w * 0.3, r * 0.62), r * 0.45, e.glow ? '#9ff3ff' : o.accent, { clip: id });
+    if (o.slit) out += P.ellipse(icx, icy, 0.6, r * 0.8, ink, { clip: id });
+    out += P.rect(icx - Math.min(w * 0.3, r * 0.7) * 0.75, icy - r * 0.65, 2, 2, o.white, { clip: id });
+    out += P.rect(icx + r * 0.25, icy + r * 0.15, 1, 1, o.white, { clip: id });
+    // heavy lid: ink line lowered across the top of the iris
+    if (o.lid || e.lid) {
+      const ly = o.cy - h * (e.lid ? 0.2 : 0.45);
+      out += P.path('M' + f(xi) + ',' + f(yi - 6) + ' L' + f(xo) + ',' + f(yo - 6) + ' L' + f(xo) + ',' + f(yo) + ' Q' + f(o.cx) + ',' + f(ly) + ' ' + f(xi) + ',' + f(yi) + 'Z', o.skin, { clip: id });
+      out += P.path('M' + f(xi) + ',' + f(yi) + ' Q' + f(o.cx) + ',' + f(ly) + ' ' + f(xo) + ',' + f(yo), 'none', { stroke: ink, w: 1.6 });
+    } else out += P.path(up, 'none', { stroke: ink, w: o.lashW || 1.8 });
+    // outer lash flick and lower lid
+    out += P.path('M' + f(xo - d * 1.6) + ',' + f(yo - 0.4) + ' L' + f(xo + d * 1.8) + ',' + f(yo - 1.4 - (o.flick || 0)) + ' L' + f(xo + d * 0.1) + ',' + f(yo + 0.9) + 'Z', ink);
+    out += P.path('M' + f(xo) + ',' + f(yo + 0.6) + ' C' + f(xo - d * w * 0.2) + ',' + f(o.cy + h * 0.7) + ' ' + f(xo - d * w * 0.45) + ',' + f(o.cy + h * 0.72) + ' ' + f(xo - d * w * 0.55) + ',' + f(o.cy + h * 0.68), 'none', { stroke: ink, w: 1 });
+    if (o.lowerLash) out += P.path('M' + f(xo - d * w * 0.15) + ',' + f(o.cy + h * 0.66) + ' l' + f(d * 0.7) + ',1.5', 'none', { stroke: ink, w: 0.9 });
+    if (o.liner) out += P.path('M' + f(xo - d * w * 0.5) + ',' + f(o.cy + h * 0.85) + ' Q' + f(xo) + ',' + f(o.cy + h * 0.6) + ' ' + f(xo + d * 2.2) + ',' + f(yo - 1.2), 'none', { stroke: o.liner, w: 1 });
     return out;
   }
 
-  /** Simple cel helper: draw a filled shape with a line. */
-  function shape(d, fill, line, w) { return PA().path(d, fill, line ? { stroke: line, w: w || 1 } : null); }
+  /** Eyebrow from the inner end outward. o: { x, y, dir, len, th, arch, tilt, col, ex, raiseDir } */
+  function brow(o) {
+    const P = PA(), e = o.ex || EXPR.neutral, d = o.dir;
+    let inY = o.y + (e.browIn || 0), outY = o.y - (o.tilt || 0) + (e.browOut || 0);
+    if (e.raise && d === (o.raiseDir || 1)) { inY -= e.raise; outY -= e.raise * 1.3; }
+    const xo = o.x + d * o.len, mx = o.x + d * o.len * 0.55, my = Math.min(inY, outY) - (o.arch ?? 0.8), th = o.th || 1.4;
+    return P.path('M' + f(o.x) + ',' + f(inY) + ' Q' + f(mx) + ',' + f(my) + ' ' + f(xo) + ',' + f(outY) + ' L' + f(xo - d * 0.8) + ',' + f(outY + th * 0.6) + ' Q' + f(mx) + ',' + f(my + th) + ' ' + f(o.x) + ',' + f(inY + th) + 'Z', o.col);
+  }
 
-  EW.portraitKit = { EXPR, eye, brow, mouth, body, shape };
+  /** Mouth by expression kind. o: { x, y, w, ink, accent, white } */
+  function mouth(o, kind) {
+    const P = PA(), x = o.x, y = o.y, w = o.w || 5, ink = o.ink, ac = o.accent, wh = o.white;
+    switch (kind) {
+      case 'flat': return P.path('M' + f(x - w * 0.4) + ',' + f(y) + ' L' + f(x + w * 0.4) + ',' + f(y), 'none', { stroke: ink, w: 0.9 });
+      case 'softsmile': return P.path('M' + f(x - w * 0.4) + ',' + f(y) + ' Q' + f(x) + ',' + f(y + 1.2) + ' ' + f(x + w * 0.45) + ',' + f(y - 0.4), 'none', { stroke: ink, w: 0.9 });
+      case 'confident': return P.path('M' + f(x - w / 2) + ',' + f(y - 0.5) + ' Q' + f(x) + ',' + f(y + 2) + ' ' + f(x + w / 2) + ',' + f(y - 1), 'none', { stroke: ink, w: 1 });
+      case 'smirk': return P.path('M' + f(x - w / 2) + ',' + f(y + 0.4) + ' Q' + f(x + w * 0.1) + ',' + f(y + 1) + ' ' + f(x + w / 2 + 0.8) + ',' + f(y - 1.8), 'none', { stroke: ink, w: 1 });
+      case 'sneer': return P.path('M' + f(x - w / 2) + ',' + f(y + 0.5) + ' L' + f(x + w / 2 + 1) + ',' + f(y - 1.6) + ' L' + f(x + w / 2 - 0.5) + ',' + f(y + 1.5) + ' L' + f(x - w * 0.15) + ',' + f(y + 1.3) + 'Z', wh, { stroke: ink, w: 0.9 });
+      case 'angry': return P.path('M' + f(x - w / 2 - 0.5) + ',' + f(y) + ' L' + f(x + w / 2 + 0.5) + ',' + f(y) + ' L' + f(x + w / 2 - 0.3) + ',' + f(y + 2.6) + ' L' + f(x - w / 2 + 0.3) + ',' + f(y + 2.6) + 'Z', wh, { stroke: ink, w: 1 });
+      case 'frustrated': return P.path('M' + f(x - w / 2) + ',' + f(y + 1) + ' Q' + f(x - w / 4) + ',' + f(y - 0.6) + ' ' + f(x) + ',' + f(y + 0.6) + ' Q' + f(x + w / 4) + ',' + f(y + 1.6) + ' ' + f(x + w / 2) + ',' + f(y), 'none', { stroke: ink, w: 1 });
+      case 'surprised': return P.ellipse(x, y + 1, 1.4, 1.9, ac, { stroke: ink, w: 0.9 });
+      case 'defeated': return P.path('M' + f(x - w / 2) + ',' + f(y + 1.2) + ' Q' + f(x) + ',' + f(y - 0.8) + ' ' + f(x + w / 2) + ',' + f(y + 1.2), 'none', { stroke: ink, w: 1 });
+      case 'elated': return P.path('M' + f(x - w / 2 - 0.5) + ',' + f(y - 0.6) + ' Q' + f(x) + ',' + f(y) + ' ' + f(x + w / 2 + 0.5) + ',' + f(y - 0.6) + ' Q' + f(x + w * 0.3) + ',' + f(y + 4.2) + ' ' + f(x) + ',' + f(y + 4.2) + ' Q' + f(x - w * 0.3) + ',' + f(y + 4.2) + ' ' + f(x - w / 2 - 0.5) + ',' + f(y - 0.6) + 'Z', ac, { stroke: ink, w: 1 })
+        + P.path('M' + f(x - w / 2) + ',' + f(y + 0.1) + ' L' + f(x + w / 2) + ',' + f(y + 0.1) + ' L' + f(x + w / 2 - 0.6) + ',' + f(y + 1.3) + ' L' + f(x - w / 2 + 0.6) + ',' + f(y + 1.3) + 'Z', wh);
+      case 'manic': { const ww = w + 3.5; return P.path('M' + f(x - ww / 2) + ',' + f(y - 1.4) + ' Q' + f(x) + ',' + f(y + 0.4) + ' ' + f(x + ww / 2) + ',' + f(y - 1.4) + ' Q' + f(x + ww * 0.3) + ',' + f(y + 5.5) + ' ' + f(x) + ',' + f(y + 5.5) + ' Q' + f(x - ww * 0.3) + ',' + f(y + 5.5) + ' ' + f(x - ww / 2) + ',' + f(y - 1.4) + 'Z', ink)
+        + P.path('M' + f(x - ww / 2 + 1) + ',' + f(y - 0.7) + ' L' + f(x + ww / 2 - 1) + ',' + f(y - 0.7) + ' L' + f(x + ww / 2 - 2) + ',' + f(y + 0.8) + ' L' + f(x - ww / 2 + 2) + ',' + f(y + 0.8) + 'Z', wh) + P.path('M' + f(x - 1.3) + ',' + f(y + 2.6) + ' Q' + f(x + 0.2) + ',' + f(y + 7.5) + ' ' + f(x + 1.6) + ',' + f(y + 2.6) + 'Z', ac); }
+      case 'flow': return P.path('M' + f(x - w / 2) + ',' + f(y) + ' Q' + f(x) + ',' + f(y + 1.6) + ' ' + f(x + w / 2) + ',' + f(y) + ' Q' + f(x) + ',' + f(y + 2.4) + ' ' + f(x - w / 2) + ',' + f(y) + 'Z', ink);
+      case 'focused': return P.path('M' + f(x - w * 0.35) + ',' + f(y + 0.3) + ' L' + f(x + w * 0.35) + ',' + f(y - 0.1), 'none', { stroke: ink, w: 1 });
+      default: return P.path('M' + f(x - w * 0.4) + ',' + f(y) + ' Q' + f(x) + ',' + f(y + 0.6) + ' ' + f(x + w * 0.4) + ',' + f(y), 'none', { stroke: ink, w: 0.9 });
+    }
+  }
+
+  /** Default mouth kind for an expression (characters remap). */
+  const MOUTH = { neutral: 'default', focused: 'focused', confident: 'confident', angry: 'angry', frustrated: 'frustrated', smirk: 'smirk', surprised: 'surprised', defeated: 'defeated', elated: 'elated', flow: 'flow' };
+
+  EW.portraitKit = { EXPR, MOUTH, eye, brow, mouth };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

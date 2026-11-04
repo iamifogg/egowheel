@@ -15,7 +15,7 @@
 (function (root) {
   'use strict';
   const EW = root.EW = root.EW || {};
-  const W = 96, H = 128;
+  const W = 96, H = 128, SS = 4; // native size; supersampling factor for clean pixel downsampling
   const EXPRESSIONS = ['neutral', 'focused', 'confident', 'angry', 'frustrated', 'smirk', 'surprised', 'defeated', 'elated', 'flow'];
   // Requests from older code map onto the art set.
   const ALIAS = { intense: 'focused', bored: 'neutral', manic: 'elated' };
@@ -30,7 +30,7 @@
   function rect(x, y, w, h, fill, o) { o = o || {}; return '<rect x="' + f2(x) + '" y="' + f2(y) + '" width="' + f2(w) + '" height="' + f2(h) + '" fill="' + fill + '"' + (o.clip ? ' clip-path="url(#' + o.clip + ')"' : '') + '/>'; }
   function group(body, t) { return '<g' + (t ? ' transform="' + t + '"' : '') + '>' + body + '</g>'; }
   function clip(id, d) { return '<clipPath id="' + id + '"><path d="' + d + '"/></clipPath>'; }
-  function svg(body, defs) { return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" shape-rendering="crispEdges"><defs>' + (defs || '') + '</defs>' + body + '</svg>'; }
+  function svg(body, defs) { return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W * SS + '" height="' + H * SS + '" viewBox="0 0 ' + W + ' ' + H + '"><defs>' + (defs || '') + '</defs>' + body + '</svg>'; }
 
   // Colour utilities
   function hex2rgb(c) { const n = parseInt(c.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
@@ -53,15 +53,45 @@
     }
     return data;
   }
+  /**
+   * Supersampled downsample: every native pixel looks at its SS×SS block of the antialiased high-res render,
+   * snaps the subpixels to the palette and picks a colour by priority — ink wins at modest coverage so lines stay
+   * continuous at 1px, small light details (catchlights) survive, otherwise the majority colour is used.
+   */
+  function downsample(big, pal) {
+    const out = new ImageData(W, H), bd = big.data, od = out.data, n = SS * SS;
+    const lum = c => c.rgb[0] * 0.3 + c.rgb[1] * 0.59 + c.rgb[2] * 0.11;
+    const sorted = pal.slice().sort((a, b) => lum(a) - lum(b)), ink = sorted[0], white = sorted[sorted.length - 1];
+    const counts = new Map();
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      counts.clear(); let alpha = 0;
+      for (let j = 0; j < SS; j++) for (let i = 0; i < SS; i++) {
+        const k = ((y * SS + j) * W * SS + (x * SS + i)) * 4;
+        if (bd[k + 3] < 100) continue; alpha++;
+        const c = nearest([bd[k], bd[k + 1], bd[k + 2]], pal); counts.set(c, (counts.get(c) || 0) + 1);
+      }
+      const o = (y * W + x) * 4;
+      if (alpha < n * 0.45) { od[o + 3] = 0; continue; }
+      let pick = null;
+      if ((counts.get(ink) || 0) >= n * 0.3) pick = ink;
+      else if ((counts.get(white) || 0) >= n * 0.4) pick = white;
+      else { let best = -1; for (const [c, v] of counts) if (v > best) { best = v; pick = c; } }
+      od[o] = pick.rgb[0]; od[o + 1] = pick.rgb[1]; od[o + 2] = pick.rgb[2]; od[o + 3] = 255;
+    }
+    return out;
+  }
+  function nearest(rgb, pal) { let best = pal[0], bd = 1e9; for (const p of pal) { const d = (p.rgb[0] - rgb[0]) ** 2 * 0.3 + (p.rgb[1] - rgb[1]) ** 2 * 0.59 + (p.rgb[2] - rgb[2]) ** 2 * 0.11; if (d < bd) { bd = d; best = p; } } return best; }
   function rasterize(svgStr) {
     return new Promise(resolve => {
       if (!canDraw()) return resolve('');
       const img = new root.Image();
       img.onload = () => {
         try {
-          const c = root.document.createElement('canvas'); c.width = W; c.height = H;
-          const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.drawImage(img, 0, 0, W, H);
-          const data = ctx.getImageData(0, 0, W, H); cleanup(data, paletteOf(svgStr)); ctx.putImageData(data, 0, 0);
+          const big = root.document.createElement('canvas'); big.width = W * SS; big.height = H * SS;
+          const bctx = big.getContext('2d'); bctx.drawImage(img, 0, 0, W * SS, H * SS);
+          const pal = paletteOf(svgStr), data = downsample(bctx.getImageData(0, 0, W * SS, H * SS), pal);
+          cleanup(data, []);
+          const c = root.document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').putImageData(data, 0, 0);
           resolve(c.toDataURL('image/png'));
         } catch (_) { resolve(''); }
       };
