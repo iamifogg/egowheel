@@ -58,7 +58,7 @@
   }
   function moment(rel, text, meta = {}) {
     rel.moments.push(Object.assign({ text }, meta));
-    rel.moments = rel.moments.slice(-14);
+    rel.moments = rel.moments.slice(-24);
   }
 
   /** Personality-driven reaction scale for a character. */

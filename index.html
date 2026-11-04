@@ -152,6 +152,7 @@
                 </div>
               </div>
 
+              <div id="proPanel" class="decision-panel pro-panel" hidden></div>
               <div id="decisionPanel" class="decision-panel" hidden></div>
               <div id="matchReport" class="match-report" hidden aria-live="polite"></div>
               <button id="advanceFixtureBtn" class="button secondary full big" type="button" hidden>Continue Career</button>
@@ -234,6 +235,11 @@
         <div id="rivalsContent" class="rivals-content"></div>
       </section>
 
+      <section id="lifeView" class="view">
+        <div class="section-head"><div><span class="kicker">BEYOND BLUE LOCK</span><h1>Life</h1><p>Contract, money, home, sponsors and how you spend the time between fixtures.</p></div></div>
+        <div id="lifeContent" class="life-content"></div>
+      </section>
+
       <section id="profileView" class="view">
         <div class="section-head"><div><span class="kicker">CURRENT RUN</span><h1>Career Profile</h1></div></div>
         <div id="profileContent" class="profile-content"></div>
@@ -257,6 +263,7 @@
       <button class="nav-button active" data-view="runView"><span>◉</span>RUN</button>
       <button class="nav-button" data-view="ranksView"><span>≡</span>RANKS</button>
       <button class="nav-button" data-view="rivalsView"><span>⚔</span>RIVALS</button>
+      <button class="nav-button" data-view="lifeView"><span>¥</span>LIFE</button>
       <button class="nav-button" data-view="profileView"><span>▤</span>PROFILE</button>
       <button class="nav-button" data-view="archiveView"><span>▦</span>ARCHIVE</button>
     </nav>
@@ -290,6 +297,10 @@
   <script src="./src/data/arc-templates.js?v=26" defer></script>
   <script src="./src/engine/agency.js?v=26" defer></script>
   <script src="./src/engine/partnerships.js?v=26" defer></script>
+  <script src="./src/engine/finances.js?v=26" defer></script>
+  <script src="./src/data/lifestyle-items.js?v=26" defer></script>
+  <script src="./src/engine/pro-career.js?v=26" defer></script>
+  <script src="./src/data/pro-events.js?v=26" defer></script>
   <script src="./src/art/sprite-renderer.js?v=26" defer></script>
   <script src="./src/art/character-appearances.js?v=26" defer></script>
   <script src="./src/ui/avatar-editor.js?v=26" defer></script>

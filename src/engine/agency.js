@@ -102,7 +102,7 @@
       if (pers.analytic >= 0.6) { r.read = Math.min(12, (r.read || 0) + 2); q.ovr = Math.min(q.pot + 1, q.ovr + 1); }
       else { q.ovr = Math.min(q.pot + 2, q.ovr + 2); q.pot = Math.min(99, q.pot + 1); }
       const text = q.name + (pers.analytic >= 0.6 ? ' has studied your matches and built a counter to your weapon.' : ' has been training obsessively to stop losing to you.');
-      r.moments.push({ text: 'Evolved to beat you.', fx }); r.moments = r.moments.slice(-14);
+      r.moments.push({ text: 'Evolved to beat you.', fx }); r.moments = r.moments.slice(-24);
       ev.push({ type: 'rival_evolved', id, text }); EW.world.addNews(w, text, 'evolution');
     }
     return ev;
