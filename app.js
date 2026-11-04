@@ -3814,31 +3814,74 @@ function appearanceFor(id){
  const a=Object.assign({},EW.appearances.forPlayer(p));
  return{a,kit:EW.appearances.kitFor(p.club||p.team||'Blue Lock')};
 }
-// Illustrated portraits for named stars and a stable, expanded original-player pool.
-// Sheet A: six named + twelve original portraits. Sheet B: ten named + ten original portraits.
-// Customisable player ('me') and missing art use the legacy renderer without changing saves.
+// Full illustrated character roster: all named game characters receive an authored artwork
+// slot; random players draw from 184 illustrations, assigned without repeats until the
+// roster uses every design. The editable protagonist still uses the custom sprite renderer.
 const ILLUSTRATED_SHEETS={
  pilot:{url:'./assets/portraits/egowheel-v26-pilot.webp',cols:6,rows:3,w:144,h:178,image:null,ready:false,failed:false},
- expansion:{url:'./assets/portraits/egowheel-v26-expansion.webp',cols:5,rows:4,w:192,h:240,image:null,ready:false,failed:false}
+ expansion:{url:'./assets/portraits/egowheel-v26-expansion.webp',cols:5,rows:4,w:192,h:240,image:null,ready:false,failed:false},
+ namedComplete:{url:'./assets/portraits/egowheel-v26-named-complete.webp',cols:6,rows:4,w:160,h:200,image:null,ready:false,failed:false},
+ randA:{url:'./assets/portraits/egowheel-v26-random-a.webp',cols:10,rows:5,w:128,h:160,image:null,ready:false,failed:false},
+ randB:{url:'./assets/portraits/egowheel-v26-random-b.webp',cols:10,rows:6,w:128,h:160,image:null,ready:false,failed:false},
+ randC:{url:'./assets/portraits/egowheel-v26-random-c.webp',cols:10,rows:6,w:128,h:160,image:null,ready:false,failed:false}
 };
 const ILLUSTRATED_NAMED={
  nagi:['pilot',0],rin:['pilot',1],barou:['pilot',2],shidou:['pilot',3],kaiser:['pilot',4],chigiri:['pilot',5],
  isagi:['expansion',0],bachira:['expansion',1],reo:['expansion',2],sae:['expansion',3],karasu:['expansion',4],
- aiku:['expansion',5],kunigami:['expansion',6],hiori:['expansion',7],niko:['expansion',8],lorenzo:['expansion',9]
+ aiku:['expansion',5],kunigami:['expansion',6],hiori:['expansion',7],niko:['expansion',8],lorenzo:['expansion',9],
+ gagamaru:['namedComplete',0],
+ raichi:['namedComplete',1],
+ igarashi:['namedComplete',2],
+ kuon:['namedComplete',3],
+ naruhaya:['namedComplete',4],
+ nanase:['namedComplete',5],
+ wanima_j:['namedComplete',6],
+ wanima_k:['namedComplete',7],
+ zantetsu:['namedComplete',8],
+ otoya:['namedComplete',9],
+ yukimiya:['namedComplete',10],
+ kurona:['namedComplete',11],
+ aryu:['namedComplete',12],
+ tokimitsu:['namedComplete',13],
+ kiyora:['namedComplete',14],
+ sendou:['namedComplete',15],
+ darai:['namedComplete',16],
+ neru:['namedComplete',17],
+ niou:['namedComplete',18],
+ ness:['namedComplete',19],
+ chevalier:['namedComplete',20],
+ agi:['namedComplete',21]
 };
 const ILLUSTRATED_GENERATED=[
  ...Array.from({length:12},(_,i)=>['pilot',6+i]),
- ...Array.from({length:10},(_,i)=>['expansion',10+i])
+ ...Array.from({length:10},(_,i)=>['expansion',10+i]),
+ ...Array.from({length:42},(_,i)=>['randA',i]),
+ ...Array.from({length:60},(_,i)=>['randB',i]),
+ ...Array.from({length:60},(_,i)=>['randC',i])
 ];
 const illustratedPortraitCache=new Map();
+let illustratedWorldRef=null,illustratedRosterSlots=null;
+function illustratedHash(key){
+ key=String(key);
+ let h=2166136261;
+ for(let i=0;i<key.length;i++){h^=key.charCodeAt(i);h=Math.imul(h,16777619);}
+ return h>>>0;
+}
 function illustratedSlotFor(id){
  if(id==='me'||!id)return null;
  if(Object.prototype.hasOwnProperty.call(ILLUSTRATED_NAMED,id))return ILLUSTRATED_NAMED[id];
  const w=worldOf(),p=w?.players?.[id];
  if(!p||p.named)return null;
- const key=String(p.id||id);let hash=2166136261;
- for(let i=0;i<key.length;i++){hash^=key.charCodeAt(i);hash=Math.imul(hash,16777619);}
- return ILLUSTRATED_GENERATED[(hash>>>0)%ILLUSTRATED_GENERATED.length];
+ if(illustratedWorldRef!==w||!illustratedRosterSlots){
+  illustratedWorldRef=w;
+  illustratedRosterSlots=new Map();
+  const ids=Object.keys(w.players).filter(k=>k!=='me'&&!w.players[k].named);
+  ids.sort((a,b)=>illustratedHash(a)-illustratedHash(b)||a.localeCompare(b));
+  const total=ILLUSTRATED_GENERATED.length,offset=illustratedHash('ego-illustrated-'+ids.length)%total;
+  // 73 and 184 are coprime: first 184 generated footballers receive unique images.
+  ids.forEach((key,i)=>illustratedRosterSlots.set(key,ILLUSTRATED_GENERATED[(offset+i*73)%total]));
+ }
+ return illustratedRosterSlots.get(id)||ILLUSTRATED_GENERATED[illustratedHash(id)%ILLUSTRATED_GENERATED.length];
 }
 function illustratedPortraitSrc(id){
  const loc=illustratedSlotFor(id);
