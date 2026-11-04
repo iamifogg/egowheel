@@ -52,3 +52,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 # Refresh isolated preview assets after illustrated portrait atlas integration.
+# Refresh illustrated preview portrait batch fa8ce9c, preserving live main at the site root.
