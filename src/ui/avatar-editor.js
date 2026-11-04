@@ -6,13 +6,13 @@
   const EW = root.EW = root.EW || {};
   const doc = root.document;
   const LABEL = { hairStyle: 'Hairstyle', hairColor: 'Hair colour', hairTip: 'Hair tips', hairLen: 'Hair length', skin: 'Skin tone', eyeColor: 'Eye colour', eyeShape: 'Eye shape',
-    brow: 'Eyebrows', face: 'Face shape', facialHair: 'Facial hair', mark: 'Marking', accessory: 'Accessory', accent: 'Signature colour', number: 'Shirt number' };
-  const GROUPS = [['Hair', ['hairStyle', 'hairColor', 'hairTip', 'hairLen']], ['Face', ['skin', 'face', 'eyeShape', 'eyeColor', 'brow', 'facialHair']], ['Details', ['mark', 'accessory', 'accent', 'number']]];
+    brow: 'Eyebrows', face: 'Face shape', nose: 'Nose', eyeGap: 'Eye spacing', facialHair: 'Facial hair', mark: 'Marking', accessory: 'Accessory', accent: 'Signature colour', number: 'Shirt number' };
+  const GROUPS = [['Hair', ['hairStyle', 'hairColor', 'hairTip', 'hairLen']], ['Face', ['skin', 'face', 'eyeShape', 'eyeColor', 'eyeGap', 'brow', 'nose', 'facialHair']], ['Details', ['mark', 'accessory', 'accent', 'number']]];
   const SWATCH = { skin: k => EW.sprites.SKIN[k][0], hairColor: k => EW.sprites.HAIR[k][0], hairTip: k => k === 'none' ? null : EW.sprites.HAIR[k][0], eyeColor: k => EW.sprites.EYES[k], accent: k => k };
   let st = null;
 
-  function values(key) { if (key === 'hairLen') return [0, 1, 2]; return EW.sprites.OPTIONS[key]; }
-  function nice(key, v) { if (key === 'hairLen') return ['Short', 'Medium', 'Long'][v]; if (key === 'accent') return ''; return String(v).replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()); }
+  function values(key) { if (key === 'hairLen') return [0, 1, 2]; if (key === 'eyeGap') return [2, 3, 4]; return EW.sprites.OPTIONS[key]; }
+  function nice(key, v) { if (key === 'hairLen') return ['Short', 'Medium', 'Long'][v]; if (key === 'eyeGap') return ['Close', 'Normal', 'Wide'][v - 2]; if (key === 'accent') return ''; return String(v).replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()); }
   function fmtYen(n) { return n >= 1000 ? '¥' + (n / 1000).toFixed(1) + 'm' : '¥' + n + 'k'; }
   function cost() { if (!st.priceFor) return 0; let t = 0; for (const k of Object.keys(LABEL)) if (st.a[k] !== st.orig[k]) t += st.priceFor(k, st.a[k], st.orig[k]) || 0; return t; }
 
@@ -33,7 +33,7 @@
     }
     m.innerHTML = '<div class="modal-card av-card"><button type="button" class="icon-button modal-close" data-av="cancel" aria-label="Close editor">✕</button>' +
       '<span class="kicker">' + (st.title || 'A FACE FOR YOUR EGO') + '</span>' +
-      '<div class="av-layout"><div class="av-preview"><img class="px-portrait av-img" src="' + src + '" alt="Avatar preview" width="160" height="176"><div class="av-ex"><button type="button" data-ex="-1" aria-label="Previous expression">◀</button><span>' + ex + '</span><button type="button" data-ex="1" aria-label="Next expression">▶</button></div></div>' +
+      '<div class="av-layout"><div class="av-preview"><img class="px-portrait av-img" src="' + src + '" alt="Avatar preview" width="168" height="196"><div class="av-ex"><button type="button" data-ex="-1" aria-label="Previous expression">◀</button><span>' + ex + '</span><button type="button" data-ex="1" aria-label="Next expression">▶</button></div></div>' +
       '<div class="av-controls"><div class="tab-row av-tabs">' + GROUPS.map(([g]) => '<button type="button" class="tab' + (st.group === g ? ' active' : '') + '" data-group="' + g + '">' + g + '</button>').join('') + '</div>' + rows + '</div></div>' +
       (st.priceFor ? '<p class="av-cost' + (over ? ' over' : '') + '">' + (total ? 'Cost of changes: ' + fmtYen(total) + (st.cash != null ? ' · You have ' + fmtYen(Math.round(st.cash)) : '') : 'Basic changes are free. Premium styling costs money.') + '</p>' : '') +
       '<div class="av-actions"><button type="button" class="button secondary" data-av="random">Randomise</button><button type="button" class="button ghost" data-av="reset">Reset</button><button type="button" class="button primary" data-av="save"' + (over ? ' disabled' : '') + '>Save appearance</button></div></div>';

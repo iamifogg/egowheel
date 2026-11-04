@@ -117,9 +117,9 @@
       const need = slot.tier + 2;
       if (slot.level < need) continue;
       let ok = false, how = '';
-      if (slot.tier === 0 && trigger.rating >= 7.5) { ok = rng.chance(slot === W.primary ? 0.3 : 0.2); how = 'a strong display'; }
-      if (slot.tier === 1 && (trigger.importance >= 1.5 && trigger.rating >= 7.6 || trigger.duelWin || trigger.adapted)) { ok = rng.chance(trigger.adapted ? 0.8 : 0.45); how = trigger.adapted ? 'adapting mid-duel' : trigger.duelWin ? 'winning a direct duel' : 'a big-match performance'; }
-      if (slot.tier === 2 && (trigger.flow || trigger.decisive || (trigger.adapted && trigger.importance >= 1.6))) { ok = rng.chance(trigger.flow ? 0.6 : 0.4); how = trigger.flow ? 'a Flow state' : 'a decisive confrontation'; }
+      if (slot.tier === 0 && (trigger.rating >= 7.5 || trigger.flow)) { ok = rng.chance(trigger.flow ? 0.55 : slot === W.primary ? 0.3 : 0.2); how = trigger.flow ? 'an exceptional Flow action' : 'a strong display'; }
+      if (slot.tier === 1 && (trigger.importance >= 1.5 && trigger.rating >= 7.6 || trigger.duelWin || trigger.adapted || trigger.flow)) { ok = rng.chance(trigger.adapted ? 0.8 : trigger.flow ? 0.6 : 0.45); how = trigger.adapted ? 'adapting mid-duel' : trigger.flow ? 'an exceptional Flow action' : trigger.duelWin ? 'winning a direct duel' : 'a big-match performance'; }
+      if (slot.tier === 2 && (trigger.flow || trigger.decisive || (trigger.adapted && trigger.importance >= 1.6))) { ok = rng.chance(trigger.flow ? 0.65 : 0.4); how = trigger.flow ? 'an exceptional Flow performance' : 'a decisive confrontation'; }
       if (!ok) continue;
       const name = evolutionName(slot);
       slot.tier++;

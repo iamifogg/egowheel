@@ -1,4 +1,4 @@
-# EgoWheel — The Ego Awakens (v26)
+# EgoWheel — The Ego Awakens (v26.1)
 
 Unofficial, fan-made Blue Lock career RPG. A static, offline-capable PWA: no backend, no accounts,
 no paid services. Blue Lock and related names belong to their respective rights holders; no
@@ -26,7 +26,8 @@ developer panel (state, odds, injury risk, rankings and auction calculations).
 | **Injuries** | One injury opportunity per fixture, recurrence protection, missed fixtures and a medical room with recovery choices. |
 | **NEL auction** | Every NEL player is valued by the same market model; only the top 23 Blue Lock players continue. |
 | **Narrative engine** | Pressure in six dimensions, 14 kinds of multi-stage storylines, rivals with their own ambitions who evolve to beat you, partnerships with signature techniques, risk-tiered decisions with exact odds, critical moments and Ego Awakenings. |
-| **Pixel art** | Customise your footballer's pixel portrait; every named character and all 300 entrants have stable looks and expressions that appear in scenes, duels and dossiers. |
+| **Flow** | A rare heightened state that rebuilds the wheel around exceptional, weapon-specific actions, nearly eliminates routine errors, is never wasted by timing, and rewards what you achieve inside it. |
+| **Pixel art** | Hand-tuned pixel portrait renderer: bespoke designs for major named characters, personas that shape their expressions, and a full stable look for all 300 entrants; customise your own footballer. |
 | **Professional life** | Contracts, monthly salary, a traceable ledger, transfers, sponsors, housing and lifestyle, free time between fixtures, reputation, seasons with playable highlights, fast-forward and retirement. |
 | **Archive** | Completed careers keep their milestones, rivals, weapons and summary. Export/import JSON backups. |
 

@@ -397,3 +397,92 @@ Flow 5.2%; duels 21%; 0.39 scenes per fixture.
 - The professional league table is abstract (position from points and strength), not a full league.
 - Pixel art is procedural; the named-character looks are interpretations, not reproductions.
 - Romance is intentionally not part of the social system.
+
+# v26.1 — Flow & visual identity pass
+
+## Flow state overhaul (`src/engine/flow.js`)
+Flow already existed, but in play it didn't feel different: it added a small hidden weight change and a single
+"FLOW:" slice, so players entered Flow and still rolled Major Errors. It has been rebuilt:
+
+- **The wheel is rebuilt, visibly.** While Flow is active `EW.flow.reshape` adds 3–4 *exceptional actions* that
+  take 44% of the wheel. They are drawn as cyan/violet glowing slices marked ◆, with an animated aura ring around the wheel.
+  - Routine negatives are cut hard. Major Error ×0.06, Own Goal ×0.04, a straight red ×0.08, Lose Important Duel ×0.16, Waste Big Chance ×0.22.
+  - Quiet phases drop to ×0.12 and mundane actions to ×0.55. Star outcomes (goals, assists, last-man stops) rise ×1.6.
+  - Measured: routine-negative share fell from 24% to 3% for a forward and from 13% to 1.3% for a centre-back. The major-error rate inside Flow is under 1%.
+- **Distinct actions per weapon family and role.** Every family has three actions of at least two different kinds.
+  - Examples: finisher (Impossible-Angle Finish, Instinctive Volley, Killer Run → penalty); dribbler (Break Two Defenders → teammate chance, Glide Through Pressure → momentum surge, Dribble Into the Chance); defender (Read the Whole Attack, Dominate the Duel, Erase a Certain Chance → suppresses opponent goals).
+  - A role action is added when the family doesn't cover the role (Ruthless Instinct / Dictate the Tempo / Read the Whole Attack).
+  - New contribution effects: `penalty` (78% scored), `chanceFor` (62% teammate goal), `surge` (momentum +2.2) and `endFlow`.
+- **Failure is dramatic, not sloppy.** Flow failure takes two forms. *Flow Overreach* (3.5–9.5%) is an impossible attempt that nearly works.
+  *Flow Shatters* (only in hard contexts) is a mistake that ends Flow. Their weight scales with how outmatched you are (`difficulty(gap, importance)`).
+- **Never wasted by timing.** Flow lasts a 3-moment window, and at least 2 Flow moments are guaranteed. If it triggers on the last or second-last moment,
+  extra stoppage-time moments (90+2', 90+4') are added (`p.baseSpins` / `p.flowExtra`). These short segments carry only 2.5% of match
+  time each, so the score model stays fair. Flow can trigger at most once per match.
+- **Achievement is the reward.** A *feat* is a successful Flow action, goal, assist or star outcome inside Flow. Feats, not the trigger, unlock:
+  - weapon XP ×2 (×3.2 for Flow actions);
+  - the Flow evolution trigger, which now also counts for tiers 0 and 1, at 55–65%;
+  - breakthrough chance +3% per feat;
+  - confidence;
+  - rivalry and respect from the opposing star who watched;
+  - partnership XP with your best partner on the pitch;
+  - the Stage 5 partnership "shared Flow" gate;
+  - milestones: First exceptional Flow action, Flow Masterclass (2 feats), Flow Masterpiece (3+).
+- **Duels and critical moments in Flow.** Duels in Flow give +8 to your duel strength. Critical-moment success odds become ×1.3 + 10%, capped above the tier
+  maximum. The raised odds are shown on the cards and on the wheel (`flowCritical`).
+- **Presentation.**
+  - A Flow burst banner shows your portrait, the Flow name and how many moments are left (or "Time bends — +N stoppage-time moments").
+  - The HUD shows a pulsing "FLOW · N" chip, and the stage is retitled "◆ FLOW STATE · <name>".
+  - There is a new sound cue, plus a chime for each feat.
+  - Timeline entries are marked ◆ (feat) or ◇ (failure), with "Flow fades" or "Flow shattered".
+  - The post-match **Flow report card** gives a verdict (Masterpiece / Masterclass / Breakthrough / Denied / Without Reward), lists each Flow moment, and states the
+    rivalry and partnership consequences.
+  - Reduced-motion users get no animation.
+- **Rarity kept.** The trigger rate was trimmed slightly (×0.86, cap 2.6% per moment). Flow appears in about 5.5% of matches (5.2% before).
+  - Over 30 autoplayed careers, a match with Flow averages a 9.1 rating against 8.0 overall, with 1.6 feats per Flow.
+  - Verdict mix: Masterclass 45%, Breakthrough 32%, Masterpiece 12%, Without Reward 7%, Denied 4%.
+  - Flow can be strong without guaranteeing anything: it is not free goals and not an automatic win.
+- Tests are in `tests/flow.test.js`. They cover the wheel shape, distinct actions, a 1,600-moment Monte Carlo, late-trigger stoppage time, the window
+  and feat recording, "trigger alone is not the reward", truthful critical odds, and rarity and reporting in played careers.
+
+## Portrait system v2 (`src/art/sprite-renderer.js`, `src/art/character-appearances.js`)
+The v26 renderer was a proof of concept (40×44, a generic hair dome with recolours). It has been rewritten to work the way a
+pixel artist would:
+- **48×56 grid with better proportions.** It has a shaped jaw and chin per face type (oval, sharp, round, square, long, soft), ears, neck shading, and
+  three collar types with shoulder trim, folds, crest and number.
+- **Palette discipline.** Every material uses a hue-shifted 6-tone ramp (warm highlights, cool shadows). Skin uses hand-tuned warm
+  shadow mixes so that no tone goes neon.
+- **Selective outlining.** Silhouettes are outlined in a dark tone of their own colour, never flat black. The fringe casts a dithered shadow
+  on the forehead.
+- **Strand-based hair.** Hair is built from tapered bezier strands, volume blobs, a skull cap with a hairline, shaved sides and back hair.
+  - Shading comes from top-left light, with a clean arc highlight and tip separation (dark notches between strand tips only).
+  - Comb lines on slick styles, texture on short styles, two-tone tips (by strand length or by height), and radial spikes with wide bases.
+  - There are 24 library styles: messy, spiky, swept, parted, bowl, curtain, wild, long, ponytail, buzz, undercut, mohawk, bob, tousled, fluffy, slick,
+    sidefringe, quiff, afro, twists, waves, topknot, crop and shaggy.
+- **Anime eyes in seven shapes:** standard, sharp, round, narrow, droopy, lidded, fierce. Each has a heavy upper lash, shaded iris, pupil,
+  catchlights and a lower-lid hint, plus eye spacing, three nose types and six brow types.
+- **Expressions.** There are 10 public expressions (neutral, confident, intense, angry, frustrated, smirk, surprised, defeated, elated, focused) plus
+  bored and manic. Each changes the eyes, brows, mouth and cheeks (blush, sweat drop, nose wrinkle).
+- **Personas** (cold, manic, bored, fierce, sunny, proud, shy) remap requests per character. For example, Shidou's "confident" is a manic grin,
+  Nagi's "neutral" is bored, and Rin's "confident" is a cold smirk. Procedural players get a persona from their personality.
+- **Named characters.** 15 have **bespoke signature hair designs** (isagi, bachira, nagi, reo, barou, shidou, rin, sae, chigiri, kunigami,
+  kaiser, aiku, karasu, tokimitsu, lorenzo) with tuned face, eyes, brows, nose, marks and accessories. The other 23 named characters use tuned
+  library styles. All 38 portraits are unique (tested), and the signatures differ substantially from the generic style.
+  These are original pixel interpretations, not official artwork.
+- **Every footballer has a portrait.** Procedural players derive a full look from their id: weighted hair colours, 14 skin tones (with
+  textured styles for darker skin), face, eyes, spacing, nose, brows, marks, accessories, a variation seed for strand jitter, and a persona.
+  - In tests, 120 of 120 sampled procedural portraits are unique, and each look is stable per id. The ranking list now shows a portrait for every row.
+- **UI staging.**
+  - Portraits sit in a frame keyed to the character's accent and kit colour. Named characters get a gold-tinted frame and Flow a cyan glow.
+  - The dossier opens on a **portrait stage**: a scene background, a large portrait in a relationship-driven mood, a name plate, identity tags and a mood strip of
+    four expressions.
+  - The duel, critical-moment, Flow burst and Flow report portraits react to Flow.
+  - The editor gains nose and eye-spacing options.
+- **Compatibility.** Appearance `v:2` adds `nose`, `eyeGap`, `var`, `sig` and `persona`. `normalize()` upgrades v1 appearances from older saves in
+  place (tested), and unknown signatures or personas are dropped. Everything is still parameter-generated (no image files), deterministic,
+  cached as data URLs, and works offline.
+
+## Known limits (v26.1)
+- These are original pixel interpretations, so resemblance relies on silhouette, colour, expression and signature traits rather than exact
+  likeness. Characters with similar real-world designs (short dark hair) are told apart mainly by their signature details.
+- Procedural strands use a seeded jitter. Two players can share a style and colour and still differ, but some combinations are close.
+- Flow during simulated or fast-forwarded pro seasons is not modelled as individual moments. Only played matches use the Flow wheel.

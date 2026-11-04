@@ -1216,7 +1216,9 @@ function contributionStage(){
  const total=p.targetSpins||contributionMomentCount();
  applyMatchModifiers(opts,p,fixture);
  appendInjurySlices(opts,p,total);
- return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:'Match Moment '+(idx+1)+' / '+total,prompt:'Role, height, fitness, form, weapons, cards and opponent all change the wheel. Spin what you actually do.',mode:'weights',options:opts};
+ if(p.ctx?.flow){const fe=EW.weapons.flowExpression(weaponsState()),left=p.ctx.flowLeft??3,fsh=opts.filter(o=>o.meta?.flow&&!o.meta?.flowFail).reduce((t,o)=>t+o.weight,0)/opts.reduce((t,o)=>t+o.weight,0);
+  return{key:'contribution_'+idx,chapter:'◆ FLOW STATE · '+fe.name.toUpperCase(),name:(p.baseSpins&&idx>=p.baseSpins?'Stoppage Time · ':'')+'Flow Moment · '+left+' left',prompt:'Your weapon reaches a level you have never touched. Exceptional actions (◆) fill '+Math.round(fsh*100)+'% of the wheel; routine errors are almost gone.',mode:'weights',options:opts,flow:true};}
+ return{key:'contribution_'+idx,chapter:'MATCH CONTRIBUTION',name:(p.baseSpins&&idx>=p.baseSpins?'Stoppage Time · ':'')+'Match Moment '+(idx+1)+' / '+total,prompt:'Role, height, fitness, form, weapons, cards and opponent all change the wheel. Spin what you actually do.',mode:'weights',options:opts};
 }
 
 function breakthroughChance(){
@@ -1226,7 +1228,8 @@ function breakthroughChance(){
  if(['Limit Breaker','Devourer','Puzzle Solver','Pressure Junkie','Transcendent Ego','Evolution Addict','World Devourer','Pressure Sovereign','Singularity'].includes(ego))chance+=.008;
  if(ego==='Singularity')chance+=.006;
  if((fixture?.importance||1)>=1.7)chance+=.004;
- return clamp(chance,.004,.035);
+ if(p.flowFeats)chance+=.03*Math.min(2,p.flowFeats);
+ return clamp(chance,.004,.09);
 }
 function breakthroughStatPool(){
  if(isDefensiveRole())return['defense','vision','reactions','physical','stamina','passing'];
@@ -1340,7 +1343,7 @@ function probability(stage,opt){const x=layoutFor(stage).find(r=>r.opt.name===op
 function fmtPct(n){return n<1?n.toFixed(1)+'%':Math.round(n)+'%';}
 function polar(cx,cy,r,a){const rad=(a-90)*Math.PI/180;return{x:cx+r*Math.cos(rad),y:cy+r*Math.sin(rad)};}
 function annularPath(start,end,inner=73,outer=203){const span=end-start,g=Math.min(.55,span*.06),a=start+g/2,b=end-g/2,o1=polar(260,260,outer,a),o2=polar(260,260,outer,b),i1=polar(260,260,inner,b),i2=polar(260,260,inner,a),lg=b-a>180?1:0;return'M'+o1.x+' '+o1.y+' A'+outer+' '+outer+' 0 '+lg+' 1 '+o2.x+' '+o2.y+' L'+i1.x+' '+i1.y+' A'+inner+' '+inner+' 0 '+lg+' 0 '+i2.x+' '+i2.y+' Z';}
-function sliceColor(opt,i,mode){if(mode==='equal'||mode==='weights'){const a=['#0d5ba6','#0a73c9','#17518d','#11406e','#23699f','#135b91','#0b4d80','#1c77ad'];return a[i%a.length];}const base={common:['#526175','#65748a'],uncommon:['#287e46','#36975a'],rare:['#17699f','#2286c6'],epic:['#5e3c91','#754bb3'],legendary:['#9f761b','#c29831'],mythic:['#a72d43','#cf3b55']},a=base[opt.rarity]||base.common;return a[i%a.length];}
+function sliceColor(opt,i,mode){if(opt.meta?.flowFail)return i%2?'#4b2470':'#5d2c86';if(opt.meta?.flow)return['#12b5d8','#7c5cf0','#19c9b3','#a05cf0'][i%4];if(mode==='equal'||mode==='weights'){const a=['#0d5ba6','#0a73c9','#17518d','#11406e','#23699f','#135b91','#0b4d80','#1c77ad'];return a[i%a.length];}const base={common:['#526175','#65748a'],uncommon:['#287e46','#36975a'],rare:['#17699f','#2286c6'],epic:['#5e3c91','#754bb3'],legendary:['#9f761b','#c29831'],mythic:['#a72d43','#cf3b55']},a=base[opt.rarity]||base.common;return a[i%a.length];}
 function shortLabel(o){const r={'Centre Forward':'CF','Second Striker':'SS','Left Wing':'LW','Right Wing':'RW','False Nine':'F9','Attacking Midfielder':'AM','Bastard München':'Bastard','Manshine City':'Manshine','FC Barcha':'Barcha','Paris X Gen':'PXG'};const s=r[o.short]||r[o.name]||o.short||o.name;return s.length>17?s.slice(0,16)+'…':s;}
 function wheelLabelText(o,span){
   const compact={
@@ -1387,7 +1390,7 @@ function renderWheel(){
 
  layout.forEach((row,i)=>{
    const p=document.createElementNS('http://www.w3.org/2000/svg','path');
-   p.setAttribute('d',annularPath(row.start,row.end));p.setAttribute('fill',sliceColor(row.opt,i,stage.mode));p.setAttribute('class','wheel-slice');
+   p.setAttribute('d',annularPath(row.start,row.end));p.setAttribute('fill',sliceColor(row.opt,i,stage.mode));p.setAttribute('class','wheel-slice'+(row.opt.meta?.flow&&!row.opt.meta?.flowFail?' flow-slice':''));
    if(row.opt.name===selected)p.style.filter='brightness(1.35) saturate(1.25) drop-shadow(0 0 5px #62d7ff)';
    g.appendChild(p);
    const span=row.end-row.start;
@@ -1395,8 +1398,8 @@ function renderWheel(){
      const screenAngle=(row.mid+normalized)%360,a=(screenAngle-90)*Math.PI/180,radius=span>=70?148:span>=35?151:span>=18?154:158;
      const x=260+radius*Math.cos(a),y=260+radius*Math.sin(a);
      const badge=document.createElementNS('http://www.w3.org/2000/svg','g');badge.setAttribute('class','wheel-badge');
-     const label=wheelLabelText(row.opt,span).toUpperCase(),fs=span>=55?18:span>=30?16:span>=18?13:10,boxW=Math.max(48,Math.min(span>=55?112:94,label.length*(fs*.66)+22)),boxH=fs+18;
-     const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',x-boxW/2);rect.setAttribute('y',y-boxH/2);rect.setAttribute('width',boxW);rect.setAttribute('height',boxH);rect.setAttribute('rx',Math.min(12,boxH/2));rect.setAttribute('class','wheel-label-badge-bg');badge.appendChild(rect);
+     const label=(row.opt.meta?.flow&&!row.opt.meta?.flowFail?'◆ ':'')+wheelLabelText(row.opt,span).toUpperCase(),fs=span>=55?18:span>=30?16:span>=18?13:10,boxW=Math.max(48,Math.min(row.opt.meta?.flow?(span>=40?146:118):span>=55?112:94,label.length*(fs*.66)+22)),boxH=fs+18;
+     const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',x-boxW/2);rect.setAttribute('y',y-boxH/2);rect.setAttribute('width',boxW);rect.setAttribute('height',boxH);rect.setAttribute('rx',Math.min(12,boxH/2));rect.setAttribute('class','wheel-label-badge-bg'+(row.opt.meta?.flow&&!row.opt.meta?.flowFail?' flow-badge':''));badge.appendChild(rect);
      const t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',x);t.setAttribute('y',y+.5);t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');t.setAttribute('class','wheel-label overlay-label');t.setAttribute('font-size',fs);t.textContent=label;badge.appendChild(t);labels.appendChild(badge);
    }
  });
@@ -1793,7 +1796,7 @@ function objectiveOptions(fixture=currentFixture()){
 function currentObjective(){const c=state.run.career;return OBJECTIVES.find(o=>o.key===c?.objectiveKey)||OBJECTIVES[0];}
 function chooseObjective(key){const c=state.run.career;if(!c||c.report)return;if(!objectiveOptions().some(o=>o.key===key))return;c.objectiveKey=key;save();renderCareer();clickSound();}
 function weaponsState(){return state.run.selections.primaryWeapon?EW.weapons.ensure(state.run,state.run.selections):null;}
-function momentMinute(p,i){const start=p.startMinute||0,n=Math.max(1,p.targetSpins||6);return Math.round(start+((i||0)+.5)*(90-start)/n);}
+function momentMinute(p,i){const start=p.startMinute||0,base=p.baseSpins||p.targetSpins||6,n=Math.max(1,base);if(p.baseSpins&&(i||0)>=p.baseSpins)return 90+((i||0)-p.baseSpins+1)*2;return Math.round(start+((i||0)+.5)*(90-start)/n);}
 function matchBaseLambdas(fixture){
  const s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{},temp=state.run.career?.tempMatchBonus||{};
  // In professional football your own goals/assists are counted explicitly; your rating only nudges the
@@ -1826,7 +1829,7 @@ function scheduleDuel(p,fixture){
  const n=p.targetSpins||6;return{oppId:id,at:clamp(int(1,n-2),1,n-1),approach:null,done:false};
 }
 function flowChance(p,fixture){
- if(p.ctx.flow||p.endedEarly)return 0;
+ if(p.ctx.flow||p.ctx.flowed||p.endedEarly)return 0;
  const s=currentStats(),gap=(fixture.strength||70)-overall(s),ego=state.run.selections.egoStyle?.name||'';
  const chal=Math.exp(-Math.pow((gap-4)/8,2))*1.6+.4;
  const egoMult=['Adaptation Addict','Puzzle Solver','Transcendent Ego','Limit Breaker','Challenger','World Devourer','Pressure Sovereign','Singularity','Freedom Seeker','Evolution Addict'].includes(ego)?1.8:1;
@@ -1834,11 +1837,11 @@ function flowChance(p,fixture){
  const W=weaponsState(),mastery=1+.08*(W?.primary?.level||0);
  const duelRel=p.duel&&typeof relationFor==='function'?relationFor(p.duel.oppId,true):null,rival=1+(duelRel?duelRel.rivalry/100:0);
  const form=1+Math.max(0,state.run.form)*.12,mom=1+Math.max(0,p.ctx.mom)*.1;
- return clamp(.0016*chal*egoMult*imp*conf*mastery*rival*form*mom,0,.03);
+ return clamp(.00138*chal*egoMult*imp*conf*mastery*rival*form*mom,0,.026);
 }
 function applyMatchModifiers(opts,p,fixture){
  const ctx=p.ctx||{tg:0,og:0,mom:0},idx=p.spinIndex||0,minute=momentMinute(p,idx),diff=ctx.tg-ctx.og,late=minute>=65,imp=fixture?.importance||1;
- const obj=currentObjective(),W=weaponsState(),flowExp=ctx.flow?EW.weapons.flowExpression(W):null;
+ const obj=currentObjective(),W=weaponsState(),inFlow=!!ctx.flow;
  const w=worldOf(),hier=w&&fixture?.cast?hierarchyFactor(w,fixture.cast.mine):1;
  const relMod=typeof relationMatchModifier==='function'?relationMatchModifier(fixture):null;
  const counter=typeof counterPressureFor==='function'?counterPressureFor(fixture):null;
@@ -1856,7 +1859,6 @@ function applyMatchModifiers(opts,p,fixture){
   if(has('quiet')&&obj.quiet)m*=obj.quiet;
   if(obj.weapon&&W&&!neg&&EW.weapons.FAMILIES[W.primary?.family]?.tags.some(t=>has(t)))m*=obj.weapon;
   m*=EW.weapons.weightMultiplier(W,tags,{counter});
-  if(flowExp){if(!neg&&flowExp.tags.some(t=>has(t)))m*=1.7;if(neg)m*=.5;if(has('quiet'))m*=.6;}
   if(has('finish')&&!neg)m*=hier;
   if(relMod)m*=relMod(tags,o.name);
   // Professional matchups: elite opponents suppress attacking output; weaker ones concede more.
@@ -1868,13 +1870,13 @@ function applyMatchModifiers(opts,p,fixture){
  // Evolution / combination opportunities and Flow-only slices
  const total=opts.reduce((t,o)=>t+o.weight,0);
  for(const sp of EW.weapons.specialSlices(W,{role:roleGroup()})){
-  opts.push(weighted(sp.name,sp.desc,sp.weight*total/100*(flowExp?1.6:1),{},sp.name.toUpperCase().slice(0,14),{contrib:sp.contrib,tags:sp.tags,special:true}));
- }
- if(flowExp){
-  const fe=FLOW_CONTRIB[flowExp.family]||FLOW_CONTRIB.finish;
-  opts.push(weighted('FLOW: '+flowExp.name,'In Flow, your weapon reaches a level you have never touched.',total*.08,{},'FLOW',{contrib:fe,tags:flowExp.tags.concat(['star','flowmove']),special:true}));
+  opts.push(weighted(sp.name,sp.desc,sp.weight*total/100*(inFlow?1.6:1),{},sp.name.toUpperCase().slice(0,14),{contrib:sp.contrib,tags:sp.tags,special:true}));
  }
  if(typeof relationSlices==='function')relationSlices(opts,fixture,total);
+ if(inFlow&&EW.flow){
+  const gap=(fixture?.pro?(fixture.strength||95)-(fixture.teamStrength||95)+(80-overall())*.3:(fixture?.strength||70)-overall());
+  p.flowWheel=EW.flow.reshape(opts,{family:W?.primary?.family||'finish',role:roleGroup(),gap,importance:imp},(n,d,wt,l,meta)=>weighted(n,d,wt,{},l,meta));
+ }
 }
 const FLOW_CONTRIB={
  finish:{goals:1,shots:1,bonusRating:1.4},move:{goals:1,shots:1,bonusRating:1.35},vision:{assists:1,keyPasses:1,interceptions:1,bonusRating:1.2},
@@ -1894,9 +1896,13 @@ function momentumDelta(tags,contrib){
 }
 /** Advance the live match through the segment that this moment represents. */
 function playSegment(p,fixture,tags,contrib){
- const ctx=p.ctx,n=Math.max(1,p.targetSpins||6),minute=momentMinute(p,p.spinIndex||0),obj=currentObjective();
- const segShare=(90-(p.startMinute||0))/90/n;
- for(let i=0;i<(contrib.goals||0);i++){ctx.tg++;ctx.timeline.push({m:clamp(minute+i*3,1,90),t:'goal',txt:(i?'Another goal':'Goal')+' — you'});}
+ const ctx=p.ctx,n=Math.max(1,p.baseSpins||p.targetSpins||6),minute=momentMinute(p,p.spinIndex||0),obj=currentObjective();
+ const stoppage=!!(p.baseSpins&&(p.spinIndex||0)>=p.baseSpins);
+ const segShare=stoppage?.025:(90-(p.startMinute||0))/90/n;
+ for(let i=0;i<(contrib.goals||0);i++){ctx.tg++;ctx.timeline.push({m:clamp(minute+i*3,1,99),t:'goal',txt:(i?'Another goal':'Goal')+' — you'});}
+ if(contrib.penalty){if(R()<.78){ctx.tg++;ctx.timeline.push({m:minute,t:'mate',txt:'Penalty won by you — converted'});}else ctx.timeline.push({m:minute,t:'flow',txt:'Penalty won by you — saved'});}
+ if(contrib.chanceFor){if(R()<.62){ctx.tg++;ctx.timeline.push({m:minute,t:'mate',txt:'Teammate finishes the chance you created'});}}
+ if(contrib.surge)ctx.mom=clamp(ctx.mom+2.2,-3,3);
  for(let i=0;i<(contrib.assists||0);i++){ctx.tg++;ctx.timeline.push({m:minute,t:'assist',txt:'Assist — your pass is finished'});}
  if(contrib.oppBonusGoals){ctx.og+=contrib.oppBonusGoals;ctx.timeline.push({m:minute,t:'og',txt:'Own goal'});}
  if(contrib.oppGoal){ctx.og+=1;ctx.timeline.push({m:minute,t:'opp',txt:'Opponent scores after beating you'});}
@@ -1906,12 +1912,12 @@ function playSegment(p,fixture,tags,contrib){
  if(contrib.oppChance&&R()<.45){ctx.og++;ctx.timeline.push({m:minute,t:'opp',txt:'Opponent converts the chance you allowed'});}
  if(tags.includes('error')&&R()<.32){ctx.og++;ctx.timeline.push({m:minute,t:'opp',txt:'Your error is punished'});}
  const og=poisson(Math.max(0,oppL)),mg=poisson(Math.max(0,mateL));
- for(let i=0;i<mg;i++){ctx.tg++;ctx.timeline.push({m:clamp(minute+int(-4,4),1,90),t:'mate',txt:'Teammate scores'});}
- for(let i=0;i<og;i++){ctx.og++;ctx.timeline.push({m:clamp(minute+int(-4,4),1,90),t:'opp',txt:'Opponent scores'});}
+ for(let i=0;i<mg;i++){ctx.tg++;ctx.timeline.push({m:clamp(minute+int(-4,4),1,stoppage?99:90),t:'mate',txt:'Teammate scores'});}
+ for(let i=0;i<og;i++){ctx.og++;ctx.timeline.push({m:clamp(minute+int(-4,4),1,stoppage?99:90),t:'opp',txt:'Opponent scores'});}
  ctx.mom=clamp(ctx.mom*.7+momentumDelta(tags,contrib)-og*1+mg*.6,-3,3);
 }
 function finishRemainingSegments(p,fixture,a){
- const ctx=p.ctx,n=Math.max(1,p.targetSpins||6),done=(p.spinIndex||0)+1,left=Math.max(0,n-done);if(!left)return;
+ const ctx=p.ctx,n=Math.max(1,p.baseSpins||p.targetSpins||6),done=(p.spinIndex||0)+1,left=Math.max(0,n-done);if(!left)return;
  const share=(90-(p.startMinute||0))/90/n*left,red=!!a.sentOff;
  const og=poisson(ctx.base.opp*share*(red?1.3:1)),mg=poisson(ctx.base.mate*share*(red?.7:.95));
  const from=momentMinute(p,done);
@@ -1941,6 +1947,7 @@ function duelOdds(approach){
  else if(approach==='adapt')my=(s.vision+s.reactions+s.technique)/3-6+(['Adaptation Addict','Puzzle Solver','Devourer','World Devourer','Evolution Addict','Chameleon'].includes(ego)?6:0)+(state.run.selections.primaryWeapon?.name==='Chameleon Technique'?4:0);
  else{const keys=def?['defense','physical','reactions','speed']:['dribbling','passing','shotPower','speed','technique'];const vals=keys.filter(k=>!fam.stats.includes(k)).map(k=>s[k]||50).sort((a,b)=>b-a);my=((vals[0]||50)+(vals[1]||vals[0]||50))/2-2+Math.min(4,Math.max(0,(their-o.weakVal)*.15));}
  my+=(state.run.confidence-50)*.06+state.run.form*.8;
+ if(p?.ctx?.flow)my+=8;
  const cc=state.run.career;my+=(cc?.duelBonus?.[q?.id]||0)*.6;if(approach==='adapt'){my+=(cc?.adaptBonus?.[q?.id]||0)*.6;my+=(pressureMods()?.adapt||0)*.3+(arcMods(currentFixture())?.adapt||0)*.3;}
  their+=Math.min(6,(relStore()[q?.id]?.enc?.counters||0)*2);
  return{p:1/(1+Math.exp(-(my-their)/8)),my:Math.round(my),their:Math.round(their),opp:q,type:def?'defend':'attack',weak:o.weak};
@@ -1982,12 +1989,34 @@ function resolveDuelOutcome(outcome){
 }
 function applyContribution(p,outcome,tags){
  const target=p.contributions||(p.contributions=emptyMatchContribution()),add=outcome.meta?.contrib||{};
- for(const [k,v] of Object.entries(add)){if(['labels','secondYellow','oppSuppress','oppChance','oppGoal'].includes(k))continue;target[k]=(target[k]||0)+v;}
+  for(const [k,v] of Object.entries(add)){if(['labels','secondYellow','oppSuppress','oppChance','oppGoal','penalty','chanceFor','surge','endFlow'].includes(k))continue;target[k]=(target[k]||0)+v;}
  target.labels.push(outcome.name);
- const fixture=currentFixture();
+ const fixture=currentFixture(),wasFlow=!!p.ctx?.flow,isFlowAct=!!outcome.meta?.flow&&!outcome.meta?.flowFail;
  if(p.ctx&&fixture)playSegment(p,fixture,tags,add);
  const W=weaponsState();
- if(W&&!tags.includes('injury')){const mult=(state.run.career?.xpMultNext||1)*(currentObjective().xp||1)*(p.ctx?.flow?2:1)*((fixture?.importance||1)>=1.6?1.3:1);EW.weapons.award(W,tags,{mult});}
+ if(W&&!tags.includes('injury')){const mult=(state.run.career?.xpMultNext||1)*(currentObjective().xp||1)*(wasFlow?2:1)*(isFlowAct?1.6:1)*((fixture?.importance||1)>=1.6?1.3:1);EW.weapons.award(W,isFlowAct?tags.concat(EW.weapons.FAMILIES[W.primary?.family]?.tags||[]):tags,{mult});}
+ if(wasFlow&&EW.flow)flowRecord(p,outcome,tags);
+}
+/** What the player achieved inside Flow is the reward: milestones, rivals, partners, confidence. */
+function flowAftermath(rep,fixture){
+ const fs=rep.flowSummary||{feats:0},c=state.run.career;if(!c)return;
+ c.flowFeats=(c.flowFeats||0)+fs.feats;rep.flowLines=[];
+ const best=(rep.flowLog||[]).find(x=>x.flowAction)||(rep.flowLog||[]).find(x=>x.feat);
+ if(fs.feats>=2){addMilestone('flow',fs.verdict+': '+fs.feats+' exceptional actions in Flow vs '+fixture.opponent+(best?' ('+best.name+')':'')+'.');c.flowMasterclasses=(c.flowMasterclasses||0)+1;}
+ else if(fs.feats===1&&!c.flowFeatFirst){c.flowFeatFirst=true;addMilestone('flow','First exceptional Flow action: '+(best?.name||'a Flow moment')+' vs '+fixture.opponent+'.');}
+ if(!fs.feats){rep.flowLines.push('The Flow came and went without an exceptional action. The feeling stays with you.');return;}
+ const w=worldOf(),star=rep.duel?.oppId||duelCandidate(fixture);
+ if(star&&w?.players[star]){const q=w.players[star];relAdjust(star,{rivalry:4+3*fs.feats,respect:3+3*fs.feats},'Watched you in Flow vs '+fixture.opponent+(best?': '+best.name:'')+'.');rep.flowLines.push(q.short+' saw that. Rivalry +'+(4+3*fs.feats)+', respect +'+(3+3*fs.feats)+'.');}
+ const mates=(fixture.cast?.mine||[]).map(id=>({id,r:relationFor(id,true)})).filter(x=>x.r&&(x.r.partnership?.stage||0)>=1).sort((a,b)=>(b.r.partnership.stage-a.r.partnership.stage)||(b.r.compat-a.r.compat));
+ if(mates.length&&EW.partnerships){const m=mates[0],q=w.players[m.id];EW.partnerships.apply(m.r,{xp:4*fs.feats});m.r.flowShared=(m.r.flowShared||0)+1;rep.flowLines.push('You and '+(q?.short||'your partner')+' were on the same wavelength: partnership +'+(4*fs.feats)+' XP.');}
+ state.run.confidence=clamp(state.run.confidence+2*fs.feats,0,100);
+ if(fs.feats>=2)rep.flowLines.push('A strong chance your weapon evolves after a performance like this.');
+}
+function flowRecord(p,outcome,tags){
+ const minute=momentMinute(p,p.spinIndex||0),r=EW.flow.record(p.ctx,outcome,tags,minute);
+ if(outcome.meta?.flow)p.ctx.timeline.push({m:minute,t:'flow',txt:(outcome.meta.flowFail?'◇ ':'◆ ')+outcome.name+(outcome.meta.flowFail?'':' (Flow)')});
+ if(r.feat){p.flowFeats=(p.flowFeats||0)+1;p.evo=Object.assign({},p.evo,{flow:true});state.run.confidence=clamp(state.run.confidence+2,0,100);if(typeof flowFeatSound==='function')flowFeatSound();}
+ if(r.ended){p.flowEndedNow=true;p.ctx.timeline.push({m:minute,t:'flow',txt:outcome.meta?.contrib?.endFlow?'Flow shattered':'Flow fades'});}
 }
 
 function resolveContributionOutcome(outcome){
@@ -2005,9 +2034,10 @@ function resolveContributionOutcome(outcome){
  }
  if(add.sentOff||add.injured)p.endedEarly=true;
  const fixture=currentFixture();
- if(!p.endedEarly&&p.ctx&&fixture&&(p.spinIndex||0)>=1&&R()<flowChance(p,fixture)){
-  p.ctx.flow=true;p.ctx.flowMinute=minute;p.flowJustTriggered=true;p.evo=Object.assign({},p.evo,{flow:true});
-  p.ctx.timeline.push({m:minute,t:'flow',txt:'FLOW — '+EW.weapons.flowExpression(weaponsState()).name});flowSound();
+ if(!p.endedEarly&&p.ctx&&fixture&&!p.ctx.flowed&&(p.forceFlow||(p.spinIndex||0)>=1&&R()<flowChance(p,fixture))){p.forceFlow=false;
+  const last=(p.targetSpins||6)-1,extra=EW.flow.start(p.ctx,minute,p.spinIndex||0,last);p.flowJustTriggered=true;
+  if(extra){if(!p.baseSpins)p.baseSpins=p.targetSpins||6;p.targetSpins=(p.targetSpins||6)+extra;p.flowExtra=extra;}
+  p.ctx.timeline.push({m:minute,t:'flow',txt:'FLOW — '+EW.weapons.flowExpression(weaponsState()).name+(extra?' (time bends: +'+extra+' stoppage-time moment'+(extra>1?'s':'')+')':'')});flowSound();
   const c=state.run.career;c.flowCount=(c.flowCount||0)+1;
   if(c.flowCount===1)addMilestone('flow','First Flow state: '+fixture.team+' vs '+fixture.opponent+', '+minute+"'.");
  }
@@ -2085,10 +2115,11 @@ function finalizeContributionMatch(){
  if(a.sentOff){state.run.confidence=clamp(state.run.confidence-8,0,100);state.run.form=clamp(state.run.form-1,-3,3);}
  if(p.injurySeverity)registerInjury(p.injurySeverity,'match');
  const rep={type:'match',passed:true,minutes,cleanSheet:oppGoals===0,decidedBy:resolved.decidedBy,shootout:resolved.shootout,goals:a.goals||0,assists:a.assists||0,shots:a.shots||0,keyPasses:a.keyPasses||0,dribbles:a.dribbles||0,tackles:a.tackles||0,interceptions:a.interceptions||0,blocks:a.blocks||0,clearances:a.clearances||0,recoveries:a.recoveries||0,aerialDuels:a.aerialDuels||0,yellowCards:a.yellowCards||0,redCards:a.redCards||0,setPieceGoals:a.setPieceGoals||0,mistakes:a.mistakes||0,bigMisses:a.bigMisses||0,teamGoals,oppGoals,result,rating,contributionLabels:[...(a.labels||[])]};
- rep.timeline=p.ctx.timeline.slice().sort((x,y)=>x.m-y.m);rep.flow=!!p.ctx.flow;rep.flowMinute=p.ctx.flowMinute||null;rep.objective=p.objective||'balanced';
+ rep.timeline=p.ctx.timeline.slice().sort((x,y)=>x.m-y.m);rep.flow=!!(p.ctx.flow||p.ctx.flowed);rep.flowMinute=p.ctx.flowMinute||null;if(rep.flow&&EW.flow){rep.flowLog=(p.ctx.flowLog||[]).slice();rep.flowSummary=EW.flow.summary(rep.flowLog);rep.flowName=EW.weapons.flowExpression(weaponsState()).name;rep.flowExtra=p.flowExtra||0;}rep.objective=p.objective||'balanced';
  rep.duel=p.duel&&p.duel.done?{oppId:p.duel.oppId,name:p.duel.name,result:p.duel.result,approach:p.duel.approach}:null;
  if(currentObjective().result&&rep.result==='WIN')rep.rating=clamp(rep.rating+.12,3.2,10);
  rep.moments=matchMoments(rep,fixture);
+ if(rep.flow)flowAftermath(rep,fixture);
  afterMatchWeapons(rep,fixture,p);
  c.report=rep;applyPostMatch(rep,fixture);recordHistory();if(rep.goals)goalSound();
  state.run.pendingMatch=null;
@@ -2244,7 +2275,7 @@ function matchMoments(rep,fixture){
  if(rep.recoveries>=3)m.push('You recover possession '+rep.recoveries+' times and restart the attack.');
  if(defActions>=5)m.push('Your defensive output becomes one of the match’s defining features ('+defActions+' actions).');
  if(rep.duel)m.push(({decisive:'You decisively beat ',win:'You win your duel with ',stalemate:'Your duel with ',beaten:'You are beaten in your duel with ',humiliated:'You are humiliated by '})[rep.duel.result]+(rep.duel.name||'their star')+(rep.duel.result==='stalemate'?' ends in a stalemate.':'.'));
- if(rep.flow)m.push('You enter Flow at '+rep.flowMinute+"'.");
+ if(rep.flow){const fs=rep.flowSummary||{feats:0};m.push(fs.feats>=2?'In Flow from '+rep.flowMinute+"' you produce "+fs.feats+' exceptional actions — a '+fs.verdict.toLowerCase()+'.':fs.feats===1?'You enter Flow at '+rep.flowMinute+"' and turn it into something exceptional.":'You enter Flow at '+rep.flowMinute+"', but the exceptional moment never quite arrives.");}
  if(!m.length&&meaningful===0)m.push('You play a relatively quiet match without a decisive individual moment.');
  else if(!m.length)m.push('You contribute useful work across the match without one dominant headline moment.');
  return m;
@@ -2703,7 +2734,7 @@ function narrativeAfterFixture(fixture,rep,beforeRank){
   const r=relationFor(id);if(!r)return;const q=w.players[id];
   const linked=(facts.assistsTo[id]||0)+(facts.assistedBy===id?1:0)+(rep.contributionLabels||[]).filter(l=>l.includes(q.short)||l.startsWith('Combination')).length;
   r.enc.linked=(r.enc.linked||0)+linked;
-  const ch=EW.partnerships.afterMatch(r,q,{played:true,linked,win:rep.result==='WIN',importance:fixture.importance||1,flow:!!rep.flow,selfish:(facts.objective==='goals'||facts.objective==='showcase')&&!linked},weaponsState()?.primary?.family);
+  const ch=EW.partnerships.afterMatch(r,q,{played:true,linked,win:rep.result==='WIN',importance:fixture.importance||1,flow:!!(rep.flowSummary&&rep.flowSummary.feats>0),selfish:(facts.objective==='goals'||facts.objective==='showcase')&&!linked},weaponsState()?.primary?.family);
   if(ch&&ch.to>ch.from){const t=EW.partnerships.STAGES[ch.to];lines.push('Partnership with '+q.name+': '+t+'.');if(ch.to===4){const tech=EW.partnerships.techniqueFor(q,weaponsState()?.primary?.family);addMilestone('partner','Signature technique with '+q.name+': '+tech.name+'.');queueMoment({title:'Signature Technique',tone:'triumph',text:'You and '+q.short+' created '+tech.name+'. '+tech.desc,actors:['me',id]});}}
   else if(ch&&ch.to<ch.from)lines.push('Your partnership with '+q.name+' is slipping.');
  });
@@ -2779,9 +2810,16 @@ function criticalStage(){
  const ch=EW.decisions.normalizeChoice(cr.choice);
  return{key:'crit_'+(p.spinIndex||0),chapter:'CRITICAL MOMENT · '+EW.decisions.TIERS[ch.risk].label.toUpperCase(),name:ch.label,prompt:EW.decisions.label(ch)+'.',mode:'weights',options:EW.decisions.wheelOptions(ch,weighted)};
 }
+/** In Flow, critical-moment odds improve (shown truthfully on the cards and the wheel). */
+function flowCritical(o){
+ const ch=EW.decisions.normalizeChoice(o),p=state.run.pendingMatch;
+ if(!p?.ctx?.flow)return ch;
+ const t=EW.decisions.TIERS[ch.risk],s=Math.min(Math.min(.97,t.max+.12),ch.dist.success*1.3+.1);
+ return Object.assign({},ch,{dist:EW.decisions.distribution(s,ch.dist.mixed/Math.max(.0001,1-ch.dist.success)),odds:s,flowBoost:true,hint:(ch.hint||'')+' (Flow: odds raised)'});
+}
 function chooseCritical(key){
  const cr=activeCritical();if(!cr||cr.choice||state.run.mode!=='criticalSpin')return;
- const o=cr.spec.options.find(x=>x.key===key);if(!o)return;cr.choice=EW.decisions.normalizeChoice(o);wheelRotation=0;save();renderAll();clickSound();
+ const o=cr.spec.options.find(x=>x.key===key);if(!o)return;cr.choice=flowCritical(o);wheelRotation=0;save();renderAll();clickSound();
 }
 function resolveCriticalOutcome(outcome){
  const p=state.run.pendingMatch,cr=activeCritical();if(!p||!cr||!cr.choice||!outcome)return;
@@ -2800,9 +2838,9 @@ function resolveCriticalOutcome(outcome){
 function renderCriticalPanel(){
  const box=$('#criticalPanel');if(!box)return;const show=state.run.mode==='criticalSpin';box.hidden=!show;if(!show)return;
  const cr=activeCritical();if(!cr){box.innerHTML='';return;}
- const w=worldOf(),q=w?.players[cr.spec.actor];
- const head='<div class="crit-head">'+(typeof portraitHtml==='function'?portraitHtml('me','focused',56)+'<span class="duel-vs">VS</span>'+portraitHtml(cr.spec.actor,'confident',56):'')+'<div><span class="kicker">CRITICAL MOMENT</span><strong>'+esc(cr.spec.title)+'</strong><p>'+esc(cr.spec.text)+'</p></div></div>';
- box.innerHTML=head+(cr.choice?'<p class="duel-chosen">Your choice: <b>'+esc(cr.choice.label)+'</b> — '+esc(EW.decisions.label(cr.choice))+'</p>':'<div class="draft-grid crit-grid">'+cr.spec.options.map(o=>choiceCardHtml(o).replace('data-choice=','data-critical=')).join('')+'</div>');
+ const w=worldOf(),q=w?.players[cr.spec.actor],p=state.run.pendingMatch;
+ const head='<div class="crit-head">'+(typeof portraitHtml==='function'?portraitHtml('me',p?.ctx?.flow?'intense':'focused',56,false,p?.ctx?.flow?'flow':'')+'<span class="duel-vs">VS</span>'+portraitHtml(cr.spec.actor,'confident',56,true):'')+'<div><span class="kicker">CRITICAL MOMENT</span><strong>'+esc(cr.spec.title)+'</strong><p>'+esc(cr.spec.text)+'</p></div></div>';
+ box.innerHTML=head+(cr.choice?'<p class="duel-chosen">Your choice: <b>'+esc(cr.choice.label)+'</b> — '+esc(EW.decisions.label(cr.choice))+'</p>':'<div class="draft-grid crit-grid">'+cr.spec.options.map(o=>choiceCardHtml(flowCritical(o)).replace('data-choice=','data-critical=')).join('')+'</div>');
 }
 
 function proPressureFacts(){return typeof proFacts==='function'?proFacts():{};}
@@ -3612,7 +3650,7 @@ function renderMatchReport(r,f){
  const cls=r.result==='WIN'?'win':r.result==='LOSS'?'loss':'draw';
  const defTotal=(r.tackles||0)+(r.interceptions||0)+(r.blocks||0)+(r.clearances||0)+(r.recoveries||0);
  const spins=(r.contributionLabels||[]).map(x=>'<span class="contribution-chip">'+esc(x)+'</span>').join('');
- $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+(r.decidedBy==='AET'?' · AET':r.decidedBy==='PENALTIES'&&r.shootout?' · '+r.shootout.team+'–'+r.shootout.opp+' pens':'')+'</small></div>'+(r.flow?'<div class="flow-banner">◆ FLOW STATE AT '+r.flowMinute+"'</div>":'')+timelineBlock(r)+'<div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>AERIAL <b>'+(r.aerialDuels||0)+'</b></span><span>YC <b>'+(r.yellowCards||0)+'</b></span><span>RC <b>'+(r.redCards||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>'+reportWorldBlock(r);
+ $('#matchReport').innerHTML='<span class="result-eyebrow '+cls+'">'+r.result+'</span><div class="scoreline"><strong>'+r.teamGoals+' – '+r.oppGoals+'</strong><small>'+esc(f.team)+' vs '+esc(f.opponent)+(r.decidedBy==='AET'?' · AET':r.decidedBy==='PENALTIES'&&r.shootout?' · '+r.shootout.team+'–'+r.shootout.opp+' pens':'')+'</small></div>'+(r.flow?flowReportHtml(r):'')+timelineBlock(r)+'<div class="contribution-summary">'+spins+'</div><div class="performance-line"><span>G <b>'+r.goals+'</b></span><span>A <b>'+r.assists+'</b></span><span>SHOTS <b>'+r.shots+'</b></span><span>KEY PASSES <b>'+r.keyPasses+'</b></span><span>DRIBBLES <b>'+r.dribbles+'</b></span><span>TACKLES <b>'+r.tackles+'</b></span><span>INTERCEPTIONS <b>'+r.interceptions+'</b></span><span>BLOCKS <b>'+(r.blocks||0)+'</b></span><span>CLEARANCES <b>'+(r.clearances||0)+'</b></span><span>RECOVERIES <b>'+(r.recoveries||0)+'</b></span><span>AERIAL <b>'+(r.aerialDuels||0)+'</b></span><span>YC <b>'+(r.yellowCards||0)+'</b></span><span>RC <b>'+(r.redCards||0)+'</b></span><span>DEF ACTIONS <b>'+defTotal+'</b></span><span>RATING <b>'+r.rating.toFixed(1)+'</b></span></div><div class="moment-list">'+r.moments.map(m=>'<p>• '+esc(m)+'</p>').join('')+'</div>'+reportWorldBlock(r);
 }
 function reportWorldBlock(r){
  const parts=[];
@@ -3655,7 +3693,7 @@ let rankTab=null;
 function defaultRankTab(){const w=worldOf();return w?.nel?'auction':'bluelock';}
 function playerRow(p,i,extra=''){
  const me=p.isMe?' me':'',st=p.status==='eliminated'?' out':'';
- return'<button type="button" class="rank-row'+me+st+'" data-player="'+esc(p.id)+'"><span class="rk">'+(i??'')+'</span><span class="nm">'+(p.named||p.isMe?portraitHtml(p.id,p.isMe?'confident':'neutral',26):'')+'<span class="nmt"><b>'+esc(p.isMe?(state.run.name||'You')+' (YOU)':p.name)+'</b><small>'+esc(EW.world.GROUP_LABEL[p.pos]||p.pos)+' · '+esc(p.club||p.team||'')+(p.status==='eliminated'?' · eliminated ('+esc(p.elimStage||'')+')':'')+'</small></span></span><span class="ov">'+Math.round(p.ovr)+'</span>'+extra+'</button>';
+ return'<button type="button" class="rank-row'+me+st+'" data-player="'+esc(p.id)+'"><span class="rk">'+(i??'')+'</span><span class="nm">'+portraitHtml(p.id,p.isMe?'confident':'neutral',26)+'<span class="nmt"><b>'+esc(p.isMe?(state.run.name||'You')+' (YOU)':p.name)+'</b><small>'+esc(EW.world.GROUP_LABEL[p.pos]||p.pos)+' · '+esc(p.club||p.team||'')+(p.status==='eliminated'?' · eliminated ('+esc(p.elimStage||'')+')':'')+'</small></span></span><span class="ov">'+Math.round(p.ovr)+'</span>'+extra+'</button>';
 }
 function renderRanks(){
  const box=$('#ranksContent');if(!box)return;const w=worldOf();
@@ -3703,11 +3741,15 @@ function openDossier(id){
  const prof=p.prof?Object.entries({SHOOT:p.prof.sh,PACE:p.prof.pa,DRIBBLE:p.prof.dr,PASS:p.prof.ps,VISION:p.prof.vi,DEFEND:p.prof.df,PHYSICAL:p.prof.ph}).map(([k,v])=>'<div class="stat detailed-stat"><span>'+k+'</span><strong>'+v+'</strong><i><b style="width:'+v+'%"></b></i></div>').join(''):'<p class="profile-sub">Scouting notes: strength — '+esc(p.strength||'—')+'; weakness — '+esc(p.weakness||'—')+'.</p>';
  const rel=typeof relationFor==='function'?relationFor(id):null;
  const relHtml=rel?'<div class="profile-block"><span class="kicker">RELATIONSHIP WITH YOU</span><h3>'+esc(EW.relationships.identities(rel).join(' · '))+'</h3>'+relationBars(rel)+(rel.moments?.length?'<div class="profile-timeline">'+rel.moments.slice(-5).reverse().map(m=>'<div class="timeline-row"><span>'+esc(m.stage||'')+'</span><strong>'+esc(m.text)+'</strong></div>').join('')+'</div>':'')+'</div>':'';
- $('#dossierBody').innerHTML='<span class="kicker">'+(p.named?'NAMED EGOIST':'BLUE LOCK ENTRANT')+' · '+esc(p.status.toUpperCase())+'</span><h2 id="dossierName">'+esc(p.name)+'</h2><p class="profile-sub">'+esc(p.role||EW.world.GROUP_LABEL[p.pos])+' · '+esc(p.arch||pers.label)+' · Weapon: <b>'+esc(p.weapon||'—')+'</b><br>'+esc(p.club||p.team||'')+' · OVR '+Math.round(p.ovr)+(p.rank?' · Rank #'+p.rank:'')+(p.bid?' · ¥'+p.bid+'m':'')+' · Form '+(p.form>0?'+':'')+p.form+'</p><div class="stats-grid detailed">'+prof+'</div><div class="profile-block"><span class="kicker">CAREER</span><h3>'+st.apps+' apps · '+st.g+' G · '+st.a+' A · '+st.d+' DEF · avg '+avg+'</h3>'+(p.last?'<p class="profile-sub">Last match: '+p.last.r+' rating'+(p.last.opp?' vs '+esc(p.last.opp):'')+'</p>':'')+(p.ms.length?'<p class="profile-sub">'+p.ms.map(esc).join('<br>')+'</p>':'')+'<p class="profile-sub">Personality: '+esc(pers.label)+'</p></div>'+relHtml;
+ const mood=rel?(rel.hostility>=45||rel.rivalry>=60?'angry':rel.rivalry>=35?'confident':rel.trust>=55?'elated':'neutral'):'neutral';
+ const env=EW.sprites.env(rel&&rel.rivalry>=35?'corridor':p.status==='eliminated'?'locker':'pitch');
+ const tags=rel?EW.relationships.identities(rel).slice(0,3):[];
+ const moods=p.named?'<div class="ds-moods" aria-hidden="true">'+['confident','intense','angry','defeated'].map(e=>portraitHtml(p.id,e,30)).join('')+'</div>':'';
+ const stage='<div class="dossier-stage'+(p.named?' named':'')+'" style="background-image:url('+env+')"><div class="ds-portrait">'+portraitHtml(p.id,mood,120)+'</div><div class="ds-plate"><span class="kicker">'+(p.named?'NAMED EGOIST':'BLUE LOCK ENTRANT')+' · '+esc(p.status.toUpperCase())+'</span><h2 id="dossierName">'+esc(p.name)+'</h2><span class="ds-role">'+esc(p.role||EW.world.GROUP_LABEL[p.pos])+' · OVR <b>'+Math.round(p.ovr)+'</b>'+(p.rank?' · #'+p.rank:'')+'</span>'+(tags.length?'<div class="ds-tags">'+tags.map(t=>'<span>'+esc(t)+'</span>').join('')+'</div>':'')+moods+'</div></div>';
+ $('#dossierBody').innerHTML=stage+'<p class="profile-sub">'+esc(p.arch||pers.label)+' · Weapon: <b>'+esc(p.weapon||'—')+'</b><br>'+esc(p.club||p.team||'')+(p.bid?' · ¥'+p.bid+'m':'')+' · Form '+(p.form>0?'+':'')+p.form+'</p><div class="stats-grid detailed">'+prof+'</div><div class="profile-block"><span class="kicker">CAREER</span><h3>'+st.apps+' apps · '+st.g+' G · '+st.a+' A · '+st.d+' DEF · avg '+avg+'</h3>'+(p.last?'<p class="profile-sub">Last match: '+p.last.r+' rating'+(p.last.opp?' vs '+esc(p.last.opp):'')+'</p>':'')+(p.ms.length?'<p class="profile-sub">'+p.ms.map(esc).join('<br>')+'</p>':'')+'<p class="profile-sub">Personality: '+esc(pers.label)+'</p></div>'+relHtml;
  const amb=p.amb?'<div class="profile-block"><span class="kicker">AMBITION</span><h3>'+esc(p.amb.label)+'</h3><i class="pbar"><b style="width:'+Math.round(p.amb.progress)+'%"></b></i>'+(p.amb.achieved?'<p class="profile-sub">Achieved.</p>':'')+'</div>':'';
  const soc=w.social?EW.agency.socialFor(w,p.id).filter(x=>w.players[x.other]).slice(0,5):[];
  const socHtml=soc.length?'<div class="profile-block"><span class="kicker">RELATIONSHIPS WITH OTHERS</span>'+soc.map(x=>'<p class="profile-sub">'+esc(x.kind)+' with <b>'+esc(w.players[x.other].name)+'</b></p>').join('')+'</div>':'';
- $('#dossierBody').insertAdjacentHTML('afterbegin','<div class="dossier-portrait">'+portraitHtml(p.id,rel&&rel.rivalry>=50?'confident':'neutral',132)+'</div>');
  $('#dossierBody').insertAdjacentHTML('beforeend',amb+socHtml);
  $('#dossierModal').hidden=false;$('#dossierClose').focus();
 }
@@ -3732,13 +3774,13 @@ function renderMatchHud(){
  if(!live)return;
  const ctx=p.ctx,minute=momentMinute(p,p.spinIndex||0),mom=Math.round(ctx.mom),obj=currentObjective();
  const bars=Array.from({length:7},(_,i)=>{const v=i-3;return'<i class="'+(v===0?'mid':(v<0&&mom<=v)||(v>0&&mom>=v)?(v<0?'neg on':'pos on'):'')+'"></i>';}).join('');
- hud.innerHTML='<div class="hud-min">'+minute+"'</div>"+'<div class="hud-score"><span>'+esc(f.team)+'</span><strong>'+ctx.tg+' – '+ctx.og+'</strong><span>'+esc(f.opponent)+'</span></div><div class="hud-meta"><span class="hud-mom" title="Momentum" aria-label="Momentum '+mom+'">'+bars+'</span><span class="hud-obj">'+esc(obj.name)+'</span>'+(ctx.flow?'<span class="hud-flow">FLOW</span>':'')+'</div>'+(p.flowJustTriggered?'<div class="flow-burst">FLOW STATE — '+esc(EW.weapons.flowExpression(weaponsState()).name)+'</div>':'');
+ hud.innerHTML='<div class="hud-min">'+minute+"'</div>"+'<div class="hud-score"><span>'+esc(f.team)+'</span><strong>'+ctx.tg+' – '+ctx.og+'</strong><span>'+esc(f.opponent)+'</span></div><div class="hud-meta"><span class="hud-mom" title="Momentum" aria-label="Momentum '+mom+'">'+bars+'</span><span class="hud-obj">'+esc(obj.name)+'</span>'+(ctx.flow?'<span class="hud-flow">FLOW · '+(ctx.flowLeft??3)+'</span>':'')+'</div>'+(p.flowJustTriggered?'<div class="flow-burst" role="status">'+portraitHtml('me','intense',44,false,'flow')+'<b>◆ FLOW STATE</b><span>'+esc(EW.weapons.flowExpression(weaponsState()).name)+'</span>'+(p.flowExtra?'<em>Time bends — +'+p.flowExtra+' stoppage-time moment'+(p.flowExtra>1?'s':'')+'</em>':'<em>The next '+(ctx.flowLeft??3)+' moments are yours</em>')+'</div>':p.flowEndedNow?'<div class="flow-fade">The Flow fades'+(ctx.flowLog?' · '+ctx.flowLog.filter(x=>x.feat).length+' exceptional action'+(ctx.flowLog.filter(x=>x.feat).length===1?'':'s'):'')+'</div>':'');
  if(mode==='duelSpin'){
   const w=worldOf(),q=w?.players[p.duel?.oppId],W=weaponsState(),rel=typeof relationFor==='function'&&q?relationFor(q.id,true):null;
-  const side=(title,name,line1,line2,cls,pid,ex)=>'<div class="duel-side '+cls+'">'+portraitHtml(pid,ex,64,cls==='them')+'<div class="duel-txt"><span>'+title+'</span><strong>'+esc(name)+'</strong><em>'+esc(line1)+'</em><small>'+esc(line2)+'</small></div></div>';
+  const side=(title,name,line1,line2,cls,pid,ex)=>'<div class="duel-side '+cls+'">'+portraitHtml(pid,ex,64,cls==='them',cls==='me'&&p.ctx?.flow?'flow':'')+'<div class="duel-txt"><span>'+title+'</span><strong>'+esc(name)+'</strong><em>'+esc(line1)+'</em><small>'+esc(line2)+'</small></div></div>';
   const approaches=!p.duel.approach?'<div class="duel-approaches">'+DUEL_APPROACHES.map(a=>{const o=duelOdds(a.key);return'<button type="button" class="training-action" data-duel="'+a.key+'"><strong>'+esc(a.name)+' · '+Math.round(o.p*100)+'%</strong><span>'+esc(a.desc)+'</span></button>';}).join('')+'</div>':'<p class="duel-chosen">Approach: <b>'+esc(DUEL_APPROACHES.find(a=>a.key===p.duel.approach).name)+'</b></p>';
   const myEvo=W?.primary?.tier?' · '+EW.weapons.evolutionName({family:W.primary.family,tier:W.primary.tier-1,name:W.primary.name}):'';
-  duel.innerHTML='<div class="duel-split">'+side('YOU',state.run.name||'You','OVR '+overall()+' · '+(W?.primary?.name||''),'Mastery L'+(W?.primary?.level||0)+myEvo,'me','me','focused')+'<div class="duel-vs">VS</div>'+side(q?.named?'NAMED EGOIST':'OPPONENT',q?.name||'Their star','OVR '+Math.round(q?.ovr||0)+' · '+(q?.weapon||''),rel?rel.status+' · rivalry '+Math.round(rel.rivalry):((EW.data.PERSONALITIES[q?.pers]||{}).label||''),'them',q?.id,rel&&rel.rivalry>=50?'angry':'confident')+'</div>'+approaches;
+  duel.innerHTML='<div class="duel-split">'+side('YOU',state.run.name||'You','OVR '+overall()+' · '+(W?.primary?.name||''),'Mastery L'+(W?.primary?.level||0)+myEvo,'me','me',p.ctx?.flow?'intense':'focused')+'<div class="duel-vs">VS</div>'+side(q?.named?'NAMED EGOIST':'OPPONENT',q?.name||'Their star','OVR '+Math.round(q?.ovr||0)+' · '+(q?.weapon||''),rel?rel.status+' · rivalry '+Math.round(rel.rivalry):((EW.data.PERSONALITIES[q?.pers]||{}).label||''),'them',q?.id,rel&&rel.rivalry>=50?'angry':'confident')+'</div>'+approaches;
  }
 }
 function renderObjectives(){
@@ -3773,10 +3815,12 @@ function appearanceFor(id){
  return{a,kit:EW.appearances.kitFor(p.club||p.team||'Blue Lock')};
 }
 function portraitSrc(id,ex){const x=appearanceFor(id);return EW.sprites.portrait(x.a,ex||'neutral',x.kit);}
-function portraitHtml(id,ex,size,mirror){
- const s=size||48,src=portraitSrc(id,ex),h=Math.round(s*1.1);
- if(!src)return'<span class="px-portrait px-fallback" style="width:'+s+'px;height:'+h+'px" aria-hidden="true"></span>';
- return'<img class="px-portrait'+(mirror?' mirror':'')+'" src="'+src+'" width="'+s+'" height="'+h+'" alt="" loading="lazy">';
+function portraitHtml(id,ex,size,mirror,extra){
+ const s=size||48,src=portraitSrc(id,ex),h=Math.round(s*EW.sprites.H/EW.sprites.W),x=appearanceFor(id),named=id!=='me'&&!!EW.appearances.NAMED[id];
+ const style='width:'+s+'px;height:'+h+'px;--acc:'+(x.a?.accent||'#1598ff')+';--kit:'+(x.kit?.main||'#0f2a52');
+ const cls='px-portrait'+(mirror?' mirror':'')+(named?' named':'')+(id==='me'?' mine':'')+(s<=32?' tiny':'')+(extra?' '+extra:'');
+ if(!src)return'<span class="'+cls+' px-fallback" style="'+style+'" aria-hidden="true"></span>';
+ return'<img class="'+cls+'" src="'+src+'" width="'+s+'" height="'+h+'" style="'+style+'" alt="" loading="lazy">';
 }
 function expressionsFor(d,r){
  const cat=d.cat||'';let me='focused',them='neutral';
@@ -3910,7 +3954,13 @@ function renderDebug(){
  box.innerHTML='<button type="button" data-dbg="toggle">DEBUG</button>'+(box.classList.contains('open')?'<pre>'+body+'</pre><button type="button" data-dbg="copy">Copy state</button> <button type="button" data-dbg="fit">Full fitness</button>':'');
 }
 // ===== SOUND CUES =====
-function flowSound(){[523,659,784,1046].forEach((f,i)=>tone(f,i*.07,.22,.03,'sine'));}
+function flowSound(){[392,523,659,784,1046,1318].forEach((f,i)=>tone(f,i*.08,.5,.03,'sine'));[1568,2093].forEach((f,i)=>tone(f,.5+i*.12,.6,.012,'triangle'));}
+function flowFeatSound(){[784,988,1318].forEach((f,i)=>tone(f,i*.05,.3,.028,'triangle'));}
+function flowReportHtml(r){
+ const fs=r.flowSummary||{feats:0,moments:0,verdict:'Flow'},log=r.flowLog||[];
+ const rows=log.map(x=>'<li class="'+(x.feat?'ok':x.fail?'bad':'')+'"><span>'+x.m+"'</span><b>"+(x.feat?'◆':x.fail?'◇':'·')+'</b>'+esc(x.name)+'</li>').join('');
+ return'<div class="flow-report'+(fs.feats>=2?' great':fs.feats?' good':'')+'"><div class="fr-top">'+portraitHtml('me',fs.feats>=2?'elated':fs.feats?'confident':'frustrated',56,false,'flow')+'<div class="fr-head"><span>◆ FLOW STATE · '+r.flowMinute+"'"+(r.flowExtra?' · +'+r.flowExtra+' stoppage':'')+'</span><strong>'+esc(fs.verdict)+'</strong><em>'+esc(r.flowName||'')+' · '+fs.feats+' exceptional / '+fs.moments+' moments</em></div></div>'+(rows?'<ol>'+rows+'</ol>':'')+((r.flowLines||[]).length?'<div class="fr-lines">'+r.flowLines.map(l=>'<p>'+esc(l)+'</p>').join('')+'</div>':'')+'</div>';
+}
 function duelSound(){tone(220,0,.18,.05,'sawtooth',160);tone(330,.12,.2,.04,'square',240);}
 function evolveSound(){[392,523,659,880,1175].forEach((f,i)=>tone(f,i*.06,.26,.028,'triangle'));}
 
@@ -4018,7 +4068,7 @@ function nextBuild(){
    state.run.mode='breakthroughSpin';wheelRotation=0;save();renderAll();return;
   }
   if(!p.endedEarly&&(p.spinIndex||0)<lastIndex){
-   p.spinIndex++;p.flowJustTriggered=false;
+   p.spinIndex++;p.flowJustTriggered=false;p.flowEndedNow=false;
    if(p.duel&&!p.duel.done&&p.spinIndex===p.duel.at){state.run.mode='duelSpin';toast('Confrontation!');duelSound();}
    else if(p.critical&&!p.critical.done&&p.spinIndex===p.critical.at&&activeCritical()){state.run.mode='criticalSpin';toast('Critical moment!');duelSound();}
    wheelRotation=0;save();renderAll();return;
@@ -4127,7 +4177,7 @@ function exposeTestApi(){
   worldOf,ensureWorld,resolveDraft,qualificationStatus,objectiveOptions,chooseObjective,chooseDuelApproach,duelOdds,weaponsState,flowChance,
   pendingWheelChoice(){return(state.run.mode==='duelSpin'&&!state.run.pendingMatch?.duel?.approach)||(state.run.mode==='criticalSpin'&&!activeCritical()?.choice);},
   resolveWheelChoice(policy){if(state.run.mode==='criticalSpin'){const cr=activeCritical();chooseCritical(policy.critical?policy.critical(cr.spec.options):cr.spec.options[0].key);return;}chooseDuelApproach(policy.duel?policy.duel(DUEL_APPROACHES):'force');},
-  narrative,arcContext,pressureMods,queueMoment,activeCritical,
+  narrative,arcContext,pressureMods,queueMoment,activeCritical,resolveContributionOutcome,finalizeContributionMatch,flowCritical,momentMinute,
   startProfessional,signContract,stayAtClub,nextProSeason,retireNow,simHighlight,simulateToRetirement,simulateSeasonForward,lifeAction,buyItem,moveHome,buyTraining,proState,finishProSeason,acceptSponsorOffer,
   canRetire(){const p=proState();return!!p&&EW.pro.canRetire(p);},
   pendingProDecision(){return state.run.mode==='pro'&&!!state.run.career?.pendingProDecision;},

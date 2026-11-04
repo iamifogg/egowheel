@@ -29,7 +29,8 @@ src/engine/agency.js        NPC ambitions, NPC-to-NPC network, rival adaptation,
 src/engine/partnerships.js  Partnership stages and signature techniques (v26)
 src/engine/finances.js      Idempotent ledger (v26)
 src/engine/pro-career.js    Seasons, contracts, transfers, sponsors, retirement (v26); data in src/data/lifestyle-items.js, pro-events.js
-src/art/sprite-renderer.js  Procedural pixel portraits + environments (v26); looks in src/art/character-appearances.js
+src/art/sprite-renderer.js  Pixel portrait renderer v2 (48×56, ramps, strand hair, expressions, personas) + environments; looks in src/art/character-appearances.js
+src/engine/flow.js    Flow state: wheel reshaping, exceptional actions, window/stoppage time, feats (v26.1)
 src/ui/avatar-editor.js     Avatar editor modal (v26)
 src/channel.js              Release channel ('preview' isolates storage + caches) and version label
 tests/harness.js        Loads the real scripts into a Node vm with a fake DOM
