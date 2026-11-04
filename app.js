@@ -3814,11 +3814,56 @@ function appearanceFor(id){
  const a=Object.assign({},EW.appearances.forPlayer(p));
  return{a,kit:EW.appearances.kitFor(p.club||p.team||'Blue Lock')};
 }
-function portraitSrc(id,ex){const x=appearanceFor(id);return EW.sprites.portrait(x.a,ex||'neutral',x.kit);}
+// Illustrated portrait atlas pilot. Major named characters have dedicated artwork.
+// Other non-named footballers are assigned one of twelve stable original illustrations.
+// The legacy procedural renderer remains the fallback and powers the editable protagonist.
+const ILLUSTRATED_ATLAS_URL='./assets/portraits/egowheel-v26-pilot.webp';
+const ILLUSTRATED_NAMED={nagi:0,rin:1,barou:2,shidou:3,kaiser:4,chigiri:5};
+const illustratedPortraitCache=new Map();
+let illustratedAtlas=null,illustratedAtlasReady=false,illustratedAtlasFailed=false;
+function illustratedSlotFor(id){
+ if(id==='me'||!id)return -1;
+ if(Object.prototype.hasOwnProperty.call(ILLUSTRATED_NAMED,id))return ILLUSTRATED_NAMED[id];
+ const w=worldOf(),p=w?.players?.[id];
+ if(!p||p.named)return -1;
+ const key=String(p.id||id);let hash=2166136261;
+ for(let i=0;i<key.length;i++){hash^=key.charCodeAt(i);hash=Math.imul(hash,16777619);}
+ return 6+((hash>>>0)%12);
+}
+function illustratedPortraitSrc(id){
+ const slot=illustratedSlotFor(id);
+ if(slot<0||typeof document==='undefined'||illustratedAtlasFailed)return '';
+ if(!illustratedAtlasReady){
+  if(!illustratedAtlas&&typeof Image==='function'){
+   const img=new Image();illustratedAtlas=img;
+   img.onload=()=>{illustratedAtlasReady=true;if(typeof renderAll==='function')renderAll();};
+   img.onerror=()=>{illustratedAtlasFailed=true;};
+   img.src=ILLUSTRATED_ATLAS_URL;
+  }
+  return '';
+ }
+ if(illustratedPortraitCache.has(slot))return illustratedPortraitCache.get(slot);
+ const cellW=illustratedAtlas.naturalWidth/6,cellH=illustratedAtlas.naturalHeight/3;
+ if(!cellW||!cellH)return '';
+ const canvas=document.createElement('canvas');
+ if(!canvas||typeof canvas.getContext!=='function'||typeof canvas.toDataURL!=='function')return '';
+ canvas.width=cellW;canvas.height=cellH;
+ const ctx=canvas.getContext('2d');if(!ctx)return '';
+ ctx.imageSmoothingEnabled=false;
+ ctx.drawImage(illustratedAtlas,(slot%6)*cellW,Math.floor(slot/6)*cellH,cellW,cellH,0,0,cellW,cellH);
+ const result=canvas.toDataURL('image/webp',.95);
+ illustratedPortraitCache.set(slot,result);
+ return result;
+}
+function portraitSrc(id,ex){
+ return illustratedPortraitSrc(id)||(()=>{const x=appearanceFor(id);return EW.sprites.portrait(x.a,ex||'neutral',x.kit);})();
+}
 function portraitHtml(id,ex,size,mirror,extra){
- const s=size||48,src=portraitSrc(id,ex),h=Math.round(s*EW.sprites.H/EW.sprites.W),x=appearanceFor(id),named=id!=='me'&&!!EW.appearances.NAMED[id];
+ const s=size||48,art=illustratedPortraitSrc(id),src=art||portraitSrc(id,ex);
+ const h=Math.round(s*(art?178/144:EW.sprites.H/EW.sprites.W)),x=appearanceFor(id);
+ const named=id!=='me'&&!!EW.appearances.NAMED[id];
  const style='width:'+s+'px;height:'+h+'px;--acc:'+(x.a?.accent||'#1598ff')+';--kit:'+(x.kit?.main||'#0f2a52');
- const cls='px-portrait'+(mirror?' mirror':'')+(named?' named':'')+(id==='me'?' mine':'')+(s<=32?' tiny':'')+(extra?' '+extra:'');
+ const cls='px-portrait'+(art?' illustrated':'')+(mirror?' mirror':'')+(named?' named':'')+(id==='me'?' mine':'')+(s<=32?' tiny':'')+(extra?' '+extra:'');
  if(!src)return'<span class="'+cls+' px-fallback" style="'+style+'" aria-hidden="true"></span>';
  return'<img class="'+cls+'" src="'+src+'" width="'+s+'" height="'+h+'" style="'+style+'" alt="" loading="lazy">';
 }

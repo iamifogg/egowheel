@@ -653,3 +653,7 @@ button:disabled{cursor:not-allowed}
 @media (max-width:520px){.dossier-stage{grid-template-columns:96px minmax(0,1fr);gap:10px}.ds-portrait .px-portrait{width:96px!important;height:112px!important}.ds-plate h2{font-size:1.2rem}.ds-moods .px-portrait{width:26px!important;height:30px!important}}
 
 .modal-card .modal-close{z-index:5}
+
+/* Illustrated pilot portraits preserve their wider anime-bust aspect ratio on mobile. */
+@media(max-width:620px){.scene-stage .px-portrait.illustrated{height:89px!important}}
+@media(max-width:520px){.ds-portrait .px-portrait.illustrated{height:119px!important}}
