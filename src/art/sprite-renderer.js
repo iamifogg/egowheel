@@ -108,22 +108,25 @@
 
   // ---------- face geometry ----------
   const FACE_TOP = 13, EYE_Y = 24;
+  // Anime jaw: cheeks stay (nearly) straight down to mouth level, then a clean diagonal to a flat chin.
+  // Narrow faces differ through cheek width, a slightly earlier jaw corner and a smaller chin — never a long cone.
   const FACES = {
-    oval:   { cheek: 10.5, jaw: 27, chin: 3.4, chinY: 37, k: 1.7 },
-    sharp:  { cheek: 10.2, jaw: 26, chin: 2.0, chinY: 37, k: 1.05 },
-    round:  { cheek: 11.0, jaw: 28, chin: 5.2, chinY: 37, k: 2.5 },
-    square: { cheek: 11.0, jaw: 30, chin: 6.2, chinY: 37, k: 3.2 },
-    long:   { cheek: 9.6,  jaw: 29, chin: 3.4, chinY: 38, k: 1.7 },
-    soft:   { cheek: 10.6, jaw: 28, chin: 4.4, chinY: 36, k: 2.1 }
+    oval:   { cheek: 10.5, jaw: 30, chin: 4.2, chinY: 36, k: 1.15 },
+    sharp:  { cheek: 10.2, jaw: 29, chin: 3.2, chinY: 36, k: 1.0 },
+    round:  { cheek: 10.9, jaw: 30, chin: 5.2, chinY: 36, k: 1.8 },
+    square: { cheek: 10.9, jaw: 31, chin: 6.6, chinY: 36, k: 2.4 },
+    long:   { cheek: 10.0, jaw: 30, chin: 4.0, chinY: 37, k: 1.1 },
+    soft:   { cheek: 10.6, jaw: 30, chin: 4.8, chinY: 36, k: 1.4 }
   };
   function faceOf(a) { return FACES[a.face] || FACES.oval; }
   function faceHW(f, y) {
     if (y < FACE_TOP) return 0;
     if (y > f.chinY) return 0;
     if (y < 17) return f.cheek - (17 - y) * (y === FACE_TOP ? 1.6 : 0.75);
-    if (y <= f.jaw) return f.cheek + (y >= 23 && y <= 26 ? 0.25 : 0);
+    const taper = y > 27 ? (Math.min(y, f.jaw) - 27) * 0.22 : 0, jawHW = f.cheek - (f.jaw - 27) * 0.22;
+    if (y <= f.jaw) return f.cheek + (y >= 23 && y <= 26 ? 0.2 : 0) - taper;
     const t = (y - f.jaw) / (f.chinY - f.jaw);
-    return f.chin + (f.cheek - f.chin) * (1 - Math.pow(t, f.k));
+    return f.chin + (jawHW - f.chin) * (1 - Math.pow(t, f.k));
   }
 
   // ---------- body ----------
@@ -131,8 +134,9 @@
     const k = kit || { main: '#1d3f78', trim: '#f2f2f2', dark: '#132a52' };
     const sk = R(SKIN[a.skin]?.[0] || SKIN.light[0], 355, 0.2), km = R(k.main, 245, 0.1), kt = R(k.trim || '#f2f2f2', 240, 0.05);
     // neck
+    const f = faceOf(a), neckW = Math.min(4.2, Math.max(3.6, f.chin + 0.6));
     for (let y = 34; y <= 44; y++) {
-      const hw = 4.3 + (y > 40 ? (y - 40) * 0.6 : 0), [x0, x1] = span(hw);
+      const hw = neckW + (y > 40 ? (y - 40) * 0.6 : 0), [x0, x1] = span(hw);
       for (let x = x0; x <= x1; x++) set(g, x, y, x >= x1 - 1 ? sk.sh : sk.base, sk.ln, 1);
     }
     // shoulders / shirt
@@ -528,7 +532,7 @@
     const sk = R(SKIN[a.skin]?.[0] || SKIN.light[0], 355, 0.2), hr = R(HAIR[a.hairColor]?.[0] || HAIR.black[0], 255, 0.1), acc = a.accent || '#1598ff', ac = R(acc, 245, 0.2), f = faceOf(a);
     if (phase === 'face') {
       if (a.facialHair === 'stubble' || a.facialHair === 'beard') for (let y = 29; y <= f.chinY; y++) { const hw = faceHW(f, y); for (let x = Math.ceil(CX - hw); x < CX + hw; x++) { if (mat(g, x, y) !== 1) continue; const rel = Math.abs(x + 0.5 - CX) / hw; if (y < 31 && rel < 0.55) continue; if (a.facialHair === 'beard' ? (y >= 31 || rel > 0.6) : (x * 2 + y) % 3 === 0 && (y >= 32 || rel > 0.7)) set(g, x, y, a.facialHair === 'beard' ? ((x + y) % 3 ? hr.sh : hr.dk) : mix(get(g, x, y), hr.dk, 0.25), null, 1); } }
-      if (a.facialHair === 'goatee') { for (let x = CX - 2; x <= CX + 1; x++) { set(g, x, 35, hr.sh, null, 1); set(g, x, 36, hr.dk, null, 1); } set(g, CX - 1, 37, hr.dk, null, 1); set(g, CX, 37, hr.dk, null, 1); }
+      if (a.facialHair === 'goatee') { for (let x = CX - 2; x <= CX + 1; x++) { set(g, x, f.chinY - 1, hr.sh, null, 1); set(g, x, f.chinY, hr.dk, null, 1); } }
       if (a.mark === 'scar') { [[CX - 8, 26], [CX - 7, 27], [CX - 6, 28], [CX - 5, 29]].forEach(([x, y]) => set(g, x, y, mix(sk.base, '#b04a5a', 0.55), null, 1)); set(g, CX - 7, 28, mix(sk.base, '#b04a5a', 0.3), null, 1); }
       if (a.mark === 'bandage') { for (let x = CX - 2; x <= CX + 2; x++) { set(g, x, 27, '#f3e4c8', null, 5); set(g, x, 28, x === CX + 2 ? '#d1bd99' : '#e8d6b2', null, 5); } set(g, CX - 1, 27, '#d9c6a2', null, 5); set(g, CX + 1, 28, '#d9c6a2', null, 5); }
       if (a.mark === 'mole') set(g, CX + 6, 28, sk.dk, null, 1);
