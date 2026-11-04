@@ -3820,10 +3820,10 @@ function appearanceFor(id){
 const ILLUSTRATED_SHEETS={
  pilot:{url:'./assets/portraits/egowheel-v26-pilot.webp',cols:6,rows:3,w:144,h:178,image:null,ready:false,failed:false},
  expansion:{url:'./assets/portraits/egowheel-v26-expansion.webp',cols:5,rows:4,w:192,h:240,image:null,ready:false,failed:false},
- namedComplete:{url:'./assets/portraits/egowheel-v26-named-complete.webp',cols:6,rows:4,w:160,h:200,image:null,ready:false,failed:false},
- randA:{url:'./assets/portraits/egowheel-v26-random-a.webp',cols:10,rows:5,w:128,h:160,image:null,ready:false,failed:false},
- randB:{url:'./assets/portraits/egowheel-v26-random-b.webp',cols:10,rows:6,w:128,h:160,image:null,ready:false,failed:false},
- randC:{url:'./assets/portraits/egowheel-v26-random-c.webp',cols:10,rows:6,w:128,h:160,image:null,ready:false,failed:false}
+ namedComplete:{url:'./assets/portraits/egowheel-v26-named-framed.webp',cols:6,rows:4,w:160,h:200,image:null,ready:false,failed:false},
+ randA:{url:'./assets/portraits/egowheel-v26-random-a-framed.webp',cols:10,rows:5,w:128,h:160,image:null,ready:false,failed:false},
+ randB:{url:'./assets/portraits/egowheel-v26-random-b-framed.webp',cols:10,rows:6,w:128,h:160,image:null,ready:false,failed:false},
+ randC:{url:'./assets/portraits/egowheel-v26-random-c-framed.webp',cols:10,rows:6,w:128,h:160,image:null,ready:false,failed:false}
 };
 const ILLUSTRATED_NAMED={
  nagi:['pilot',0],rin:['pilot',1],barou:['pilot',2],shidou:['pilot',3],kaiser:['pilot',4],chigiri:['pilot',5],
@@ -3903,22 +3903,10 @@ function illustratedPortraitSrc(id){
  if(!canvas||typeof canvas.getContext!=='function'||typeof canvas.toDataURL!=='function')return '';
  canvas.width=sheet.w;canvas.height=sheet.h;
  const ctx=canvas.getContext('2d');if(!ctx)return '';
- // The tightly cropped poster-source portraits need breathing room inside the frame.
- // Preserve full artwork, then inset it over a subdued extension of its own background.
- const sx=(slot%sheet.cols)*sheet.w,sy=Math.floor(slot/sheet.cols)*sheet.h;
- const compact=sheetName==='randA'||sheetName==='randB'||sheetName==='randC';
- const scale=compact?.91:sheetName==='namedComplete'?.96:1;
+ // The source atlas cells have already been recropped to final frame proportions.
+ // Do not shrink, add padding, or draw a border inside another border.
  ctx.imageSmoothingEnabled=true;
- if(scale<1){
-  ctx.save();
-  ctx.filter='blur(12px) brightness(.48)';
-  ctx.drawImage(sheet.image,sx,sy,sheet.w,sheet.h,0,0,sheet.w,sheet.h);
-  ctx.restore();
-  const dx=Math.round(sheet.w*(1-scale)/2),dy=Math.round(sheet.h*(1-scale)/2);
-  ctx.drawImage(sheet.image,sx,sy,sheet.w,sheet.h,dx,dy,sheet.w-2*dx,sheet.h-2*dy);
- }else{
-  ctx.drawImage(sheet.image,sx,sy,sheet.w,sheet.h,0,0,sheet.w,sheet.h);
- }
+ ctx.drawImage(sheet.image,(slot%sheet.cols)*sheet.w,Math.floor(slot/sheet.cols)*sheet.h,sheet.w,sheet.h,0,0,sheet.w,sheet.h);
  const result=canvas.toDataURL('image/webp',.94);
  illustratedPortraitCache.set(key,result);
  return result;

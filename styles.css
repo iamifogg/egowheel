@@ -683,3 +683,8 @@ button:disabled{cursor:not-allowed}
  .dossier-stage{grid-template-columns:92px minmax(0,1fr);gap:9px;padding:13px 9px}
  .dossier-stage .ds-plate h2{font-size:1rem}
 }
+
+/* v26.6: photo fill is handled in the source atlases, never inset again in JS/CSS. */
+.px-portrait.illustrated{object-fit:contain!important;object-position:center!important;image-rendering:auto;border-radius:5px}
+.dossier-stage .ds-portrait .px-portrait.illustrated{width:100%!important;height:auto!important;max-height:none!important}
+.dossier-stage .ds-portrait{overflow:hidden;border-radius:6px}
