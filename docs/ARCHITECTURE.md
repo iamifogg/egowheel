@@ -22,6 +22,16 @@ src/engine/market.js    NEL auction valuations for every player, top-23 cutoff
 src/engine/relationships.js  Respect / rivalry / compatibility / trust / hostility      
 src/engine/director.js  Event director: prerequisites, weights, cooldowns, choices       
 src/engine/weapons.js   Weapon families, mastery XP, evolutions, combinations            
+src/engine/decisions.js     Exact outcome distributions + risk tiers (v26)
+src/engine/pressure.js      Six narrative pressure dimensions (v26)
+src/engine/arcs.js          Persistent multi-stage narrative threads (v26); templates in src/data/arc-templates.js
+src/engine/agency.js        NPC ambitions, NPC-to-NPC network, rival adaptation, initiated scenes (v26)
+src/engine/partnerships.js  Partnership stages and signature techniques (v26)
+src/engine/finances.js      Idempotent ledger (v26)
+src/engine/pro-career.js    Seasons, contracts, transfers, sponsors, retirement (v26); data in src/data/lifestyle-items.js, pro-events.js
+src/art/sprite-renderer.js  Procedural pixel portraits + environments (v26); looks in src/art/character-appearances.js
+src/ui/avatar-editor.js     Avatar editor modal (v26)
+src/channel.js              Release channel ('preview' isolates storage + caches) and version label
 tests/harness.js        Loads the real scripts into a Node vm with a fake DOM
 tests/autoplay.js       Autopilot that plays complete careers through the real functions
 tests/*.test.js         node --test suites
@@ -32,6 +42,8 @@ tests/*.test.js         node --test suites
 |---|---|
 | `contributionStage` → `resolveContributionOutcome` → `finalizeContributionMatch` → `contributionRating` → `applyPostMatch` | **Active** match path |
 | `matchPerformanceStage`, `simulateMatch`, `simulateChallenge`, `resolveMatchOutcome`, `binomial` | **Unreachable** (no mode routed to them) — removed in v25 |
+
+## Save schema (v9 — adds run.appearance, career.narrative{arcs,history,pressure,flags}, relation.partnership, career.pro{contract,finances,lifestyle,reputation,history,...}, world.social, player.amb)
 
 ## Save schema (v8)
 `{ version: 8, run, archive[], ui{view, fastSpin}, meta{createdVersion, migratedFrom} }`
@@ -52,3 +64,5 @@ Load order: `v8` → (corrupt? back up, try `v8.prev`) → highest legacy `vN` (
 - [x] Phase 3: relationships, personalities, event director with choices, arcs
 - [x] Phase 4: dashboard, dossiers, rivalry screens, dramatic match presentation, archive biography
 - [~] Phase 5: balancing pass 1 done (see DEVELOPMENT.md); further tuning ongoing
+
+- [x] v26: exact odds, narrative pressure engine, agency, partnerships, pixel art, professional life

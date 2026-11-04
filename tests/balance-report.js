@@ -33,7 +33,7 @@ for (let i = 0; i < N; i++) {
   const g = c.world?.players.me.pos;
   if (g && byGroup[g]) { if (c.eliminated) byGroup[g].elim++; if (c.world.nel) byGroup[g].nel++; }
   if (c.world?.nel) { reachedNEL++; bids.push(c.world.players.me.bid); if (!c.eliminated || c.postNelStarted) qualifiedNEL++; }
-  if ((c.trophies || []).includes('Senior World Cup')) worldCup++;
+  if ((c.trophies || []).some(t => /^Senior World Cup/.test(t))) worldCup++;
   (c.events?.history || []).forEach(e => { events[e.id] = (events[e.id] || 0) + 1; scenes++; });
   fixtures += c.fxNo || 0;
 }

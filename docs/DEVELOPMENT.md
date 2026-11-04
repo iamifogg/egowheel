@@ -282,3 +282,118 @@ Known remaining issues:
 - A push to `main` redeploys the live site without `/preview/`; re-run the preview workflow.
 - Before merging: set `EW.channel = 'stable'`, restore the stable cache naming, delete
   `preview.yml`. Stable saves then use `egowheel.save.v8` and migrate from v7 with a backup.
+
+---
+# v26 — The Ego Awakens
+
+## Decision probabilities (critical fix)
+v25's scene wheel weighted outcomes as `Success p×70 / Mixed 30 / Backfire (1−p)×70`, so an option
+shown as 80% actually succeeded 56% of the time. `src/engine/decisions.js` now owns one exact
+distribution per choice `{success, mixed, failure}` (sums to 1). The wheel segments *are* those
+probabilities; cards show tier, reward, failure severity and an odds bar. Verified over 60,000-spin
+samples (`tests/decisions.test.js`).
+
+Risk tiers: **conservative** (45–95% success, modest reward), **ambitious** (18–75%, meaningful
+reward/setback), **extreme** (4–35%, transformative reward, severe failure). Tier limits clamp the
+attribute/relationship-derived odds so extremes stay rare.
+
+## Pillar 1 — narrative pressure engine
+- `pressure.js`: six dimensions (competitive, identity, relationship, selection, expectation,
+  stress) fed by real match facts (loss streaks, a rival outshining you, your weapon being countered,
+  big misses, partner tension, falling below the line, salary vs performance, sponsor load…). They
+  change real odds: errors/star moments/cards, weapon reliability, adaptation success, combo
+  frequency, Flow, injury risk. Some ego styles thrive under pressure; perfectionists crack.
+- `arcs.js` + `data/arc-templates.js`: 14 multi-stage arc types — weapon counter, rivalry ascent,
+  overshadowed partner, selection crisis, revenge, obsession, breakthrough, leadership, teammate
+  survival, identity crisis, jealousy, manager doubt, public expectation, reunion. Arcs store facts
+  (actors, stage, pressure, causes, flags, history), start from credible state, develop from match
+  facts, can fizzle (actor absent/eliminated, nothing happening), and resolve in several ways.
+  Max 3 major / 5 total live arcs. Critical stages create *opportunities*, never automatic wins.
+- In-match **critical moments**: trust your weapon (conservative) / adapt in the moment (ambitious,
+  weapon progress) / abandon everything (extreme: Ego Awakening, a new permanent wheel opportunity —
+  or a collapse that spawns an identity crisis). Triggered by critical-stage arcs or close, important
+  late matches (~6% of matches).
+- `agency.js`: personal ambitions for 20 named characters (Isagi devours the top player, Reo wants
+  independence from Nagi, Barou wants to be top scorer…), an NPC-to-NPC network (seeded duos/rivalries
+  that evolve: duos lift each other's form, rivalries accelerate development), **rivals who evolve to
+  beat you** (analytic ones build counters that reduce your weapon's effect; proud ones get stronger),
+  and six character-initiated scenes (challenges, combination ideas, mentors, weapon trades, duo
+  threats, messages from former partners).
+- `partnerships.js`: stages (Initial Understanding → Developing → Established Combination →
+  Signature Technique → Exceptional Synchronisation) earned from shared matches and *linked actions*;
+  higher stages need real history, a big shared win, and (top stage) a Flow moment together.
+  17 pair-specific signatures (Monster Relay with Bachira, Trap & Release Circuit with Nagi, Red
+  Lightning Overlap with Chigiri, Twin Wall Read with Aiku…) plus generic ones. Tension can drop a
+  stage or end the partnership; ended partners become rivals with history.
+- Multiple simultaneous identities per relationship (e.g. "Signature Partner · Rival · Deep Respect").
+- Career-defining moments: full-screen overlay with portraits, recorded in history and the archive.
+- Event catalogue: 20 generic + 6 character-initiated + 9 professional scenes + ~26 arc stage
+  scenes ≈ 61 templates, all state-driven. Measured pacing ≈ 0.41 scenes per fixture.
+
+## Pillar 2 — a face for your ego
+- `src/art/sprite-renderer.js`: procedural layered 40×44 pixel portraits — 14 hairstyles with
+  lengths and two-tone tips, 4 face shapes, 5 eye shapes, 4 brows, facial hair, marks, accessories,
+  kits with shirt numbers, 8 expressions — drawn to a colour grid (testable in Node) and blitted at
+  integer scale. 8 pixel environments (pitch, corridor, locker room, gym, training ground, office,
+  apartment, city). No image assets, no external services.
+- `src/art/character-appearances.js`: fixed original interpretations for 38 named characters,
+  deterministic looks for all procedural players, team/club/national kits.
+- `src/ui/avatar-editor.js`: live preview, colour swatches, option cycling, expression preview,
+  randomise/reset/save; free before turning pro, professional styling has prices (barber, dyes,
+  accessories that can be bought in the Life hub).
+- Portraits appear in the dossier, rankings, player dossiers, rival cards, scene stages (both
+  characters facing each other in an environment), duels, critical moments, career-defining moments,
+  the Life hub, contract screens and the archive. Expressions follow the scene.
+
+## Pillar 3 — beyond Blue Lock
+- Auction value and money are separate. After NEL qualification you choose between real contract
+  offers (prestige vs minutes; salary, length, signing bonus, role, bonuses, who is already there).
+- `pro-career.js`: 10-month seasons; 6–10 playable highlights (league, grudge matches against clubs
+  where your rivals/partners play, Champions Cup knockouts for strong clubs, international windows,
+  U-20 World Cup / Asian Cup / Senior World Cup in the right seasons if you are in Japan's 23); the
+  rest is simulated monthly (≈4 matches a month). Monthly salary, agent fee, rent, upkeep, living
+  costs, sponsor income; performance bonuses; manager trust and squad role; reputation (football,
+  media, conduct); wellbeing; end-of-season table, cups, awards; contract clock, renewals,
+  transfers, NPC transfers, sponsorship offers and obligations; ageing; retirement (32+, forced 38).
+- `finances.js`: every transaction has a unique id; re-applying it is a no-op (no duplicate salary,
+  bonuses or signing fees after reloads). No overspending; ledger visible in the Life hub.
+- Life hub: dashboard, free time between fixtures (one action: extra training, recovery, time with a
+  teammate/rival, sponsor commitments, specialist sessions), housing (dorm → penthouse/estate),
+  lifestyle items (style, vehicles, home recovery), capped once-per-season training investments with
+  diminishing returns, sponsors, club history, ledger.
+- Fast-forward: next fixture / rest of season / to retirement — same rules as playing.
+- The career epilogue is now built from the real season history (no double counting).
+
+## Integration examples that now happen
+Former Blue Lock rivals appear at offered clubs and as opponents; reunion arcs fire in professional
+football; partners make staying at a club attractive (and a loyalty scene can damage a partnership);
+pressure from salary expectations feeds the narrative engine; manager-doubt arcs use the professional
+manager-trust value; awakened weapons and signature techniques carry into professional matches.
+
+## Balancing decisions (v26)
+- **Professional stat inflation**: in v26 previews, playing every professional highlight drove peak
+  OVR to 103 (the Blue Lock growth loop ran ~140 more times). All positive development now tapers
+  with age once professional (×0.55 at ≤20 … ×0.05 at 30+), applied once in `changeStat`. Potential
+  bonus cap lowered 18 → 10. Result: played careers peak ~86–96; simulated careers ~73–92.
+- Scene pacing reduced from 0.50 to ~0.41 per fixture (full report: 0.38–0.39); generic critical
+  moments only fire when the score is close late on.
+- Duels were 33% of matches once professional calendars (full of named rivals) were added: base
+  chance lowered and professional fixtures ×0.75 → ~21%. Flow importance factor capped (≈5%).
+- Professional superstar double counting: in pro/international fixtures your rating now only nudges
+  team strength relative to an 80-rated baseline (your goals/assists are already counted), and
+  attacking outcomes scale with the matchup gap (±2.5%/point, 0.7–1.15). Senior World Cup opponents
+  strengthened. Strong careers that play every highlight now win a World Cup in ~60% of 17-season
+  careers (four attempts, ~20% each), down from 100%.
+- Legacy thresholds raised (+5–7). Fast-forwarded careers mostly end as Elite Veteran/Club Legend;
+  fully played ones spread from Club Legend to All-Time Great.
+
+Latest full report (45 careers, all positions): First Selection out 22%, Second Selection 24%,
+100 Goal Challenge 13%, NEL cut 11%, professional careers 29%; injuries 2.4% (longest streak 2);
+Flow 5.2%; duels 21%; 0.39 scenes per fixture.
+
+## Known limitations
+- Played-every-highlight careers still earn more awards than fast-forwarded ones (they have higher
+  ratings); the gap is much smaller than before but not zero.
+- The professional league table is abstract (position from points and strength), not a full league.
+- Pixel art is procedural; the named-character looks are interpretations, not reproductions.
+- Romance is intentionally not part of the social system.

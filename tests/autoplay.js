@@ -25,6 +25,7 @@ function drive(api, opts = {}) {
   const max = opts.maxSteps || 6000;
   while (steps++ < max) {
     const s = api.state, m = s.run.mode, c = s.run.career;
+    if (opts.stopAtPro && s.run.career?.pro) break;
     if (m === 'complete') {
       if (opts.continuePro && c && !c.eliminated && !c.postNelStarted) { api.continueProCareer(); continue; }
       break;

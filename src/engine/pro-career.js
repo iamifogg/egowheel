@@ -94,14 +94,15 @@
     }
     fx('l4', 8, 'League', pickOpp(), 1.7, { venue: base + ' · Title Run-In', leagueDecider: true });
     if (ctx.intl?.tournament && ctx.intl.selected) {
-      const t = ctx.intl.tournament, tn = t.name + ' ' + S, nat = t.u20 ? 'Japan U-20' : 'Japan', sb = t.u20 ? 95 : 99;
+      const t = ctx.intl.tournament, tn = t.name + ' ' + S, nat = t.u20 ? 'Japan U-20' : 'Japan', senior = t.name === 'Senior World Cup';
+      const sb = t.u20 ? 95 : senior ? 104 : 96, team = t.u20 ? 96 : senior ? 98 : 98;
       const opps = t.opps;
       out.push(...[
         { k: 'tg', st: 'Group', opp: opps[0], s: sb, imp: 1.75 },
         { k: 'tq', st: 'Quarter-Final', opp: opps[1], s: sb + 2, imp: 1.9, ko: true },
         { k: 'ts', st: 'Semi-Final', opp: opps[2], s: sb + 4, imp: 2.0, ko: true },
-        { k: 'tf', st: 'Final', opp: opps[3], s: sb + 6, imp: 2.15, ko: true, fin: true }
-      ].map(x => ({ id: 's' + S + '-' + x.k, stage: t.name, type: 'match', team: nat, opponent: x.opp, stars: [], strength: x.s, teamStrength: sb + 1, venue: tn + ' · ' + x.st, importance: x.imp, season: S, month: 9, pro: true, competition: x.ko ? tn : undefined, knockout: !!x.ko, final: !!x.fin, international: true })));
+        { k: 'tf', st: 'Final', opp: opps[3], s: sb + (senior ? 8 : 6), imp: 2.15, ko: true, fin: true }
+      ].map(x => ({ id: 's' + S + '-' + x.k, stage: t.name, type: 'match', team: nat, opponent: x.opp, stars: [], strength: x.s, teamStrength: team, venue: tn + ' · ' + x.st, importance: x.imp, season: S, month: 9, pro: true, competition: x.ko ? tn : undefined, knockout: !!x.ko, final: !!x.fin, international: true })));
     }
     out.sort((a, b) => a.month - b.month);
     return out;

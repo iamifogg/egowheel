@@ -7,6 +7,7 @@
   'use strict';
   const EW = root.EW = root.EW || {};
   EW.channel = 'preview';
-  EW.build = EW.build || { version: 'v25-preview', commit: 'local', date: '' };
+  EW.release = 'v26';
+  EW.build = EW.build || { version: 'v26-preview', commit: 'local', date: '' };
   if (typeof module !== 'undefined' && module.exports) module.exports = EW.channel;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

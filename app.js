@@ -1489,7 +1489,7 @@ function setupDerived(){
 function potentialMeta(){return state.run.selections.potential?.meta||{growth:1,ceiling:87};}
 function potentialCeiling(){return clamp((potentialMeta().ceiling||87)+(state.run.potentialBonus||0),80,105);}
 function raisePotential(amount=1){
- state.run.potentialBonus=clamp((state.run.potentialBonus||0)+amount,0,18);
+ state.run.potentialBonus=clamp((state.run.potentialBonus||0)+amount,0,10);
  return potentialCeiling();
 }
 function currentStats(){
@@ -1510,7 +1510,14 @@ function changeStat(key,amount){
  const p=potentialMeta(),stats=currentStats(),ceil=potentialCeiling();if(!ATTR_KEYS.includes(key))return 0;
  const setup=setupDerived(),starting=(state.run.baseStats[key]||50)+(setup[key]||0),cap=Math.max(starting,ceil,key==='ego'?99:ceil);
  let n=amount;
- if(n>0){n=Math.max(1,Math.round(n*(p.growth||1)));n=Math.min(n,Math.max(0,cap-stats[key]));}
+ if(n>0){
+  n=n*(p.growth||1);
+  // Professionals are largely formed: all positive development tapers with age (applied once, here).
+  const age=state.run.career?.pro?.age;
+  if(age!=null){const f=age<=20?.55:age<=23?.4:age<=26?.25:age<=29?.12:.05;n*=f;n=Math.floor(n)+(R()<n-Math.floor(n)?1:0);if(n<=0)return 0;}
+  else n=Math.max(1,Math.round(n));
+  n=Math.min(n,Math.max(0,cap-stats[key]));
+ }
  else n=Math.max(n,20-stats[key]);
  state.run.development[key]=(state.run.development[key]||0)+n;if(n)addChange(key,n);return n;
 }
@@ -1789,7 +1796,9 @@ function weaponsState(){return state.run.selections.primaryWeapon?EW.weapons.ens
 function momentMinute(p,i){const start=p.startMinute||0,n=Math.max(1,p.targetSpins||6);return Math.round(start+((i||0)+.5)*(90-start)/n);}
 function matchBaseLambdas(fixture){
  const s=effectiveStats(),prof=positionProfile(),bonus=gameplayBonuses().match||{},temp=state.run.career?.tempMatchBonus||{};
- const ownStrength=fixture.teamStrength+overall()*.14+state.run.form*1.4;
+ // In professional football your own goals/assists are counted explicitly; your rating only nudges the
+ // team relative to an 80-rated baseline (avoids double counting a superstar).
+ const ownStrength=fixture.pro?fixture.teamStrength+(overall()-80)*.12+state.run.form*1.2:fixture.teamStrength+overall()*.14+state.run.form*1.4;
  // Both sides' scoring depends on the matchup, not on absolute strength.
  const mate=clamp(1.0+(ownStrength-fixture.strength)/16+((s.passing+s.vision)/2-65)/200+(bonus.mateGoals||0)+(temp.mateGoals||0),.15,3)*.82;
  const help=((s.defense+s.reactions+s.stamina)/3)*prof.defense;
@@ -1810,8 +1819,9 @@ function scheduleDuel(p,fixture){
  if(forced){const n=p.targetSpins||6;return{oppId:forced,at:clamp(int(2,n-2),1,n-1),approach:null,done:false,forced:true};}
  const id=duelCandidate(fixture);if(!id)return null;
  const r=typeof relationFor==='function'?relationFor(id,true):null,obj=currentObjective();
- const am=arcMods(fixture);let chance=.2+(r?r.rivalry/250:0)+((fixture.importance||1)>=1.6?.1:0)+(am?.duel?.[id]||0);
- chance*=obj.duel||1;chance=clamp(chance,0,.85);
+ const am=arcMods(fixture);let chance=.15+(r?r.rivalry/300:0)+((fixture.importance||1)>=1.6?.06:0)+(am?.duel?.[id]||0);
+ if(fixture.pro)chance*=.75; // professional calendars are long: keep confrontations special
+ chance*=obj.duel||1;chance=clamp(chance,0,.75);
  if(R()>=chance)return null;
  const n=p.targetSpins||6;return{oppId:id,at:clamp(int(1,n-2),1,n-1),approach:null,done:false};
 }
@@ -1820,7 +1830,7 @@ function flowChance(p,fixture){
  const s=currentStats(),gap=(fixture.strength||70)-overall(s),ego=state.run.selections.egoStyle?.name||'';
  const chal=Math.exp(-Math.pow((gap-4)/8,2))*1.6+.4;
  const egoMult=['Adaptation Addict','Puzzle Solver','Transcendent Ego','Limit Breaker','Challenger','World Devourer','Pressure Sovereign','Singularity','Freedom Seeker','Evolution Addict'].includes(ego)?1.8:1;
- const imp=fixture.importance||1,conf=Math.pow(Math.max(20,state.run.confidence)/60,1.1);
+ const imp=Math.min(1.6,fixture.importance||1),conf=Math.pow(Math.max(20,state.run.confidence)/60,1.1);
  const W=weaponsState(),mastery=1+.08*(W?.primary?.level||0);
  const duelRel=p.duel&&typeof relationFor==='function'?relationFor(p.duel.oppId,true):null,rival=1+(duelRel?duelRel.rivalry/100:0);
  const form=1+Math.max(0,state.run.form)*.12,mom=1+Math.max(0,p.ctx.mom)*.1;
@@ -1849,6 +1859,8 @@ function applyMatchModifiers(opts,p,fixture){
   if(flowExp){if(!neg&&flowExp.tags.some(t=>has(t)))m*=1.7;if(neg)m*=.5;if(has('quiet'))m*=.6;}
   if(has('finish')&&!neg)m*=hier;
   if(relMod)m*=relMod(tags,o.name);
+  // Professional matchups: elite opponents suppress attacking output; weaker ones concede more.
+  if(fixture?.pro&&!neg&&(has('goal')||has('finish')||has('shot')||has('create')||has('pass')||has('dribble')))m*=clamp(1+((fixture.teamStrength||95)-(fixture.strength||95))*.025,.7,1.15);
   if(pm){if(neg)m*=pm.neg;if(has('star')&&!neg)m*=pm.star;if(has('card'))m*=pm.card;if(W&&!neg&&EW.weapons.FAMILIES[W.primary?.family]?.tags.some(t=>has(t)))m*=pm.weapon;}
   if(am){if(has('star')&&!neg)m*=am.star;if(has('card'))m*=am.card;if(W&&!neg&&EW.weapons.FAMILIES[W.primary?.family]?.tags.some(t=>has(t)))m*=am.weapon;if(am.perf){if(neg)m*=Math.max(.6,1-am.perf*2);else if(!has('quiet'))m*=1+am.perf*2;}}
   o.weight=Math.max(.01,o.weight*m);
@@ -3137,6 +3149,7 @@ function applyPostMatch(rep,fixture){
  const growthBudget=rep.rating<5?-1:rep.rating<5.8?0:rep.rating<6.5?2:rep.rating<7.2?4:rep.rating<8?6:rep.rating<8.8?8:10;
  if(growthBudget<0){changeStat(pick(growthPool),-1);}
  else{
+  // Professionals are mostly formed: match-driven growth tapers with age (Blue Lock is where players are forged).
   const points=Math.max(0,Math.round(growthBudget*(.82+importance*.16)));
   for(let i=0;i<points;i++)changeStat(pick(growthPool),1);
  }
@@ -3360,11 +3373,11 @@ function epilogueLegacy(ep){
  const worldAwards=ep.awards.filter(x=>x.includes('World Player of the Year')).length;
  const worldCups=ep.honours.filter(x=>x.includes('Senior World Cup')).length+(state.run.career.trophies||[]).filter(x=>/^Senior World Cup/.test(x)).length;
  const score=ep.peakOvr+worldAwards*4+worldCups*5+ep.honours.length*.55+Math.min(8,ep.lifetime.goals/100)+Math.min(5,ep.lifetime.assists/120);
- if(score>=125)return'All-Time Great';
- if(score>=116)return'World Football Legend';
- if(score>=108)return'Global Icon';
- if(score>=101)return'International Great';
- if(score>=94)return'Club Legend';
+ if(score>=132)return'All-Time Great';
+ if(score>=123)return'World Football Legend';
+ if(score>=114)return'Global Icon';
+ if(score>=106)return'International Great';
+ if(score>=98)return'Club Legend';
  return'Elite Veteran';
 }
 function simulateCareerEpilogue(){
@@ -3634,7 +3647,9 @@ function renderDash(){
   nel?'<div class="dash-tile"><span>AUCTION VALUE</span><strong>¥'+me.bid+'m</strong>'+moveTag(me.prevBid?-me.prevBid:null,me.bid?-me.bid:null).replace(/▲(\d+)/,(m,d)=>'▲¥'+d+'m').replace(/▼(\d+)/,(m,d)=>'▼¥'+d+'m')+'</div>':'<div class="dash-tile"><span>OVERALL</span><strong>'+overall()+'</strong><em>'+esc(state.run.selections.primaryWeapon?.short||state.run.selections.primaryWeapon?.name||'')+'</em></div>',
   '<div class="dash-tile"><span>MAIN RIVAL</span><strong class="small">'+esc(rival?rival.name:'None yet')+'</strong>'+(rival?'<em>'+esc(rival.status)+'</em>':'')+'</div>'
  ];
- box.innerHTML='<div class="dash-tiles">'+tiles.join('')+'</div>'+(q?'<div class="qual-strip '+q.tone+'"><b>'+esc(q.label)+'</b><span>'+q.lines.map(esc).join('</span><span>')+'</span></div>':'');
+ const n=narrative(),arcs=n?EW.arcs.active(n):[],press=n?EW.pressure.top(n.pressure,3):[];
+ const story=(arcs.length||press.length)?'<div class="story-strip">'+arcs.map(a=>{const d=EW.arcs.describe(a),who=a.actors[1]&&w.players[a.actors[1]]?' · '+w.players[a.actors[1]].short:'';return'<span class="arc-chip stage-'+a.stage+(a.major?' major':'')+'" title="Pressure '+d.pressure+'">'+esc(d.label+who)+' <b>'+esc(d.stage)+'</b></span>';}).join('')+press.map(x=>'<span class="press-chip" title="'+esc(x.desc)+'">'+esc(x.label)+' pressure <b>'+Math.round(x.value)+'</b></span>').join('')+'</div>':'';
+ box.innerHTML='<div class="dash-tiles">'+tiles.join('')+'</div>'+story+(q?'<div class="qual-strip '+q.tone+'"><b>'+esc(q.label)+'</b><span>'+q.lines.map(esc).join('</span><span>')+'</span></div>':'');
 }
 let rankTab=null;
 function defaultRankTab(){const w=worldOf();return w?.nel?'auction':'bluelock';}
@@ -3855,7 +3870,9 @@ function careerSummary(){
  const combos=(W?.combos||[]).map(k=>EW.weapons.COMBOS.find(x=>x.key===k)?.name).filter(Boolean);
  const ms=(c.milestones||[]).slice().sort((a,b)=>(MILESTONE_PRIORITY[b.type]||3)-(MILESTONE_PRIORITY[a.type]||3)).slice(0,8).sort((a,b)=>a.fx-b.fx);
  const t=c.totals;
- return{peakOvr:Math.max(c.peakOvr||0,overall()),bestRank:c.bestRank&&c.bestRank<999?c.bestRank:null,highestBid:Math.max(c.highestBid||0,c.bid||0)||null,marketPos:c.qualifiedPos||c.finalMarketPos||null,
+ const pro=c.pro,proSum=pro?{clubs:pro.history.map(h=>({club:h.club,from:h.from,to:h.to,apps:h.apps,g:h.g,a:h.a,how:h.how})),earnings:pro.finances.totals.income,cash:pro.finances.cash,home:(EW.data.HOUSING.find(h=>h.id===pro.lifestyle.home)||{}).name,firstPurchase:pro.firstPurchase||null,sponsors:pro.sponsors.map(x=>x.brand),seasons:pro.seasonLog.length,awards:pro.awards.length,honours:pro.honours.length}:null;
+ const defining=(c.defining||[]).slice(-6);
+ return{pro:proSum,defining,peakOvr:Math.max(c.peakOvr||0,overall()),bestRank:c.bestRank&&c.bestRank<999?c.bestRank:null,highestBid:Math.max(c.highestBid||0,c.bid||0)||null,marketPos:c.qualifiedPos||c.finalMarketPos||null,
   apps:t.apps,goals:t.goals,assists:t.assists,def:(t.tackles||0)+(t.interceptions||0)+(t.blocks||0)+(t.clearances||0)+(t.recoveries||0),avg:t.apps?+(t.ratingTotal/t.apps).toFixed(2):null,
   flows:c.flowCount||0,weapons,combos,rivals,partners,milestones:ms.map(m=>({stage:m.stage,text:m.text,type:m.type})),trophies:(c.trophies||[]).slice(),position:state.run.selections.position?.name||'',weapon:state.run.selections.primaryWeapon?.name||''};
 }
@@ -3867,6 +3884,8 @@ function biographyHtml(sm,compact){
   +(sm.rivals.length?'<p><b>Rivals:</b> '+sm.rivals.map(x=>esc(x.name)+' ('+esc(x.status)+', duels '+x.duels+')').join(' · ')+'</p>':'')
   +(sm.partners.length?'<p><b>Partners:</b> '+sm.partners.map(x=>esc(x.name)+' ('+esc(x.status)+')').join(' · ')+'</p>':'')
   +(sm.trophies.length?'<p><b>Trophies:</b> '+sm.trophies.map(esc).join(' · ')+'</p>':'')
+  +(sm.pro?'<p><b>Clubs:</b> '+sm.pro.clubs.map(x=>esc(x.club)+' ('+x.from+'–'+(x.to||'end')+', '+x.apps+' apps, '+x.g+'G)').join(' → ')+'</p><p><b>Career earnings:</b> '+EW.finances.fmt(sm.pro.earnings)+(sm.pro.home?' · Home: '+esc(sm.pro.home):'')+(sm.pro.firstPurchase?' · First big purchase: '+esc(sm.pro.firstPurchase):'')+'</p>':'')
+  +(sm.defining?.length?'<p><b>Defining moments:</b> '+sm.defining.map(d=>esc(d.title)+(d.stage?' ('+esc(d.stage)+')':'')).join(' · ')+'</p>':'')
   +(sm.milestones.length&&!compact?'<div class="profile-timeline">'+sm.milestones.map(m=>'<div class="timeline-row"><span>'+esc(m.stage)+'</span><strong>'+esc(m.text)+'</strong></div>').join('')+'</div>':'')
   +(sm.milestones.length&&compact?'<details><summary>Career-defining moments ('+sm.milestones.length+')</summary><div class="profile-timeline">'+sm.milestones.map(m=>'<div class="timeline-row"><span>'+esc(m.stage)+'</span><strong>'+esc(m.text)+'</strong></div>').join('')+'</div></details>':'')+'</div>';
 }
@@ -3883,6 +3902,7 @@ function renderDebug(){
   if(w){const me=w.players.me;lines.push('rank #'+me.rank+' score '+me.score+' (ovr '+me.ovr+', stage apps '+me.ss.apps+')');if(w.nel){const b=EW.market.breakdown(me);lines.push('market: ability '+b.ability.toFixed(0)+' pot '+b.potential.toFixed(0)+' form '+b.form.toFixed(0)+' vol '+b.volume.toFixed(0)+' big '+b.big+' cons -'+b.consistency.toFixed(0)+' → ¥'+me.bid+'m ('+me.bidClub+')');}}
   if(state.run.pendingMatch&&['contributionSpin','duelSpin'].includes(state.run.mode)){const st=currentWheelStage(),tot=st.options.reduce((t,o)=>t+(o.weight||1),0);lines.push('wheel: '+st.options.slice().sort((a,b)=>(b.weight||1)-(a.weight||1)).slice(0,10).map(o=>o.name+' '+((o.weight||1)/tot*100).toFixed(1)+'%').join(' · '));lines.push('flow chance next moment: '+(flowChance(state.run.pendingMatch,f)*100).toFixed(2)+'%');}
   if(c&&w){const ctx=directorContext(f);if(ctx){const cand=EW.director.CATALOGUE.map(ev=>{let a=null;try{a=ev.actor(ctx);}catch(_){}return a?ev.id+':'+ev.weight(ctx,a).toFixed(1):null;}).filter(Boolean);lines.push('director candidates: '+(cand.join(' · ')||'none'));}}
+  const n=narrative();if(n){lines.push('pressure: '+Object.entries(n.pressure).map(([k,v])=>k+' '+Math.round(v)).join(' · '));lines.push('arcs: '+(EW.arcs.active(n).map(a=>a.type+'['+EW.arcs.stageName(a)+' p'+Math.round(a.pressure)+']').join(' · ')||'none'));}
   const rel=Object.entries(c?.relations||{}).slice(0,12).map(([id,r])=>id+' R'+Math.round(r.respect)+' V'+Math.round(r.rivalry)+' C'+Math.round(r.compat)+' T'+Math.round(r.trust)+' H'+Math.round(r.hostility)+' read'+(r.read||0));
   if(rel.length)lines.push('relations: '+rel.join(' | '));
   body=lines.map(esc).join('\n');
@@ -4129,7 +4149,7 @@ function importBackup(file){
  reader.onload=()=>{try{const next=EW.save.importJSON(String(reader.result),{state:defaultState,run:defaultRun});if(!confirm('Replace the current career and archive with this backup?'))return;state=next;save();renderAll();toast('Backup imported.');}catch(e){toast(e.message||'Import failed.');}};
  reader.readAsText(file);
 }
-function renderBuildBadge(){const b=$('#buildBadge');if(!b)return;if(EW.channel!=='preview'){b.hidden=true;return;}b.hidden=false;const bi=EW.build||{};b.textContent='PREVIEW '+(bi.commit&&bi.commit!=='local'?bi.commit.slice(0,7):'local');b.title='Overhaul preview build'+(bi.date?' deployed '+bi.date:'')+'. Saves are separate from the live game.';}
+function renderBuildBadge(){const b=$('#buildBadge');if(!b)return;if(EW.channel!=='preview'){b.hidden=true;return;}b.hidden=false;const bi=EW.build||{};b.textContent='PREVIEW '+(EW.release||'v26')+' · '+(bi.commit&&bi.commit!=='local'?bi.commit.slice(0,7):'local');b.title='Overhaul preview build'+(bi.date?' deployed '+bi.date:'')+'. Saves are separate from the live game.';}
 function init(){try{ensureProMigration();}catch(_){}if(EW.agency&&EW.director&&!EW.director.CATALOGUE.some(e=>e.cat==='initiated'))EW.director.CATALOGUE.push(...EW.agency.initiatedEvents());exposeTestApi();bind();renderBuildBadge();renderAll();if(loadNotes.length)toast(loadNotes.join(' '));if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});}
 init();
 })();

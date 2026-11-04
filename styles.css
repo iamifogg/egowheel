@@ -608,3 +608,8 @@ button:disabled{cursor:not-allowed}
 .ledger span{color:var(--faint)}.ledger .in em{color:var(--up);font-style:normal}.ledger .out em{color:var(--down);font-style:normal}
 .life-ff{justify-content:flex-start}
 @media (max-width:620px){.bottom-nav .nav-button{font-size:.5rem;letter-spacing:.06em;padding:4px 2px}}
+.story-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.arc-chip,.press-chip{font-size:.66rem;padding:4px 8px;border:1px solid var(--line);background:rgba(10,16,24,.85);letter-spacing:.04em}
+.arc-chip b,.press-chip b{color:var(--cyan);margin-left:4px;text-transform:uppercase;font-size:.6rem}
+.arc-chip.major{border-color:rgba(255,209,102,.55)}.arc-chip.stage-3{border-color:var(--down);box-shadow:0 0 10px rgba(255,93,115,.25)}
+.press-chip b{color:var(--warn)}
