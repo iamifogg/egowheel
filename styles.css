@@ -660,3 +660,26 @@ button:disabled{cursor:not-allowed}
 
 /* Illustrated images retain smooth detail at small ranking/dossier display sizes. */
 .px-portrait.illustrated{image-rendering:auto;object-fit:cover}
+
+/* v26.5: retain the entire artwork rather than cropping it to a forced mobile height. */
+.px-portrait.illustrated{display:inline-block;object-fit:contain;object-position:center;image-rendering:auto;background:#0b1526;max-width:100%}
+.dossier-stage{grid-template-columns:120px minmax(0,1fr);align-items:center}
+.dossier-stage .ds-portrait{min-width:0;display:flex;align-items:center;justify-content:center}
+.dossier-stage .ds-portrait .px-portrait.illustrated{display:block;width:100%!important;height:auto!important;max-height:none;object-fit:contain}
+.dossier-stage .ds-plate{min-width:0;overflow-wrap:break-word;align-self:center;padding-right:8px}
+.dossier-stage .ds-plate .kicker{display:block;line-height:1.5}
+.dossier-stage .ds-plate h2{overflow-wrap:anywhere;line-height:1.12}
+.dossier-stage .ds-plate .ds-role{line-height:1.45}
+.ds-moods .px-portrait.illustrated{height:auto!important}
+@media(max-width:620px){
+ .scene-stage .px-portrait.illustrated{height:auto!important}
+ .dossier-stage{grid-template-columns:minmax(88px,104px) minmax(0,1fr);gap:12px;align-items:center;padding:16px 12px 13px}
+ .dossier-stage .ds-portrait .px-portrait.illustrated{height:auto!important}
+ .dossier-stage .ds-plate{padding-right:0;align-self:center}
+ .dossier-stage .ds-plate .kicker{font-size:.57rem}
+ .dossier-stage .ds-plate h2{font-size:clamp(1.05rem,4.6vw,1.3rem)}
+}
+@media(max-width:380px){
+ .dossier-stage{grid-template-columns:92px minmax(0,1fr);gap:9px;padding:13px 9px}
+ .dossier-stage .ds-plate h2{font-size:1rem}
+}

@@ -3744,7 +3744,7 @@ function openDossier(id){
  const mood=rel?(rel.hostility>=45||rel.rivalry>=60?'angry':rel.rivalry>=35?'confident':rel.trust>=55?'elated':'neutral'):'neutral';
  const env=EW.sprites.env(rel&&rel.rivalry>=35?'corridor':p.status==='eliminated'?'locker':'pitch');
  const tags=rel?EW.relationships.identities(rel).slice(0,3):[];
- const moods=p.named?'<div class="ds-moods" aria-hidden="true">'+['confident','intense','angry','defeated'].map(e=>portraitHtml(p.id,e,30)).join('')+'</div>':'';
+ const moods=p.named&&!illustratedSlotFor(p.id)?'<div class="ds-moods" aria-hidden="true">'+['confident','intense','angry','defeated'].map(e=>portraitHtml(p.id,e,30)).join('')+'</div>':'';
  const stage='<div class="dossier-stage'+(p.named?' named':'')+'" style="background-image:url('+env+')"><div class="ds-portrait">'+portraitHtml(p.id,mood,120)+'</div><div class="ds-plate"><span class="kicker">'+(p.named?'NAMED EGOIST':'BLUE LOCK ENTRANT')+' · '+esc(p.status.toUpperCase())+'</span><h2 id="dossierName">'+esc(p.name)+'</h2><span class="ds-role">'+esc(p.role||EW.world.GROUP_LABEL[p.pos])+' · OVR <b>'+Math.round(p.ovr)+'</b>'+(p.rank?' · #'+p.rank:'')+'</span>'+(tags.length?'<div class="ds-tags">'+tags.map(t=>'<span>'+esc(t)+'</span>').join('')+'</div>':'')+moods+'</div></div>';
  $('#dossierBody').innerHTML=stage+'<p class="profile-sub">'+esc(p.arch||pers.label)+' · Weapon: <b>'+esc(p.weapon||'—')+'</b><br>'+esc(p.club||p.team||'')+(p.bid?' · ¥'+p.bid+'m':'')+' · Form '+(p.form>0?'+':'')+p.form+'</p><div class="stats-grid detailed">'+prof+'</div><div class="profile-block"><span class="kicker">CAREER</span><h3>'+st.apps+' apps · '+st.g+' G · '+st.a+' A · '+st.d+' DEF · avg '+avg+'</h3>'+(p.last?'<p class="profile-sub">Last match: '+p.last.r+' rating'+(p.last.opp?' vs '+esc(p.last.opp):'')+'</p>':'')+(p.ms.length?'<p class="profile-sub">'+p.ms.map(esc).join('<br>')+'</p>':'')+'<p class="profile-sub">Personality: '+esc(pers.label)+'</p></div>'+relHtml;
  const amb=p.amb?'<div class="profile-block"><span class="kicker">AMBITION</span><h3>'+esc(p.amb.label)+'</h3><i class="pbar"><b style="width:'+Math.round(p.amb.progress)+'%"></b></i>'+(p.amb.achieved?'<p class="profile-sub">Achieved.</p>':'')+'</div>':'';
@@ -3903,8 +3903,22 @@ function illustratedPortraitSrc(id){
  if(!canvas||typeof canvas.getContext!=='function'||typeof canvas.toDataURL!=='function')return '';
  canvas.width=sheet.w;canvas.height=sheet.h;
  const ctx=canvas.getContext('2d');if(!ctx)return '';
- ctx.imageSmoothingEnabled=false;
- ctx.drawImage(sheet.image,(slot%sheet.cols)*sheet.w,Math.floor(slot/sheet.cols)*sheet.h,sheet.w,sheet.h,0,0,sheet.w,sheet.h);
+ // The tightly cropped poster-source portraits need breathing room inside the frame.
+ // Preserve full artwork, then inset it over a subdued extension of its own background.
+ const sx=(slot%sheet.cols)*sheet.w,sy=Math.floor(slot/sheet.cols)*sheet.h;
+ const compact=sheetName==='randA'||sheetName==='randB'||sheetName==='randC';
+ const scale=compact?.91:sheetName==='namedComplete'?.96:1;
+ ctx.imageSmoothingEnabled=true;
+ if(scale<1){
+  ctx.save();
+  ctx.filter='blur(12px) brightness(.48)';
+  ctx.drawImage(sheet.image,sx,sy,sheet.w,sheet.h,0,0,sheet.w,sheet.h);
+  ctx.restore();
+  const dx=Math.round(sheet.w*(1-scale)/2),dy=Math.round(sheet.h*(1-scale)/2);
+  ctx.drawImage(sheet.image,sx,sy,sheet.w,sheet.h,dx,dy,sheet.w-2*dx,sheet.h-2*dy);
+ }else{
+  ctx.drawImage(sheet.image,sx,sy,sheet.w,sheet.h,0,0,sheet.w,sheet.h);
+ }
  const result=canvas.toDataURL('image/webp',.94);
  illustratedPortraitCache.set(key,result);
  return result;
