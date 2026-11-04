@@ -51,3 +51,4 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+# Refresh isolated preview assets after illustrated portrait atlas integration.
