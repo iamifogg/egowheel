@@ -3814,54 +3814,69 @@ function appearanceFor(id){
  const a=Object.assign({},EW.appearances.forPlayer(p));
  return{a,kit:EW.appearances.kitFor(p.club||p.team||'Blue Lock')};
 }
-// Illustrated portrait atlas pilot. Major named characters have dedicated artwork.
-// Other non-named footballers are assigned one of twelve stable original illustrations.
-// The legacy procedural renderer remains the fallback and powers the editable protagonist.
-const ILLUSTRATED_ATLAS_URL='./assets/portraits/egowheel-v26-pilot.webp';
-const ILLUSTRATED_NAMED={nagi:0,rin:1,barou:2,shidou:3,kaiser:4,chigiri:5};
+// Illustrated portraits for named stars and a stable, expanded original-player pool.
+// Sheet A: six named + twelve original portraits. Sheet B: ten named + ten original portraits.
+// Customisable player ('me') and missing art use the legacy renderer without changing saves.
+const ILLUSTRATED_SHEETS={
+ pilot:{url:'./assets/portraits/egowheel-v26-pilot.webp',cols:6,rows:3,w:144,h:178,image:null,ready:false,failed:false},
+ expansion:{url:'./assets/portraits/egowheel-v26-expansion.webp',cols:5,rows:4,w:192,h:240,image:null,ready:false,failed:false}
+};
+const ILLUSTRATED_NAMED={
+ nagi:['pilot',0],rin:['pilot',1],barou:['pilot',2],shidou:['pilot',3],kaiser:['pilot',4],chigiri:['pilot',5],
+ isagi:['expansion',0],bachira:['expansion',1],reo:['expansion',2],sae:['expansion',3],karasu:['expansion',4],
+ aiku:['expansion',5],kunigami:['expansion',6],hiori:['expansion',7],niko:['expansion',8],lorenzo:['expansion',9]
+};
+const ILLUSTRATED_GENERATED=[
+ ...Array.from({length:12},(_,i)=>['pilot',6+i]),
+ ...Array.from({length:10},(_,i)=>['expansion',10+i])
+];
 const illustratedPortraitCache=new Map();
-let illustratedAtlas=null,illustratedAtlasReady=false,illustratedAtlasFailed=false;
 function illustratedSlotFor(id){
- if(id==='me'||!id)return -1;
+ if(id==='me'||!id)return null;
  if(Object.prototype.hasOwnProperty.call(ILLUSTRATED_NAMED,id))return ILLUSTRATED_NAMED[id];
  const w=worldOf(),p=w?.players?.[id];
- if(!p||p.named)return -1;
+ if(!p||p.named)return null;
  const key=String(p.id||id);let hash=2166136261;
  for(let i=0;i<key.length;i++){hash^=key.charCodeAt(i);hash=Math.imul(hash,16777619);}
- return 6+((hash>>>0)%12);
+ return ILLUSTRATED_GENERATED[(hash>>>0)%ILLUSTRATED_GENERATED.length];
 }
 function illustratedPortraitSrc(id){
- const slot=illustratedSlotFor(id);
- if(slot<0||typeof document==='undefined'||illustratedAtlasFailed)return '';
- if(!illustratedAtlasReady){
-  if(!illustratedAtlas&&typeof Image==='function'){
-   const img=new Image();illustratedAtlas=img;
-   img.onload=()=>{illustratedAtlasReady=true;if(typeof renderAll==='function')renderAll();};
-   img.onerror=()=>{illustratedAtlasFailed=true;};
-   img.src=ILLUSTRATED_ATLAS_URL;
+ const loc=illustratedSlotFor(id);
+ if(!loc||typeof document==='undefined')return '';
+ const [sheetName,slot]=loc,sheet=ILLUSTRATED_SHEETS[sheetName];
+ if(!sheet||sheet.failed)return '';
+ if(!sheet.ready){
+  if(!sheet.image&&typeof Image==='function'){
+   const img=new Image();sheet.image=img;
+   img.onload=()=>{sheet.ready=true;if(typeof renderAll==='function')renderAll();};
+   img.onerror=()=>{sheet.failed=true;};
+   img.src=sheet.url;
   }
   return '';
  }
- if(illustratedPortraitCache.has(slot))return illustratedPortraitCache.get(slot);
- const cellW=illustratedAtlas.naturalWidth/6,cellH=illustratedAtlas.naturalHeight/3;
- if(!cellW||!cellH)return '';
+ const key=sheetName+':'+slot;
+ if(illustratedPortraitCache.has(key))return illustratedPortraitCache.get(key);
  const canvas=document.createElement('canvas');
  if(!canvas||typeof canvas.getContext!=='function'||typeof canvas.toDataURL!=='function')return '';
- canvas.width=cellW;canvas.height=cellH;
+ canvas.width=sheet.w;canvas.height=sheet.h;
  const ctx=canvas.getContext('2d');if(!ctx)return '';
  ctx.imageSmoothingEnabled=false;
- ctx.drawImage(illustratedAtlas,(slot%6)*cellW,Math.floor(slot/6)*cellH,cellW,cellH,0,0,cellW,cellH);
- const result=canvas.toDataURL('image/webp',.95);
- illustratedPortraitCache.set(slot,result);
+ ctx.drawImage(sheet.image,(slot%sheet.cols)*sheet.w,Math.floor(slot/sheet.cols)*sheet.h,sheet.w,sheet.h,0,0,sheet.w,sheet.h);
+ const result=canvas.toDataURL('image/webp',.94);
+ illustratedPortraitCache.set(key,result);
  return result;
 }
 function portraitSrc(id,ex){
- return illustratedPortraitSrc(id)||(()=>{const x=appearanceFor(id);return EW.sprites.portrait(x.a,ex||'neutral',x.kit);})();
+ const art=illustratedPortraitSrc(id);
+ if(art)return art;
+ const x=appearanceFor(id);
+ return EW.sprites.portrait(x.a,ex||'neutral',x.kit);
 }
 function portraitHtml(id,ex,size,mirror,extra){
- const s=size||48,art=illustratedPortraitSrc(id),src=art||portraitSrc(id,ex);
- const h=Math.round(s*(art?178/144:EW.sprites.H/EW.sprites.W)),x=appearanceFor(id);
- const named=id!=='me'&&!!EW.appearances.NAMED[id];
+ const s=size||48,loc=illustratedSlotFor(id),art=illustratedPortraitSrc(id),src=art||portraitSrc(id,ex);
+ const sheet=art&&loc?ILLUSTRATED_SHEETS[loc[0]]:null;
+ const h=Math.round(s*(sheet?sheet.h/sheet.w:EW.sprites.H/EW.sprites.W));
+ const x=appearanceFor(id),named=id!=='me'&&!!EW.appearances.NAMED[id];
  const style='width:'+s+'px;height:'+h+'px;--acc:'+(x.a?.accent||'#1598ff')+';--kit:'+(x.kit?.main||'#0f2a52');
  const cls='px-portrait'+(art?' illustrated':'')+(mirror?' mirror':'')+(named?' named':'')+(id==='me'?' mine':'')+(s<=32?' tiny':'')+(extra?' '+extra:'');
  if(!src)return'<span class="'+cls+' px-fallback" style="'+style+'" aria-hidden="true"></span>';

@@ -657,3 +657,6 @@ button:disabled{cursor:not-allowed}
 /* Illustrated pilot portraits preserve their wider anime-bust aspect ratio on mobile. */
 @media(max-width:620px){.scene-stage .px-portrait.illustrated{height:89px!important}}
 @media(max-width:520px){.ds-portrait .px-portrait.illustrated{height:119px!important}}
+
+/* Illustrated images retain smooth detail at small ranking/dossier display sizes. */
+.px-portrait.illustrated{image-rendering:auto;object-fit:cover}
