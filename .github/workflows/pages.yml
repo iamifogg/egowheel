@@ -55,3 +55,4 @@ jobs:
 # Refresh massive illustrated preview roster 78c2dbdd: 38 named, 184 original designs.
 # Refresh full illustrated roster from 78c2dbd, retaining the live game from main.
 # Refresh illustrated crop fix from 61a03703, keeping the unchanged live root.
+# Deploy recropped portraits fb06193e, unchanged live root from main.
